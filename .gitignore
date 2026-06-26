@@ -2,3 +2,7 @@ node_modules
 dist
 tmp
 _tmp_*
+Wafer-PostProcessing-Suite.html
+Wafer-PostProcessing-Suite-Offline.html
+Wafer-PostProcessing-Suite-Edge-Working.html
+Wafer-PostProcessing-Suite-Direct.html

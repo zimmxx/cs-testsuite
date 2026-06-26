@@ -1,7 +1,7 @@
 const CHIP_KEYS = ["chip_id", "die_x", "die_y"];
 
 const METRIC_DESCRIPTIONS = {
-  propagation: "Linear fit of transmission against relative length, converted to dB/cm.",
+  propagation: "Loss is fit across waveguide lengths at each wavelength, then averaged over the selected wavelength window.",
   insertion: "Average insertion loss grouped per chip and building block.",
   heater: "Average MZI heater efficiency from direct pi-power or derived electrical power."
 };
@@ -13,8 +13,8 @@ function toNumber(value) {
 }
 
 function groupBy(rows, keyFn) {
-  return rows.reduce((acc, row) => {
-    const key = keyFn(row);
+  return rows.reduce((acc, row, index) => {
+    const key = keyFn(row, index);
     if (!acc.has(key)) acc.set(key, []);
     acc.get(key).push(row);
     return acc;
@@ -50,47 +50,129 @@ function resolveChipId(row, index) {
   return `chip-${index + 1}`;
 }
 
-function computePropagationLoss(normalizedRows) {
+function propagationLossValue(row) {
+  if (row.loss_db !== null && row.loss_db !== undefined) return row.loss_db;
+  if (row.transmission_db !== null && row.transmission_db !== undefined) return Math.abs(row.transmission_db);
+  return null;
+}
+
+function roundWavelength(value) {
+  return Number((value ?? 0).toFixed(3));
+}
+
+function buildWindowAveragedSamples(rows, targetWavelengthNm, windowNm) {
+  const filtered = rows.filter((row) => {
+    const wavelength = toNumber(row.wavelength_nm);
+    return wavelength !== null && Math.abs(wavelength - targetWavelengthNm) <= windowNm;
+  });
+  const grouped = groupBy(
+    filtered,
+    (row) => `${row.waveguide_id || row.relative_length_mm || row.block_name || "length"}::${row.relative_length_mm}`
+  );
+  return Array.from(grouped.values())
+    .map((items) => {
+      const lengthMm = toNumber(items[0].relative_length_mm);
+      const values = items.map(propagationLossValue).filter((value) => value !== null);
+      if (lengthMm === null || values.length === 0) return null;
+      return {
+        ...items[0],
+        relative_length_mm: lengthMm,
+        transmission_db: values.reduce((acc, value) => acc + value, 0) / values.length,
+        sample_count: values.length
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.relative_length_mm - b.relative_length_mm);
+}
+
+function buildSpectralSeries(rows) {
+  const grouped = groupBy(
+    rows.filter((row) => row.relative_length_mm !== null && propagationLossValue(row) !== null && row.wavelength_nm !== null),
+    (row) => String(roundWavelength(row.wavelength_nm))
+  );
+
+  return Array.from(grouped.entries())
+    .map(([key, wavelengthRows]) => {
+      const fit = linearRegression(
+        wavelengthRows.map((row) => ({
+          x: row.relative_length_mm,
+          y: propagationLossValue(row)
+        }))
+      );
+      if (!fit) return null;
+      return {
+        wavelengthNm: Number(key),
+        lossDbPerCm: fit.slope * 10,
+        interceptDb: fit.intercept,
+        mse: fit.mse,
+        sampleCount: fit.count
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.wavelengthNm - b.wavelengthNm);
+}
+
+function computePropagationLoss(normalizedRows, options = {}) {
+  const targetWavelengthNm = toNumber(options.targetWavelengthNm) ?? 1550;
+  const windowNm = toNumber(options.windowNm) ?? 5;
   const groups = groupBy(
     normalizedRows.filter(
-      (row) => row.metric_family === "propagation" && row.relative_length_mm !== null && row.transmission_db !== null
+      (row) => row.metric_family === "propagation" && row.relative_length_mm !== null && propagationLossValue(row) !== null
     ),
     (row, index) => resolveChipId(row, index)
   );
 
-  const byChip = Array.from(groups.entries()).map(([chipId, rows]) => {
-    const fit = linearRegression(
-      rows.map((row) => ({
-        x: row.relative_length_mm,
-        y: row.transmission_db
-      }))
-    );
-    if (!fit) return null;
+  const byChip = Array.from(groups.entries())
+    .map(([chipId, rows]) => {
+      const spectralSeries = buildSpectralSeries(rows);
+      const windowedSamples = buildWindowAveragedSamples(rows, targetWavelengthNm, windowNm);
+      const fit = linearRegression(
+        windowedSamples.map((row) => ({
+          x: row.relative_length_mm,
+          y: row.transmission_db
+        }))
+      );
+      const spectralWindow = spectralSeries.filter(
+        (point) => Math.abs(point.wavelengthNm - targetWavelengthNm) <= windowNm
+      );
+      const windowAverage = spectralWindow.length
+        ? spectralWindow.reduce((acc, point) => acc + point.lossDbPerCm, 0) / spectralWindow.length
+        : null;
+      if (!fit && windowAverage === null && !spectralSeries.length) return null;
 
-    return {
-      chipId,
-      dieX: rows[0].die_x,
-      dieY: rows[0].die_y,
-      measurementCount: rows.length,
-      lossDbPerCm: Math.abs(fit.slope) * 10,
-      interceptDb: fit.intercept,
-      mse: fit.mse,
-      fit,
-      samples: rows
-    };
-  }).filter(Boolean);
+      return {
+        chipId,
+        dieX: rows[0].die_x,
+        dieY: rows[0].die_y,
+        measurementCount: rows.length,
+        lossDbPerCm: windowAverage ?? (fit ? fit.slope * 10 : null),
+        interceptDb: fit?.intercept ?? null,
+        mse: fit?.mse ?? null,
+        fit,
+        samples: windowedSamples,
+        spectralSeries,
+        targetWavelengthNm,
+        windowNm,
+        spectralAverageCount: spectralWindow.length
+      };
+    })
+    .filter(Boolean);
 
   return {
     metric: "Propagation Loss",
     description: METRIC_DESCRIPTIONS.propagation,
+    targetWavelengthNm,
+    windowNm,
     byChip,
-    waferMetric: byChip.map((item) => ({
-      chipId: item.chipId,
-      dieX: item.dieX,
-      dieY: item.dieY,
-      value: item.lossDbPerCm,
-      detail: `${item.lossDbPerCm.toFixed(2)} dB/cm`
-    }))
+    waferMetric: byChip
+      .filter((item) => item.lossDbPerCm !== null)
+      .map((item) => ({
+        chipId: item.chipId,
+        dieX: item.dieX,
+        dieY: item.dieY,
+        value: item.lossDbPerCm,
+        detail: `${item.lossDbPerCm.toFixed(2)} dB/cm @ ${targetWavelengthNm} ± ${windowNm} nm`
+      }))
   };
 }
 
@@ -99,7 +181,7 @@ function computeInsertionLoss(normalizedRows) {
     normalizedRows.filter(
       (row) =>
         row.metric_family === "insertion" &&
-        (row.insertion_loss_db !== null || row.transmission_db !== null)
+        (row.insertion_loss_db !== null || row.transmission_db !== null || row.loss_db !== null)
     ),
     (row, index) => `${resolveChipId(row, index)}::${row.block_name || "Unnamed block"}`
   );
@@ -107,7 +189,12 @@ function computeInsertionLoss(normalizedRows) {
   const byBlock = Array.from(groups.entries()).map(([key, rows]) => {
     const [chipId, blockName] = key.split("::");
     const values = rows
-      .map((row) => (row.insertion_loss_db !== null ? row.insertion_loss_db : Math.abs(row.transmission_db)))
+      .map((row) => {
+        if (row.insertion_loss_db !== null) return row.insertion_loss_db;
+        if (row.loss_db !== null) return row.loss_db;
+        if (row.transmission_db !== null) return Math.abs(row.transmission_db);
+        return null;
+      })
       .filter((value) => value !== null);
 
     if (!values.length) return null;
@@ -197,9 +284,9 @@ export function summarizeDataset(normalizedRows) {
   };
 }
 
-export function calculateAllMetrics(normalizedRows) {
+export function calculateAllMetrics(normalizedRows, options = {}) {
   return {
-    propagation: computePropagationLoss(normalizedRows),
+    propagation: computePropagationLoss(normalizedRows, options.propagation || {}),
     insertion: computeInsertionLoss(normalizedRows),
     heater: computeHeaterEfficiency(normalizedRows)
   };
@@ -207,6 +294,7 @@ export function calculateAllMetrics(normalizedRows) {
 
 export function buildReportState(metrics, datasetSummary) {
   const propagationTop = [...metrics.propagation.byChip]
+    .filter((item) => item.lossDbPerCm !== null)
     .sort((a, b) => a.lossDbPerCm - b.lossDbPerCm)
     .slice(0, 5);
   const heaterTop = [...metrics.heater.byChip]
@@ -221,7 +309,7 @@ export function buildReportState(metrics, datasetSummary) {
     summary: datasetSummary,
     highlights: [
       `Processed ${datasetSummary.rows} normalized records across ${datasetSummary.chips} chip locations.`,
-      `${metrics.propagation.byChip.length} chips produced valid propagation-loss fits.`,
+      `${metrics.propagation.byChip.length} chips produced propagation-loss estimates in the selected wavelength window.`,
       `${metrics.insertion.byBlock.length} insertion-loss groupings were extracted.`,
       `${metrics.heater.byChip.length} chips produced heater-efficiency estimates.`
     ],

@@ -70,6 +70,12 @@ const HELP_TOPICS = [
     body: "Tracks uploads, exports, saved projects, dataset loads, and settings changes to give a lightweight trace of post-processing actions."
   }
 ];
+const DOC_LINKS = [
+  { label: "Project README", path: "README.md" },
+  { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md" },
+  { label: "Feature Guide v0.1.0", path: "docs/releases/v0.1.0/FEATURES.md" },
+  { label: "Change Log v0.1.0", path: "docs/releases/v0.1.0/CHANGELOG.md" }
+];
 
 const DEMO_ROWS = [
   ["A1", 1, 1, "propagation", "Straight WG", "Strip", 1550, 0, -4.1, "", "", "", "", ""],

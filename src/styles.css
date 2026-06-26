@@ -1028,3 +1028,137 @@ tbody tr:last-child td {
     width: 100%;
   }
 }
+
+.library-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.library-action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.library-table-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ghost-action,
+.danger-action,
+.library-action-row button {
+  min-height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  padding: 0 12px;
+}
+
+.library-action-row button {
+  background: #effaf9;
+  border-color: #bcdedb;
+  color: var(--teal-strong);
+  font-weight: 600;
+}
+
+.ghost-action {
+  background: #fff;
+  color: var(--text);
+}
+
+.danger-action {
+  background: #fff5f3;
+  border-color: #f2c5ba;
+  color: #b54b35;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-grid input,
+.settings-grid select {
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  padding: 0 12px;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #fbfcfc;
+}
+
+.toggle-row strong,
+.toggle-row span {
+  display: block;
+}
+
+.toggle-row span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.help-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.help-card {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(47, 70, 78, 0.08);
+}
+
+.help-card h3 {
+  margin: 0 0 8px;
+}
+
+.help-card p,
+.doc-link-item span {
+  color: var(--muted);
+}
+
+.doc-link-list {
+  display: grid;
+  gap: 10px;
+}
+
+.doc-link-item {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fbfcfc;
+}
+
+.doc-link-item strong,
+.doc-link-item span {
+  display: block;
+}
+
+@media (max-width: 840px) {
+  .settings-grid,
+  .help-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .library-table-actions,
+  .library-action-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

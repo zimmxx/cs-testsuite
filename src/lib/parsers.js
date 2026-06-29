@@ -221,6 +221,15 @@ export function extractRowsFromWorkbook(buffer) {
   return XLSX.utils.sheet_to_json(sheet, { defval: "" });
 }
 
+export function readNamedTextRows(fileName, text, options = {}) {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  if ((ext === "txt" || ext === "csv") && isAutomatedTraceText(text, fileName)) {
+    return parseAutomatedTraceText(text, fileName, options);
+  }
+
+  return parseDelimitedText(text);
+}
+
 export async function readFileRows(file, options = {}) {
   const ext = file.name.split(".").pop()?.toLowerCase();
   if (ext === "xlsx" || ext === "xls") {
@@ -229,11 +238,7 @@ export async function readFileRows(file, options = {}) {
   }
 
   const text = await file.text();
-  if ((ext === "txt" || ext === "csv") && isAutomatedTraceText(text, file.name)) {
-    return parseAutomatedTraceText(text, file.name, options);
-  }
-
-  return parseDelimitedText(text);
+  return readNamedTextRows(file.name, text, options);
 }
 
 export function buildNormalizedRows(rows, mapping, sourceMeta) {
@@ -325,4 +330,5 @@ export function sourceTypeLabel(fileName) {
 export function requiredColumns() {
   return REQUIRED_EXPORT_COLUMNS;
 }
+
 

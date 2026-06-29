@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState, startTransition } from "react";
 import {
+  buildHtmlReport,
   buildReportState,
   calculateAllMetrics,
   getMetricRange,
@@ -11,6 +12,7 @@ import {
   inferColumnMap,
   normalizedRowsToCsv,
   readFileRows,
+  readNamedTextRows,
   requiredColumns,
   sourceTypeLabel
 } from "./lib/parsers";
@@ -62,6 +64,7 @@ const DEFAULT_SETTINGS = {
   launchPowerDbm: 10,
   propagationTargetWavelengthNm: 1550,
   propagationWindowNm: 5,
+  propagationMseThreshold: 0.5,
   propagationWaveguideLengthsMm: DEFAULT_WAVEGUIDE_LENGTHS_MM
 };
 const HELP_TOPICS = [
@@ -89,6 +92,31 @@ const DOC_LINKS = [
   { label: "Change Log v0.1.0", path: "docs/releases/v0.1.0/CHANGELOG.md" }
 ];
 
+const BUNDLED_LIBRARY_DATASETS = [
+  {
+    id: "mpw30-slot13-rib",
+    label: "MPW30 Slot13 Rib WST Raw Data",
+    projectName: "MPW30_Slot13_Rib",
+    waferName: "WaferMPW_30_slot13_rib_wg",
+    selectedDate: "2024-04-16",
+    folder: "sample-data/wst/MPW30_slot13_rib_data",
+    chipIds: [11, 12, 13, 14, 35, 36, 37, 38, 39, 40],
+    waveguides: [1, 2, 3, 4, 5, 6],
+    traceCount: 60,
+    sourceType: "Automated WST trace set"
+  }
+];
+
+function bundledTraceNames(definition) {
+  return definition.chipIds.flatMap((chipId) =>
+    definition.waveguides.map((waveguide) => `WaferMPW_30_slot13_rib_wg_Chip${chipId}_WG${waveguide}.txt`)
+  );
+}
+
+function bundledAssetUrl(relativePath) {
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
+  return `${base}${String(relativePath || "").replace(/^\/+/, "")}`;
+}
 const DEMO_ROWS = [
   ["A1", 1, 1, "propagation", "Straight WG", "Strip", 1550, 0, -4.1, "", "", "", "", ""],
   ["A1", 1, 1, "propagation", "Straight WG", "Strip", 1550, 4, -4.8, "", "", "", "", ""],
@@ -209,6 +237,7 @@ function buildDefaultSourceMeta(settings) {
     launchPowerDbm: settings.launchPowerDbm,
     propagationTargetWavelengthNm: settings.propagationTargetWavelengthNm,
     propagationWindowNm: settings.propagationWindowNm,
+    propagationMseThreshold: settings.propagationMseThreshold,
     waveguideLengthByIndex: cloneWaveguideLengthMap(settings.propagationWaveguideLengthsMm)
   };
 }
@@ -765,6 +794,7 @@ export default function App() {
   const [auditLog, setAuditLog] = useState(() => readStoredJson(STORAGE_KEYS.audit, []));
   const [appSettings, setAppSettings] = useState(initialSettings);
   const [settingsDraft, setSettingsDraft] = useState(initialSettings);
+  const [loadingBundledId, setLoadingBundledId] = useState("");
 
   const deferredSearch = useDeferredValue(search);
   const demoDataset = useMemo(() => createDemoDataset(), []);
@@ -874,6 +904,53 @@ export default function App() {
     setActiveTab("propagation");
     appendAudit("workspace", "Demo dataset restored", "Reset the workspace to the built-in demonstration wafer dataset.");
   }
+  async function loadBundledDataset(definition, libraryKind = "dataset") {
+    setLoadingBundledId(definition.id);
+    try {
+      const fileNames = bundledTraceNames(definition);
+      const rowSets = await Promise.all(
+        fileNames.map(async (fileName) => {
+          const response = await fetch(bundledAssetUrl(`${definition.folder}/${fileName}`));
+          if (!response.ok) {
+            throw new Error(`Unable to fetch ${fileName}`);
+          }
+          const text = await response.text();
+          return readNamedTextRows(fileName, text, {
+            launchPowerDbm: appSettings.launchPowerDbm,
+            defaultMetricFamily: appSettings.defaultMetricFamily,
+            defaultWavelengthNm: appSettings.defaultWavelengthNm
+          });
+        })
+      );
+      const rows = rowSets.flat();
+      const nextSourceMeta = {
+        ...buildDefaultSourceMeta(appSettings),
+        name: definition.label,
+        type: definition.sourceType
+      };
+      const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
+      setProjectName(definition.projectName);
+      setWaferName(definition.waferName);
+      setSelectedDate(definition.selectedDate);
+      setRawRows(rows);
+      setColumnMap(inferredMap);
+      setSourceMeta(nextSourceMeta);
+      setSelectedWaferMetric("propagation");
+      setSelectedChip(rows[0]?.chip_id || "A1");
+      setActiveTab("propagation");
+      setStatusMessage(`Loaded bundled sample ${definition.label} from GitHub-hosted files (${fileNames.length} traces).`);
+      appendAudit("dataset", "Bundled dataset loaded", `Loaded ${definition.label} from bundled GitHub-hosted files.`);
+      if (libraryKind === "project") {
+        appendAudit("project", "Bundled project loaded", `Opened ${definition.projectName} from the bundled sample library.`);
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown error";
+      setStatusMessage(`Bundled sample load failed: ${detail}`);
+      appendAudit("dataset", "Bundled dataset load failed", `Failed to load ${definition.label}: ${detail}`);
+    } finally {
+      setLoadingBundledId("");
+    }
+  }
   function updatePropagationMeta(field, value) { setSourceMeta((previous) => ({ ...previous, [field]: value })); }
   function updateWaveguideLength(index, value) {
     setSourceMeta((previous) => ({
@@ -916,8 +993,14 @@ export default function App() {
   const projectOptions = uniqueOptions([projectName, ...savedProjects.map((project) => project.projectName), "Line_220SOI_May", "Heater_Test_17"]);
   const waferOptions = uniqueOptions([waferName, ...savedProjects.map((project) => project.waferName), "WAFER_0419B", "WAFER_0312C"]);
   const dateOptions = uniqueOptions([selectedDate, ...savedProjects.map((project) => project.selectedDate), "2025-04-18", "2025-04-11"]);
+  const bundledProjectRows = BUNDLED_LIBRARY_DATASETS.map((definition) => (
+    <tr key={`bundled-project-${definition.id}`}><td>{definition.projectName}</td><td>{definition.waferName}</td><td>{definition.label}</td><td>{`${definition.traceCount} raw traces`}</td><td>Bundled with app</td><td className="library-table-actions"><button type="button" onClick={() => loadBundledDataset(definition, "project")} disabled={loadingBundledId === definition.id}>{loadingBundledId === definition.id ? "Loading..." : "Load"}</button></td></tr>
+  ));
   const currentProjectRows = savedProjects.map((project) => (
     <tr key={project.id}><td>{project.projectName}</td><td>{project.waferName}</td><td>{project.sourceMeta.name}</td><td>{project.summary.rows}</td><td>{formatSavedTime(project.savedAt)}</td><td className="library-table-actions"><button type="button" onClick={() => loadProject(project)}>Load</button><button type="button" className="danger-action" onClick={() => deleteProject(project.id)}>Delete</button></td></tr>
+  ));
+  const bundledDatasetRows = BUNDLED_LIBRARY_DATASETS.map((definition) => (
+    <tr key={`bundled-dataset-${definition.id}`}><td>{definition.label}</td><td>{definition.projectName}</td><td>{definition.waferName}</td><td>{`${definition.traceCount} raw traces`}</td><td>Bundled with app</td><td className="library-table-actions"><button type="button" onClick={() => loadBundledDataset(definition, "dataset")} disabled={loadingBundledId === definition.id}>{loadingBundledId === definition.id ? "Loading..." : "Load"}</button></td></tr>
   ));
   const currentDatasetRows = savedDatasets.map((dataset) => (
     <tr key={dataset.id}><td>{dataset.label}</td><td>{dataset.projectName}</td><td>{dataset.waferName}</td><td>{dataset.summary.rows}</td><td>{formatSavedTime(dataset.savedAt)}</td><td className="library-table-actions"><button type="button" onClick={() => loadDataset(dataset)}>Load</button><button type="button" className="danger-action" onClick={() => deleteDataset(dataset.id)}>Delete</button></td></tr>
@@ -1038,8 +1121,8 @@ export default function App() {
             {activeTab === "intake" ? (sourceMeta.type.includes("Automated") ? <section className="mapping-drawer"><div className="mapping-drawer-head"><div><h2>Automated Tester Intake</h2><p>Each TXT trace is parsed directly from the filename and two-column spectrum. Chip, WG, Slot, launch power, and wavelength-window processing are handled automatically.</p></div><div><span>Detected naming tokens</span><small>WaferX, optional SlotXX, ChipXX, WGX</small></div></div></section> : <section className="mapping-drawer"><div className="mapping-drawer-head"><div><h2>Translator Mapping</h2><p>Review how the unified CSV schema is derived from your measurement file.</p></div><div><span>Canonical export columns</span><small>{requiredColumns().slice(0, 6).join(", ")}, ...</small></div></div><div className="mapping-grid">{["chip_id", "die_x", "die_y", "metric_family", "block_name", "waveguide_type", "wavelength_nm", "relative_length_mm", "transmission_db", "insertion_loss_db", "pi_power_mw", "phase_shift_pi", "current_ma", "voltage_v"].map((field) => <MappingSelect key={field} label={field} value={currentMap[field] || ""} columns={Object.keys(currentRows[0] || {})} onChange={(nextValue) => setColumnMap((previous) => ({ ...previous, [field]: nextValue }))} />)}</div><div className="mapping-family-row"><FilterField label="Default metric family" value={sourceMeta.defaultMetricFamily} onChange={(value) => setSourceMeta((previous) => ({ ...previous, defaultMetricFamily: value }))} options={DEFAULT_MAPPING_OPTIONS} /></div></section>) : null}
           </> : null}
 
-          {activeTab === "projects" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Projects Workspace</h2><p>Save the current wafer analysis context so you can reopen the same project state later.</p></div><div className="library-action-row"><button type="button" onClick={saveCurrentProject}>Save Current Project</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Back To Analysis</button></div></div><div className="translator-metrics"><div><strong>{projectName}</strong><span>Project</span></div><div><strong>{waferName}</strong><span>Wafer</span></div><div><strong>{datasetSummary.rows}</strong><span>Rows</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Projects</h2><p>Stored locally in this browser.</p></div></div><LibraryTable columns={["Project", "Wafer", "Dataset", "Rows", "Saved", "Actions"]} rows={currentProjectRows} emptyMessage="No saved projects yet." /></article></section> : null}
-          {activeTab === "datasets" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Datasets Library</h2><p>Manage normalized dataset snapshots stored locally in this browser for quick reload and comparison.</p></div><div className="library-action-row"><button type="button" onClick={() => saveCurrentDataset(false)}>Save Dataset Snapshot</button><button type="button" className="ghost-action" onClick={loadDemo}>Restore Demo</button></div></div><div className="translator-metrics"><div><strong>{sourceMeta.name}</strong><span>Current Source</span></div><div><strong>{sourceMeta.type}</strong><span>Type</span></div><div><strong>{appSettings.autoSaveUploads ? "Enabled" : "Disabled"}</strong><span>Auto Save</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Datasets</h2><p>Each entry can be loaded back into the dashboard.</p></div></div><LibraryTable columns={["Dataset", "Project", "Wafer", "Rows", "Saved", "Actions"]} rows={currentDatasetRows} emptyMessage="No saved dataset snapshots yet." /></article></section> : null}
+          {activeTab === "projects" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Projects Workspace</h2><p>Save the current wafer analysis context so you can reopen the same project state later.</p></div><div className="library-action-row"><button type="button" onClick={saveCurrentProject}>Save Current Project</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Back To Analysis</button></div></div><div className="translator-metrics"><div><strong>{projectName}</strong><span>Project</span></div><div><strong>{waferName}</strong><span>Wafer</span></div><div><strong>{datasetSummary.rows}</strong><span>Rows</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Projects</h2><p>Stored locally in this browser.</p></div></div><LibraryTable columns={["Project", "Wafer", "Dataset", "Rows", "Saved", "Actions"]} rows={[...bundledProjectRows, ...currentProjectRows]} emptyMessage="No bundled or saved projects are available yet." /></article></section> : null}
+          {activeTab === "datasets" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Datasets Library</h2><p>Manage normalized dataset snapshots stored locally in this browser for quick reload and comparison.</p></div><div className="library-action-row"><button type="button" onClick={() => saveCurrentDataset(false)}>Save Dataset Snapshot</button><button type="button" className="ghost-action" onClick={loadDemo}>Restore Demo</button></div></div><div className="translator-metrics"><div><strong>{sourceMeta.name}</strong><span>Current Source</span></div><div><strong>{sourceMeta.type}</strong><span>Type</span></div><div><strong>{appSettings.autoSaveUploads ? "Enabled" : "Disabled"}</strong><span>Auto Save</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Datasets</h2><p>Each entry can be loaded back into the dashboard.</p></div></div><LibraryTable columns={["Dataset", "Project", "Wafer", "Rows", "Saved", "Actions"]} rows={[...bundledDatasetRows, ...currentDatasetRows]} emptyMessage="No bundled or saved dataset snapshots are available yet." /></article></section> : null}
           {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label><label className="mapping-field"><span>Propagation fit MSE threshold</span><input type="number" step="0.01" value={settingsDraft.propagationMseThreshold} onChange={(event) => updateSettingsDraft("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} /></label></div><div className="propagation-length-grid propagation-length-grid-settings">{Object.keys(cloneWaveguideLengthMap(settingsDraft.propagationWaveguideLengthsMm)).map((key) => <label key={key} className="mapping-field"><span>{`WG${key} length (mm)`}</span><input type="number" value={settingsDraft.propagationWaveguideLengthsMm?.[key] ?? ""} onChange={(event) => updateSettingsWaveguideLength(key, event.target.value)} /></label>)}</div><label className="toggle-row"><input type="checkbox" checked={settingsDraft.autoSaveUploads} onChange={(event) => updateSettingsDraft("autoSaveUploads", event.target.checked)} /><div><strong>Automatically save uploaded datasets</strong><span>Each new upload is stored as a reusable dataset snapshot in the local browser library.</span></div></label></article></section> : null}
           {activeTab === "audit" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Audit Log</h2><p>Review the local activity trail for uploads, exports, saves, loads, and settings changes.</p></div><div className="library-action-row"><button type="button" className="ghost-action" onClick={clearAuditLog}>Clear Audit Log</button></div></div><LibraryTable columns={["Action", "Type", "Detail", "Time"]} rows={auditRows} emptyMessage="No audit entries yet." /></article></section> : null}
           {activeTab === "help" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Help Center</h2><p>Quick in-app guidance for the current release, focused on how data flows through intake, propagation processing, storage, and reporting.</p></div><div className="library-action-row"><button type="button" onClick={() => updateTab("intake")}>Open Intake</button><button type="button" className="ghost-action" onClick={() => updateTab("report")}>Open Report View</button></div></div><div className="help-grid">{HELP_TOPICS.map((topic) => <article key={topic.title} className="help-card"><h3>{topic.title}</h3><p>{topic.body}</p></article>)}</div><div className="doc-link-list">{DOC_LINKS.map((doc) => <div key={doc.label} className="doc-link-item"><strong>{doc.label}</strong><span>{doc.path}</span></div>)}</div></article></section> : null}
@@ -1048,6 +1131,13 @@ export default function App() {
     </div>
   );
 }
+
+
+
+
+
+
+
 
 
 

@@ -613,13 +613,105 @@ function PropagationSpectrumPlot({ series, targetWavelengthNm, windowNm }) {
   );
 }
 
+function TransmissionSpectrumPlot({ series, targetWavelengthNm, chipId }) {
+  if (!series.length) {
+    return <div className="chart-empty">No transmission traces are available for the selected chip.</div>;
+  }
+
+  const width = 680;
+  const height = 260;
+  const padding = { top: 22, right: 20, bottom: 42, left: 54 };
+  const points = series.flatMap((item) => item.points);
+  const xs = points.map((point) => point.wavelengthNm);
+  const ys = points.map((point) => point.transmissionDb);
+  const xMin = Math.min(...xs);
+  const xMax = Math.max(...xs);
+  const yMin = Math.min(...ys) - 0.4;
+  const yMax = Math.max(...ys) + 0.4;
+  const palette = ["#4f8df3", "#ff8f45", "#0f8a83", "#9d5cf6", "#d6658f", "#2f7d68"];
+
+  const scaleX = (value) =>
+    padding.left + ((value - xMin) / Math.max(xMax - xMin, 1)) * (width - padding.left - padding.right);
+  const scaleY = (value) =>
+    height - padding.bottom - ((value - yMin) / Math.max(yMax - yMin, 1)) * (height - padding.top - padding.bottom);
+
+  return (
+    <div className="transmission-plot-wrap">
+      <svg viewBox={`0 0 ${width} ${height}`} className="analysis-plot" role="img" aria-label={`Transmission traces for ${chipId}`}>
+        <rect x="0" y="0" width={width} height={height} rx="22" className="analysis-plot-bg" />
+        {[...Array(5)].map((_, index) => {
+          const value = yMin + ((yMax - yMin) / 4) * index;
+          const y = scaleY(value);
+          return (
+            <g key={`ty-${index}`}>
+              <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} className="analysis-grid" />
+              <text x={padding.left - 10} y={y + 4} textAnchor="end" className="analysis-axis-label">
+                {value.toFixed(1)}
+              </text>
+            </g>
+          );
+        })}
+        <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={height - padding.bottom} className="analysis-axis" />
+        <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} className="analysis-axis" />
+        <line x1={scaleX(targetWavelengthNm)} y1={padding.top} x2={scaleX(targetWavelengthNm)} y2={height - padding.bottom} className="analysis-target-line" />
+        {series.map((item, index) => {
+          const color = palette[index % palette.length];
+          const path = item.points
+            .map((point, pointIndex) => `${pointIndex === 0 ? "M" : "L"}${scaleX(point.wavelengthNm)} ${scaleY(point.transmissionDb)}`)
+            .join(" ");
+          return <path key={item.waveguideId} d={path} className="analysis-spectrum-line" style={{ stroke: color }} />;
+        })}
+        <text x={width / 2} y={height - 4} textAnchor="middle" className="analysis-title-label">
+          Wavelength (nm)
+        </text>
+        <text transform={`translate(16 ${height / 2}) rotate(-90)`} textAnchor="middle" className="analysis-title-label">
+          Transmission (dB)
+        </text>
+      </svg>
+      <div className="transmission-series-list">
+        {series.map((item, index) => (
+          <div key={item.waveguideId} className="transmission-series-item">
+            <span className="transmission-swatch" style={{ background: palette[index % palette.length] }} />
+            <strong>{item.waveguideId}</strong>
+            <small>{item.lengthMm !== null && item.lengthMm !== undefined ? `${item.lengthMm} mm` : "length not set"}</small>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MatlabSummaryPanel({ summary }) {
+  const cards = [
+    { label: "Measured chips", value: summary?.measuredChips ?? "--", note: "Unique chip locations parsed" },
+    { label: "Valid fitted chips", value: summary?.fittedChips ?? "--", note: "Passing the propagation fit threshold" },
+    { label: "Failed fits", value: summary?.failedFits ?? "--", note: "Above the allowed MSE threshold" },
+    { label: "Avg propagation", value: summary?.avgPropagationLossDbPerCm !== null && summary?.avgPropagationLossDbPerCm !== undefined ? `${summary.avgPropagationLossDbPerCm.toFixed(2)} dB/cm` : "--", note: "Filtered wafer average" },
+    { label: "Avg peak wavelength", value: summary?.avgPeakWavelengthNm !== null && summary?.avgPeakWavelengthNm !== undefined ? `${summary.avgPeakWavelengthNm.toFixed(1)} nm` : "--", note: "Derived from WG1 transmission peak" },
+    { label: "Avg insertion loss", value: summary?.avgInsertionLossDb !== null && summary?.avgInsertionLossDb !== undefined ? `${summary.avgInsertionLossDb.toFixed(2)} dB` : "--", note: "Estimated from the strongest transmission" },
+    { label: "Avg 3 dB bandwidth", value: summary?.avgBandwidth3dBNm !== null && summary?.avgBandwidth3dBNm !== undefined ? `${summary.avgBandwidth3dBNm.toFixed(1)} nm` : "--", note: "Average passband width from WG1" }
+  ];
+
+  return (
+    <section className="matlab-summary-grid">
+      {cards.map((card) => (
+        <article key={card.label} className="matlab-summary-card">
+          <span>{card.label}</span>
+          <strong>{card.value}</strong>
+          <p>{card.note}</p>
+        </article>
+      ))}
+    </section>
+  );
+}
+
 function PropagationSettingsPanel({ sourceMeta, onNumberChange, onLengthChange }) {
   return (
     <section className="analysis-card propagation-settings-card">
       <div className="analysis-card-head">
         <div>
           <h2>Propagation Processing Settings</h2>
-          <p>Configure launch power, target wavelength, averaging window, and the editable WG length map used for automated WST traces.</p>
+          <p>Configure launch power, target wavelength, averaging window, fit-quality filtering, and the editable WG length map used for automated WST traces.</p>
         </div>
       </div>
       <div className="propagation-settings-grid">
@@ -634,6 +726,10 @@ function PropagationSettingsPanel({ sourceMeta, onNumberChange, onLengthChange }
         <label className="mapping-field">
           <span>Window (+/- nm)</span>
           <input type="number" value={sourceMeta.propagationWindowNm ?? ""} onChange={(event) => onNumberChange("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} />
+        </label>
+        <label className="mapping-field">
+          <span>Fit MSE threshold</span>
+          <input type="number" step="0.01" value={sourceMeta.propagationMseThreshold ?? ""} onChange={(event) => onNumberChange("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} />
         </label>
       </div>
       <div className="propagation-length-grid">
@@ -680,7 +776,8 @@ export default function App() {
       calculateAllMetrics(normalizedRows, {
         propagation: {
           targetWavelengthNm: sourceMeta.propagationTargetWavelengthNm,
-          windowNm: sourceMeta.propagationWindowNm
+          windowNm: sourceMeta.propagationWindowNm,
+          mseThreshold: sourceMeta.propagationMseThreshold
         }
       }),
     [normalizedRows, sourceMeta]
@@ -692,6 +789,7 @@ export default function App() {
   const propagationMean = average(metrics.propagation.byChip.map((item) => item.lossDbPerCm).filter((value) => value !== null));
   const insertionMean = average(metrics.insertion.byBlock.map((item) => item.insertionLossDb));
   const heaterMean = average(metrics.heater.byChip.map((item) => item.efficiencyMwPerPi));
+  const propagationYield = metrics.propagation.passRate;
   const matchedDevices = Math.max(datasetSummary.rows - 2, 0);
   const unmatchedDevices = datasetSummary.rows - matchedDevices;
   const isWorkspaceTab = APP_TABS.some((tab) => tab.id === activeTab);
@@ -788,7 +886,13 @@ export default function App() {
   }
   function downloadBlob(content, fileName, mimeType) { const blob = new Blob([content], { type: mimeType }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url); }
   function exportNormalizedCsv() { downloadBlob(normalizedRowsToCsv(normalizedRows), "normalized-wafer-measurements.csv", "text/csv;charset=utf-8"); appendAudit("export", "Normalized CSV exported", `Exported ${normalizedRows.length} normalized rows to CSV.`); }
-  function exportReportJson() { downloadBlob(JSON.stringify(reportState, null, 2), "wafer-report-summary.json", "application/json"); appendAudit("export", "Report summary exported", "Exported the current report preview state as JSON."); }
+  function exportReportJson() {
+    const safeWafer = waferName.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "") || "wafer";
+    const reportTitle = `Wafer Report - ${waferName}`;
+    downloadBlob(JSON.stringify(reportState, null, 2), `${safeWafer}-report-summary.json`, "application/json");
+    downloadBlob(buildHtmlReport(reportState, reportTitle), `${safeWafer}-report-summary.html`, "text/html;charset=utf-8");
+    appendAudit("export", "Report summary exported", `Exported HTML and JSON reports for ${waferName}.`);
+  }
   function saveCurrentProject() { const projectRecord = { id: createId("project"), projectName, waferName, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${projectName} for wafer ${waferName}.`); setStatusMessage(`Saved project ${projectName}. You can reopen it later from the Projects section.`); }
   function loadProject(project) { setProjectName(project.projectName); setWaferName(project.waferName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || "A1"); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${project.projectName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${project.projectName} for wafer ${project.waferName}.`); }
   function deleteProject(projectId) { const target = savedProjects.find((project) => project.id === projectId); setSavedProjects((previous) => previous.filter((project) => project.id !== projectId)); appendAudit("project", "Project deleted", `Deleted saved project ${target?.projectName || projectId}.`); }
@@ -805,7 +909,7 @@ export default function App() {
       }
     }));
   }
-  function saveSettings() { const nextSettings = hydrateSettings(settingsDraft); setAppSettings(nextSettings); setSourceMeta((previous) => ({ ...previous, defaultMetricFamily: nextSettings.defaultMetricFamily, defaultWavelengthNm: nextSettings.defaultWavelengthNm, launchPowerDbm: nextSettings.launchPowerDbm, propagationTargetWavelengthNm: nextSettings.propagationTargetWavelengthNm, propagationWindowNm: nextSettings.propagationWindowNm, waveguideLengthByIndex: cloneWaveguideLengthMap(nextSettings.propagationWaveguideLengthsMm) })); appendAudit("settings", "Settings saved", `Updated defaults for operator ${nextSettings.operatorName}, launch power ${nextSettings.launchPowerDbm} dBm, and wavelength ${nextSettings.propagationTargetWavelengthNm} nm.`); setStatusMessage("Application settings saved in local browser storage."); }
+  function saveSettings() { const nextSettings = hydrateSettings(settingsDraft); setAppSettings(nextSettings); setSourceMeta((previous) => ({ ...previous, defaultMetricFamily: nextSettings.defaultMetricFamily, defaultWavelengthNm: nextSettings.defaultWavelengthNm, launchPowerDbm: nextSettings.launchPowerDbm, propagationTargetWavelengthNm: nextSettings.propagationTargetWavelengthNm, propagationWindowNm: nextSettings.propagationWindowNm, propagationMseThreshold: nextSettings.propagationMseThreshold, waveguideLengthByIndex: cloneWaveguideLengthMap(nextSettings.propagationWaveguideLengthsMm) })); appendAudit("settings", "Settings saved", `Updated defaults for operator ${nextSettings.operatorName}, launch power ${nextSettings.launchPowerDbm} dBm, wavelength ${nextSettings.propagationTargetWavelengthNm} nm, and MSE threshold ${nextSettings.propagationMseThreshold}.`); setStatusMessage("Application settings saved in local browser storage."); }
   function resetSettings() { const reset = hydrateSettings(DEFAULT_SETTINGS); setSettingsDraft(reset); setAppSettings(reset); setSourceMeta(buildDefaultSourceMeta(reset)); appendAudit("settings", "Settings reset", "Restored the default application settings for operator, metric family, propagation window, and launch power."); setStatusMessage("Application settings were reset to the default values."); }
   function clearAuditLog() { setAuditLog([]); setStatusMessage("Audit log cleared from local browser storage."); }
 
@@ -856,7 +960,7 @@ export default function App() {
               <ShellStat label="Devices" value={datasetSummary.rows.toLocaleString()} note={`Across ${sourceCount(normalizedRows)} uploaded source files`} tone="mint" icon="Dev" />
               <ShellStat label="Wavelength" value={`${sourceMeta.propagationTargetWavelengthNm} nm`} note={`Window +/- ${sourceMeta.propagationWindowNm} nm`} tone="orange" icon="WL" />
               <ShellStat label="Sources" value={sourceCount(normalizedRows) || (rawRows.length ? 1 : 2)} note={rawRows.length ? sourceMeta.type : "TXT, XLSX"} tone="rose" icon="Src" />
-              <ShellStat label="Wafer Yield" value="92.4%" note="Pass criteria: IL < 3 dB" tone="yield" icon="Yield" />
+              <ShellStat label="Wafer Yield" value={propagationYield !== null && propagationYield !== undefined ? `${propagationYield.toFixed(1)}%` : "--"} note={`Pass criteria: MSE <= ${sourceMeta.propagationMseThreshold}`} tone="yield" icon="Yield" />
             </section>
 
             {activeTab === "propagation" ? <PropagationSettingsPanel sourceMeta={sourceMeta} onNumberChange={updatePropagationMeta} onLengthChange={updateWaveguideLength} /> : null}
@@ -871,7 +975,7 @@ export default function App() {
                   <div className="analysis-card-controls propagation-headline-controls">
                     <span>{activeTab === "propagation" ? `Lambda0 ${sourceMeta.propagationTargetWavelengthNm} nm` : "Analysis"}</span>
                     <span>{activeTab === "propagation" ? `Window +/- ${sourceMeta.propagationWindowNm} nm` : sourceMeta.type}</span>
-                    <span>{activeTab === "propagation" ? `Laser ${sourceMeta.launchPowerDbm} dBm` : `${datasetSummary.families.join(", ") || "single metric"}`}</span>
+                    <span>{activeTab === "propagation" ? `MSE <= ${sourceMeta.propagationMseThreshold}` : `${datasetSummary.families.join(", ") || "single metric"}`}</span>
                   </div>
                 </div>
                 <div className="analysis-card-body split-layout">
@@ -898,7 +1002,29 @@ export default function App() {
               </article>
             </section>
 
-            {activeTab === "propagation" ? <section className="analysis-spectrum-grid"><article className="analysis-card wide-span"><div className="analysis-card-head"><div><h2>Propagation Loss Spectrum</h2><p>Linear-fit propagation loss extracted at each wavelength for the selected chip, with the highlighted averaging window used for the headline dB/cm value.</p></div></div><PropagationSpectrumPlot series={propagationLead?.spectralSeries ?? []} targetWavelengthNm={sourceMeta.propagationTargetWavelengthNm} windowNm={sourceMeta.propagationWindowNm} /></article></section> : null}
+            {activeTab === "propagation" ? <>
+              <MatlabSummaryPanel summary={reportState.matlabSummary} />
+              <section className="analysis-spectrum-grid analysis-spectrum-grid-dual">
+                <article className="analysis-card wide-span">
+                  <div className="analysis-card-head">
+                    <div>
+                      <h2>Propagation Loss Spectrum</h2>
+                      <p>Linear-fit propagation loss extracted at each wavelength for the selected chip, with the highlighted averaging window used for the headline dB/cm value.</p>
+                    </div>
+                  </div>
+                  <PropagationSpectrumPlot series={propagationLead?.spectralSeries ?? []} targetWavelengthNm={sourceMeta.propagationTargetWavelengthNm} windowNm={sourceMeta.propagationWindowNm} />
+                </article>
+                <article className="analysis-card wide-span">
+                  <div className="analysis-card-head">
+                    <div>
+                      <h2>Transmission Traces</h2>
+                      <p>Overlay of all waveguide spectra for the selected chip, inspired by the MATLAB chip transmission figure set.</p>
+                    </div>
+                  </div>
+                  <TransmissionSpectrumPlot series={propagationLead?.transmissionSeries ?? []} targetWavelengthNm={sourceMeta.propagationTargetWavelengthNm} chipId={propagationLead?.chipId || selectedChip} />
+                </article>
+              </section>
+            </> : null}
 
             <section className="analysis-bottom-grid">
               <article className="analysis-card wide-span">
@@ -914,7 +1040,7 @@ export default function App() {
 
           {activeTab === "projects" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Projects Workspace</h2><p>Save the current wafer analysis context so you can reopen the same project state later.</p></div><div className="library-action-row"><button type="button" onClick={saveCurrentProject}>Save Current Project</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Back To Analysis</button></div></div><div className="translator-metrics"><div><strong>{projectName}</strong><span>Project</span></div><div><strong>{waferName}</strong><span>Wafer</span></div><div><strong>{datasetSummary.rows}</strong><span>Rows</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Projects</h2><p>Stored locally in this browser.</p></div></div><LibraryTable columns={["Project", "Wafer", "Dataset", "Rows", "Saved", "Actions"]} rows={currentProjectRows} emptyMessage="No saved projects yet." /></article></section> : null}
           {activeTab === "datasets" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Datasets Library</h2><p>Manage normalized dataset snapshots stored locally in this browser for quick reload and comparison.</p></div><div className="library-action-row"><button type="button" onClick={() => saveCurrentDataset(false)}>Save Dataset Snapshot</button><button type="button" className="ghost-action" onClick={loadDemo}>Restore Demo</button></div></div><div className="translator-metrics"><div><strong>{sourceMeta.name}</strong><span>Current Source</span></div><div><strong>{sourceMeta.type}</strong><span>Type</span></div><div><strong>{appSettings.autoSaveUploads ? "Enabled" : "Disabled"}</strong><span>Auto Save</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Datasets</h2><p>Each entry can be loaded back into the dashboard.</p></div></div><LibraryTable columns={["Dataset", "Project", "Wafer", "Rows", "Saved", "Actions"]} rows={currentDatasetRows} emptyMessage="No saved dataset snapshots yet." /></article></section> : null}
-          {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label></div><div className="propagation-length-grid propagation-length-grid-settings">{Object.keys(cloneWaveguideLengthMap(settingsDraft.propagationWaveguideLengthsMm)).map((key) => <label key={key} className="mapping-field"><span>{`WG${key} length (mm)`}</span><input type="number" value={settingsDraft.propagationWaveguideLengthsMm?.[key] ?? ""} onChange={(event) => updateSettingsWaveguideLength(key, event.target.value)} /></label>)}</div><label className="toggle-row"><input type="checkbox" checked={settingsDraft.autoSaveUploads} onChange={(event) => updateSettingsDraft("autoSaveUploads", event.target.checked)} /><div><strong>Automatically save uploaded datasets</strong><span>Each new upload is stored as a reusable dataset snapshot in the local browser library.</span></div></label></article></section> : null}
+          {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label><label className="mapping-field"><span>Propagation fit MSE threshold</span><input type="number" step="0.01" value={settingsDraft.propagationMseThreshold} onChange={(event) => updateSettingsDraft("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} /></label></div><div className="propagation-length-grid propagation-length-grid-settings">{Object.keys(cloneWaveguideLengthMap(settingsDraft.propagationWaveguideLengthsMm)).map((key) => <label key={key} className="mapping-field"><span>{`WG${key} length (mm)`}</span><input type="number" value={settingsDraft.propagationWaveguideLengthsMm?.[key] ?? ""} onChange={(event) => updateSettingsWaveguideLength(key, event.target.value)} /></label>)}</div><label className="toggle-row"><input type="checkbox" checked={settingsDraft.autoSaveUploads} onChange={(event) => updateSettingsDraft("autoSaveUploads", event.target.checked)} /><div><strong>Automatically save uploaded datasets</strong><span>Each new upload is stored as a reusable dataset snapshot in the local browser library.</span></div></label></article></section> : null}
           {activeTab === "audit" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Audit Log</h2><p>Review the local activity trail for uploads, exports, saves, loads, and settings changes.</p></div><div className="library-action-row"><button type="button" className="ghost-action" onClick={clearAuditLog}>Clear Audit Log</button></div></div><LibraryTable columns={["Action", "Type", "Detail", "Time"]} rows={auditRows} emptyMessage="No audit entries yet." /></article></section> : null}
           {activeTab === "help" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Help Center</h2><p>Quick in-app guidance for the current release, focused on how data flows through intake, propagation processing, storage, and reporting.</p></div><div className="library-action-row"><button type="button" onClick={() => updateTab("intake")}>Open Intake</button><button type="button" className="ghost-action" onClick={() => updateTab("report")}>Open Report View</button></div></div><div className="help-grid">{HELP_TOPICS.map((topic) => <article key={topic.title} className="help-card"><h3>{topic.title}</h3><p>{topic.body}</p></article>)}</div><div className="doc-link-list">{DOC_LINKS.map((doc) => <div key={doc.label} className="doc-link-item"><strong>{doc.label}</strong><span>{doc.path}</span></div>)}</div></article></section> : null}
         </main>
@@ -922,4 +1048,9 @@ export default function App() {
     </div>
   );
 }
+
+
+
+
+
 

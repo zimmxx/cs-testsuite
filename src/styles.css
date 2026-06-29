@@ -1174,7 +1174,7 @@ tbody tr:last-child td {
 }
 
 .propagation-settings-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .propagation-length-grid {
@@ -1225,7 +1225,8 @@ tbody tr:last-child td {
 @media (max-width: 1200px) {
   .propagation-settings-grid,
   .propagation-length-grid,
-  .settings-grid-extended {
+  .settings-grid-extended,
+  .matlab-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1233,7 +1234,8 @@ tbody tr:last-child td {
 @media (max-width: 840px) {
   .propagation-settings-grid,
   .propagation-length-grid,
-  .settings-grid-extended {
+  .settings-grid-extended,
+  .matlab-summary-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1241,3 +1243,87 @@ tbody tr:last-child td {
     justify-items: start;
   }
 }
+
+.analysis-spectrum-grid-dual {
+  gap: 14px;
+}
+
+.matlab-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.matlab-summary-card {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 249, 249, 0.96));
+  box-shadow: 0 16px 34px rgba(37, 68, 73, 0.09);
+}
+
+.matlab-summary-card span,
+.matlab-summary-card p {
+  color: var(--muted);
+}
+
+.matlab-summary-card span,
+.matlab-summary-card strong,
+.matlab-summary-card p {
+  display: block;
+}
+
+.matlab-summary-card strong {
+  margin: 8px 0 6px;
+  font-size: 1.5rem;
+  color: var(--text);
+}
+
+.matlab-summary-card p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.transmission-plot-wrap {
+  display: grid;
+  gap: 12px;
+}
+
+.transmission-series-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.transmission-series-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fbfdfd;
+}
+
+.transmission-series-item strong {
+  font-size: 0.9rem;
+}
+
+.transmission-series-item small {
+  color: var(--muted);
+}
+
+.transmission-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.analysis-target-line {
+  stroke: rgba(15, 138, 131, 0.55);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 6;
+}
+

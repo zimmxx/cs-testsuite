@@ -56,8 +56,20 @@ function propagationLossValue(row) {
   return null;
 }
 
+function transmissionValue(row) {
+  if (row.transmission_db !== null && row.transmission_db !== undefined) return row.transmission_db;
+  if (row.loss_db !== null && row.loss_db !== undefined) return -row.loss_db;
+  return null;
+}
+
 function roundWavelength(value) {
   return Number((value ?? 0).toFixed(3));
+}
+
+function average(values) {
+  const clean = values.filter((value) => value !== null && value !== undefined && !Number.isNaN(value));
+  if (!clean.length) return null;
+  return clean.reduce((acc, value) => acc + value, 0) / clean.length;
 }
 
 function buildWindowAveragedSamples(rows, targetWavelengthNm, windowNm) {
@@ -112,9 +124,53 @@ function buildSpectralSeries(rows) {
     .sort((a, b) => a.wavelengthNm - b.wavelengthNm);
 }
 
+function buildTransmissionSeries(rows) {
+  const grouped = groupBy(
+    rows.filter((row) => row.wavelength_nm !== null && transmissionValue(row) !== null),
+    (row) => row.waveguide_id || `L${row.relative_length_mm ?? "NA"}`
+  );
+  return Array.from(grouped.entries())
+    .map(([waveguideId, items]) => ({
+      waveguideId,
+      lengthMm: toNumber(items[0].relative_length_mm),
+      points: [...items]
+        .map((row) => ({ wavelengthNm: toNumber(row.wavelength_nm), transmissionDb: transmissionValue(row) }))
+        .filter((point) => point.wavelengthNm !== null && point.transmissionDb !== null)
+        .sort((a, b) => a.wavelengthNm - b.wavelengthNm)
+    }))
+    .filter((item) => item.points.length)
+    .sort((a, b) => {
+      if (a.lengthMm === null) return 1;
+      if (b.lengthMm === null) return -1;
+      return a.lengthMm - b.lengthMm;
+    });
+}
+
+function summarizeTransmission(series) {
+  const wg1 = series.find((item) => item.waveguideId === "WG1") || series[0] || null;
+  if (!wg1 || !wg1.points.length) return null;
+  const transmissionValues = wg1.points.map((point) => point.transmissionDb);
+  const peakTransmissionDb = Math.max(...transmissionValues);
+  const peakPoint = wg1.points.find((point) => point.transmissionDb === peakTransmissionDb) || null;
+  const halfMax = peakTransmissionDb - 3;
+  const withinBandwidth = wg1.points.filter((point) => point.transmissionDb >= halfMax);
+  const bandwidthNm = withinBandwidth.length
+    ? withinBandwidth[withinBandwidth.length - 1].wavelengthNm - withinBandwidth[0].wavelengthNm
+    : null;
+
+  return {
+    waveguideId: wg1.waveguideId,
+    peakWavelengthNm: peakPoint?.wavelengthNm ?? null,
+    peakTransmissionDb,
+    insertionLossDb: Math.abs(peakTransmissionDb),
+    bandwidth3dBNm: bandwidthNm
+  };
+}
+
 function computePropagationLoss(normalizedRows, options = {}) {
   const targetWavelengthNm = toNumber(options.targetWavelengthNm) ?? 1550;
   const windowNm = toNumber(options.windowNm) ?? 5;
+  const mseThreshold = toNumber(options.mseThreshold) ?? 0.5;
   const groups = groupBy(
     normalizedRows.filter(
       (row) => row.metric_family === "propagation" && row.relative_length_mm !== null && propagationLossValue(row) !== null
@@ -140,6 +196,11 @@ function computePropagationLoss(normalizedRows, options = {}) {
         : null;
       if (!fit && windowAverage === null && !spectralSeries.length) return null;
 
+      const transmissionSeries = buildTransmissionSeries(rows);
+      const transmissionSummary = summarizeTransmission(transmissionSeries);
+      const mse = fit?.mse ?? null;
+      const passMse = mse === null ? false : mse <= mseThreshold;
+
       return {
         chipId,
         dieX: rows[0].die_x,
@@ -147,31 +208,57 @@ function computePropagationLoss(normalizedRows, options = {}) {
         measurementCount: rows.length,
         lossDbPerCm: windowAverage ?? (fit ? fit.slope * 10 : null),
         interceptDb: fit?.intercept ?? null,
-        mse: fit?.mse ?? null,
+        mse,
+        passMse,
         fit,
         samples: windowedSamples,
         spectralSeries,
+        transmissionSeries,
+        transmissionSummary,
         targetWavelengthNm,
         windowNm,
+        mseThreshold,
         spectralAverageCount: spectralWindow.length
       };
     })
     .filter(Boolean);
+
+  const validByChip = byChip.filter((item) => item.passMse && item.lossDbPerCm !== null);
+  const passRate = byChip.length ? (validByChip.length / byChip.length) * 100 : null;
 
   return {
     metric: "Propagation Loss",
     description: METRIC_DESCRIPTIONS.propagation,
     targetWavelengthNm,
     windowNm,
+    mseThreshold,
     byChip,
+    validByChip,
+    passRate,
+    averages: {
+      allChipsDbPerCm: average(byChip.map((item) => item.lossDbPerCm)),
+      filteredDbPerCm: average(validByChip.map((item) => item.lossDbPerCm)),
+      peakWavelengthNm: average(validByChip.map((item) => item.transmissionSummary?.peakWavelengthNm ?? null)),
+      insertionLossDb: average(validByChip.map((item) => item.transmissionSummary?.insertionLossDb ?? null)),
+      bandwidth3dBNm: average(validByChip.map((item) => item.transmissionSummary?.bandwidth3dBNm ?? null))
+    },
+    summaryStats: {
+      measuredChips: byChip.length,
+      failedFits: byChip.filter((item) => item.mse !== null && item.mse > mseThreshold).length,
+      fittedChips: validByChip.length,
+      avgPropagationLossDbPerCm: average(validByChip.map((item) => item.lossDbPerCm)),
+      avgPeakWavelengthNm: average(validByChip.map((item) => item.transmissionSummary?.peakWavelengthNm ?? null)),
+      avgInsertionLossDb: average(validByChip.map((item) => item.transmissionSummary?.insertionLossDb ?? null)),
+      avgBandwidth3dBNm: average(validByChip.map((item) => item.transmissionSummary?.bandwidth3dBNm ?? null))
+    },
     waferMetric: byChip
-      .filter((item) => item.lossDbPerCm !== null)
+      .filter((item) => item.passMse && item.lossDbPerCm !== null)
       .map((item) => ({
         chipId: item.chipId,
         dieX: item.dieX,
         dieY: item.dieY,
         value: item.lossDbPerCm,
-        detail: `${item.lossDbPerCm.toFixed(2)} dB/cm @ ${targetWavelengthNm} ± ${windowNm} nm`
+        detail: `${item.lossDbPerCm.toFixed(2)} dB/cm @ ${targetWavelengthNm} +/- ${windowNm} nm`
       }))
   };
 }
@@ -198,13 +285,13 @@ function computeInsertionLoss(normalizedRows) {
       .filter((value) => value !== null);
 
     if (!values.length) return null;
-    const average = values.reduce((acc, value) => acc + value, 0) / values.length;
+    const avg = values.reduce((acc, value) => acc + value, 0) / values.length;
     return {
       chipId,
       dieX: rows[0].die_x,
       dieY: rows[0].die_y,
       blockName,
-      insertionLossDb: average,
+      insertionLossDb: avg,
       samples: rows.length
     };
   }).filter(Boolean);
@@ -244,12 +331,12 @@ function computeHeaterEfficiency(normalizedRows) {
       .filter((value) => value !== null);
 
     if (!values.length) return null;
-    const average = values.reduce((acc, value) => acc + value, 0) / values.length;
+    const avg = values.reduce((acc, value) => acc + value, 0) / values.length;
     return {
       chipId,
       dieX: rows[0].die_x,
       dieY: rows[0].die_y,
-      efficiencyMwPerPi: average,
+      efficiencyMwPerPi: avg,
       samples: rows.length
     };
   }).filter(Boolean);
@@ -293,8 +380,7 @@ export function calculateAllMetrics(normalizedRows, options = {}) {
 }
 
 export function buildReportState(metrics, datasetSummary) {
-  const propagationTop = [...metrics.propagation.byChip]
-    .filter((item) => item.lossDbPerCm !== null)
+  const propagationTop = [...metrics.propagation.validByChip]
     .sort((a, b) => a.lossDbPerCm - b.lossDbPerCm)
     .slice(0, 5);
   const heaterTop = [...metrics.heater.byChip]
@@ -303,20 +389,78 @@ export function buildReportState(metrics, datasetSummary) {
   const insertionTop = [...metrics.insertion.byBlock]
     .sort((a, b) => a.insertionLossDb - b.insertionLossDb)
     .slice(0, 5);
+  const chipTable = metrics.propagation.byChip.map((item) => ({
+    chipId: item.chipId,
+    lossDbPerCm: item.lossDbPerCm,
+    mse: item.mse,
+    passMse: item.passMse,
+    peakWavelengthNm: item.transmissionSummary?.peakWavelengthNm ?? null,
+    insertionLossDb: item.transmissionSummary?.insertionLossDb ?? null,
+    bandwidth3dBNm: item.transmissionSummary?.bandwidth3dBNm ?? null
+  }));
 
   return {
     generatedAt: new Date().toLocaleString(),
     summary: datasetSummary,
     highlights: [
       `Processed ${datasetSummary.rows} normalized records across ${datasetSummary.chips} chip locations.`,
-      `${metrics.propagation.byChip.length} chips produced propagation-loss estimates in the selected wavelength window.`,
+      `${metrics.propagation.validByChip.length} chips passed the propagation MSE threshold of ${metrics.propagation.mseThreshold}.`,
       `${metrics.insertion.byBlock.length} insertion-loss groupings were extracted.`,
       `${metrics.heater.byChip.length} chips produced heater-efficiency estimates.`
     ],
+    matlabSummary: metrics.propagation.summaryStats,
     propagationTop,
     insertionTop,
-    heaterTop
+    heaterTop,
+    chipTable,
+    waferMetric: metrics.propagation.waferMetric
   };
+}
+
+export function buildHtmlReport(reportState, title = "Wafer Post-Processing Report") {
+  const rows = reportState.chipTable
+    .map(
+      (row) => `<tr><td>${row.chipId}</td><td>${formatNullable(row.lossDbPerCm, 2)}</td><td>${formatNullable(row.mse, 4)}</td><td>${row.passMse ? "Pass" : "Fail"}</td><td>${formatNullable(row.peakWavelengthNm, 1)}</td><td>${formatNullable(row.insertionLossDb, 2)}</td><td>${formatNullable(row.bandwidth3dBNm, 1)}</td></tr>`
+    )
+    .join("");
+
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>${title}</title>
+<style>
+body{font-family:Arial,sans-serif;margin:32px;color:#162126;background:#f7fbfc}
+h1,h2{color:#0f4f57} .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}
+.card{background:#fff;border:1px solid #d9e4e7;border-radius:14px;padding:14px} table{width:100%;border-collapse:collapse;background:#fff}
+th,td{border:1px solid #d9e4e7;padding:8px 10px;text-align:left} th{background:#eff7f8}
+ul{padding-left:18px}
+</style>
+</head>
+<body>
+<h1>${title}</h1>
+<p>Generated: ${reportState.generatedAt}</p>
+<div class="grid">
+<div class="card"><strong>Measured chips</strong><div>${reportState.matlabSummary.measuredChips}</div></div>
+<div class="card"><strong>Fitted chips</strong><div>${reportState.matlabSummary.fittedChips}</div></div>
+<div class="card"><strong>Failed fits</strong><div>${reportState.matlabSummary.failedFits}</div></div>
+<div class="card"><strong>Avg propagation loss</strong><div>${formatNullable(reportState.matlabSummary.avgPropagationLossDbPerCm, 2)} dB/cm</div></div>
+<div class="card"><strong>Avg peak wavelength</strong><div>${formatNullable(reportState.matlabSummary.avgPeakWavelengthNm, 1)} nm</div></div>
+<div class="card"><strong>Avg 3 dB bandwidth</strong><div>${formatNullable(reportState.matlabSummary.avgBandwidth3dBNm, 1)} nm</div></div>
+</div>
+<h2>Highlights</h2>
+<ul>${reportState.highlights.map((item) => `<li>${item}</li>`).join("")}</ul>
+<h2>Chip Summary Table</h2>
+<table>
+<thead><tr><th>Chip</th><th>Loss (dB/cm)</th><th>MSE</th><th>Status</th><th>Peak WL (nm)</th><th>Insertion Loss (dB)</th><th>3 dB BW (nm)</th></tr></thead>
+<tbody>${rows}</tbody>
+</table>
+</body>
+</html>`;
+}
+
+function formatNullable(value, digits) {
+  return value === null || value === undefined || Number.isNaN(value) ? "--" : Number(value).toFixed(digits);
 }
 
 export function getMetricRange(cells) {

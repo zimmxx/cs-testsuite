@@ -98,6 +98,16 @@ function fileNameMetadata(fileName) {
   const waveguide = baseName.match(/(?:^|[_-])WG(\d+)/i);
   const slot = baseName.match(/(?:^|[_-])Slot(\d+)/i);
   const wafer = baseName.match(/(?:^|[_-])Wafer(\d+)/i);
+  const chipMarkerIndex = baseName.search(/(?:^|[_-])Chip\d+/i);
+  const waferLabelPrefix =
+    chipMarkerIndex > 0 ? baseName.slice(0, chipMarkerIndex).replace(/[_-]+$/, "") : baseName;
+  const waveguideFlavor = /rib/i.test(baseName)
+    ? "Rib waveguide"
+    : /strip/i.test(baseName)
+      ? "Strip waveguide"
+      : /slot/i.test(baseName)
+        ? "Slot waveguide"
+        : "Waveguide";
   return {
     chipId: chip ? `Chip${chip[1]}` : "",
     chipIndex: chip ? Number(chip[1]) : null,
@@ -105,8 +115,9 @@ function fileNameMetadata(fileName) {
     waveguideIndex: waveguide ? Number(waveguide[1]) : null,
     slotId: slot ? `Slot${slot[1]}` : "",
     slotIndex: slot ? Number(slot[1]) : null,
-    waferLabel: wafer ? `Wafer${wafer[1]}` : "",
-    waferIndex: wafer ? Number(wafer[1]) : null
+    waferLabel: waferLabelPrefix || (wafer ? `Wafer${wafer[1]}` : ""),
+    waferIndex: wafer ? Number(wafer[1]) : null,
+    waveguideFlavor
   };
 }
 
@@ -160,7 +171,7 @@ function parseAutomatedTraceText(text, fileName, options = {}) {
         die_y: null,
         metric_family: "propagation",
         block_name: meta.waveguideId || "Waveguide",
-        waveguide_type: meta.slotId || "Strip waveguide",
+        waveguide_type: meta.slotId ? `${meta.slotId} ${meta.waveguideFlavor}` : meta.waveguideFlavor,
         waveguide_id: meta.waveguideId,
         waveguide_index: meta.waveguideIndex,
         wavelength_nm: wavelengthNm,
@@ -314,3 +325,4 @@ export function sourceTypeLabel(fileName) {
 export function requiredColumns() {
   return REQUIRED_EXPORT_COLUMNS;
 }
+

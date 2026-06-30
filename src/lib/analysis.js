@@ -97,33 +97,43 @@ function buildWindowAveragedSamples(rows, targetWavelengthNm, windowNm) {
     .sort((a, b) => a.relative_length_mm - b.relative_length_mm);
 }
 
-function buildSpectralSeries(rows) {
-  const grouped = groupBy(
-    rows.filter((row) => row.relative_length_mm !== null && propagationLossValue(row) !== null && row.wavelength_nm !== null),
-    (row) => String(roundWavelength(row.wavelength_nm))
-  );
+function buildIntervalSpectralSeries(rows, stepNm, windowNm) {
+  const wavelengths = rows
+    .map((row) => toNumber(row.wavelength_nm))
+    .filter((value) => value !== null)
+    .sort((a, b) => a - b);
 
-  return Array.from(grouped.entries())
-    .map(([key, wavelengthRows]) => {
+  if (!wavelengths.length) return [];
+
+  const minWavelength = wavelengths[0];
+  const maxWavelength = wavelengths[wavelengths.length - 1];
+  const startCenter = Math.ceil(minWavelength / stepNm) * stepNm;
+  const centers = [];
+
+  for (let center = startCenter; center <= maxWavelength; center += stepNm) {
+    centers.push(Number(center.toFixed(3)));
+  }
+
+  return centers
+    .map((centerWavelengthNm) => {
+      const samples = buildWindowAveragedSamples(rows, centerWavelengthNm, windowNm);
       const fit = linearRegression(
-        wavelengthRows.map((row) => ({
+        samples.map((row) => ({
           x: row.relative_length_mm,
-          y: propagationLossValue(row)
+          y: row.transmission_db
         }))
       );
       if (!fit) return null;
       return {
-        wavelengthNm: Number(key),
+        wavelengthNm: centerWavelengthNm,
         lossDbPerCm: fit.slope * 10,
         interceptDb: fit.intercept,
         mse: fit.mse,
         sampleCount: fit.count
       };
     })
-    .filter(Boolean)
-    .sort((a, b) => a.wavelengthNm - b.wavelengthNm);
+    .filter(Boolean);
 }
-
 function buildTransmissionSeries(rows) {
   const grouped = groupBy(
     rows.filter((row) => row.wavelength_nm !== null && transmissionValue(row) !== null),
@@ -171,6 +181,7 @@ function computePropagationLoss(normalizedRows, options = {}) {
   const targetWavelengthNm = toNumber(options.targetWavelengthNm) ?? 1550;
   const windowNm = toNumber(options.windowNm) ?? 5;
   const mseThreshold = toNumber(options.mseThreshold) ?? 0.5;
+  const spectralStepNm = toNumber(options.spectralStepNm) ?? 10;
   const groups = groupBy(
     normalizedRows.filter(
       (row) => row.metric_family === "propagation" && row.relative_length_mm !== null && propagationLossValue(row) !== null
@@ -180,7 +191,7 @@ function computePropagationLoss(normalizedRows, options = {}) {
 
   const byChip = Array.from(groups.entries())
     .map(([chipId, rows]) => {
-      const spectralSeries = buildSpectralSeries(rows);
+      const spectralSeries = buildIntervalSpectralSeries(rows, spectralStepNm, windowNm);
       const windowedSamples = buildWindowAveragedSamples(rows, targetWavelengthNm, windowNm);
       const fit = linearRegression(
         windowedSamples.map((row) => ({
@@ -188,12 +199,12 @@ function computePropagationLoss(normalizedRows, options = {}) {
           y: row.transmission_db
         }))
       );
-      const spectralWindow = spectralSeries.filter(
-        (point) => Math.abs(point.wavelengthNm - targetWavelengthNm) <= windowNm
-      );
-      const windowAverage = spectralWindow.length
-        ? spectralWindow.reduce((acc, point) => acc + point.lossDbPerCm, 0) / spectralWindow.length
+      const nearestSpectralPoint = spectralSeries.length
+        ? [...spectralSeries].sort(
+          (a, b) => Math.abs(a.wavelengthNm - targetWavelengthNm) - Math.abs(b.wavelengthNm - targetWavelengthNm)
+        )[0]
         : null;
+      const windowAverage = nearestSpectralPoint?.lossDbPerCm ?? null;
       if (!fit && windowAverage === null && !spectralSeries.length) return null;
 
       const transmissionSeries = buildTransmissionSeries(rows);
@@ -218,7 +229,8 @@ function computePropagationLoss(normalizedRows, options = {}) {
         targetWavelengthNm,
         windowNm,
         mseThreshold,
-        spectralAverageCount: spectralWindow.length
+        spectralStepNm,
+        spectralAverageCount: nearestSpectralPoint?.sampleCount ?? 0
       };
     })
     .filter(Boolean);
@@ -232,6 +244,7 @@ function computePropagationLoss(normalizedRows, options = {}) {
     targetWavelengthNm,
     windowNm,
     mseThreshold,
+    spectralStepNm,
     byChip,
     validByChip,
     passRate,
@@ -487,3 +500,5 @@ export function chipFields() {
 export function numeric(value) {
   return toNumber(value);
 }
+
+

@@ -115,20 +115,22 @@ function parseTemplateRows(text) {
     .map((line) => {
       const [chipId, column, row] = line.split(/\s+/);
       return {
-        chipId: Number(chipId),
+        chipId: `Chip${Number(chipId)}`,
+        chipNumber: Number(chipId),
         dieX: Number(column),
         dieY: Number(row)
       };
     })
-    .filter((entry) => Number.isFinite(entry.chipId) && Number.isFinite(entry.dieX) && Number.isFinite(entry.dieY));
+    .filter((entry) => Number.isFinite(entry.chipNumber) && Number.isFinite(entry.dieX) && Number.isFinite(entry.dieY));
 }
+
+const TEMPLATE_LAYOUTS = {
+  [DEFAULT_WAFER_TEMPLATE_ID]: parseTemplateRows(BOTTOM_NOTCH_101_TEMPLATE)
+};
 
 const TEMPLATE_MAPS = {
   [DEFAULT_WAFER_TEMPLATE_ID]: new Map(
-    parseTemplateRows(BOTTOM_NOTCH_101_TEMPLATE).map((entry) => [
-      entry.chipId,
-      { dieX: entry.dieX, dieY: entry.dieY }
-    ])
+    TEMPLATE_LAYOUTS[DEFAULT_WAFER_TEMPLATE_ID].map((entry) => [entry.chipNumber, { dieX: entry.dieX, dieY: entry.dieY }])
   )
 };
 
@@ -137,10 +139,19 @@ export function chipNumberFromId(chipId) {
   return match ? Number(match[1]) : null;
 }
 
+export function shortChipLabel(chipId) {
+  const number = chipNumberFromId(chipId);
+  return number === null ? String(chipId || "") : String(number);
+}
+
 export function getWaferTemplateCoordinate(chipId, templateId = DEFAULT_WAFER_TEMPLATE_ID) {
   const chipNumber = chipNumberFromId(chipId);
   if (chipNumber === null) return null;
   return TEMPLATE_MAPS[templateId]?.get(chipNumber) || null;
+}
+
+export function getWaferTemplateLayout(templateId = DEFAULT_WAFER_TEMPLATE_ID) {
+  return TEMPLATE_LAYOUTS[templateId] || [];
 }
 
 export function applyWaferTemplate(row, templateId = DEFAULT_WAFER_TEMPLATE_ID) {

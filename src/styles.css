@@ -1513,3 +1513,24 @@ tbody tr:last-child td {
 
 
 
+
+.plotly-figure-shell {
+  display: grid;
+  gap: 8px;
+}
+
+.plotly-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.plotly-figure {
+  width: 100%;
+  min-height: 280px;
+}
+
+.plotly-figure .js-plotly-plot,
+.plotly-figure .plot-container,
+.plotly-figure .svg-container {
+  width: 100% !important;
+}

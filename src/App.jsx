@@ -41,6 +41,7 @@ const RAIL_SECTIONS = [
 ];
 
 const DEFAULT_MAPPING_OPTIONS = ["propagation", "insertion", "heater"];
+const DATASET_PREVIEW_LIMIT = 12;
 const DEFAULT_WAVEGUIDE_LENGTHS_MM = {
   1: 0,
   2: 4,
@@ -186,6 +187,34 @@ function createId(prefix) {
 
 function uniqueOptions(values) {
   return [...new Set(values.filter(Boolean))];
+}
+
+function buildCrossChipSample(rows, limit = DATASET_PREVIEW_LIMIT) {
+  const grouped = rows.reduce((acc, row) => {
+    const key = row.chip_id || "unassigned";
+    if (!acc.has(key)) acc.set(key, []);
+    acc.get(key).push(row);
+    return acc;
+  }, new Map());
+
+  const chipKeys = Array.from(grouped.keys());
+  const sample = [];
+  let depth = 0;
+
+  while (sample.length < limit && chipKeys.length) {
+    let addedThisRound = false;
+    chipKeys.forEach((key) => {
+      const row = grouped.get(key)?.[depth];
+      if (row && sample.length < limit) {
+        sample.push(row);
+        addedThisRound = true;
+      }
+    });
+    if (!addedThisRound) break;
+    depth += 1;
+  }
+
+  return sample;
 }
 
 function formatSavedTime(value) {
@@ -957,6 +986,7 @@ export default function App() {
     "Loaded a demonstration wafer dataset with matched tester and manual measurement rows."
   );
   const [search, setSearch] = useState("");
+  const [datasetPreviewMode, setDatasetPreviewMode] = useState("all-chips");
   const [selectedWaferMetric, setSelectedWaferMetric] = useState("propagation");
   const [selectedChip, setSelectedChip] = useState("A1");
   const [projectName, setProjectName] = useState("Demo_Project_0425");
@@ -1036,9 +1066,16 @@ export default function App() {
   const isWorkspaceTab = APP_TABS.some((tab) => tab.id === activeTab);
   const railAvatar = useMemo(() => initialsFromName(appSettings.operatorName), [appSettings.operatorName]);
   const filteredRows = useMemo(() => {
-    if (!deferredSearch.trim()) return normalizedRows.slice(0, 8);
-    return normalizedRows.filter((row) => JSON.stringify(row).toLowerCase().includes(deferredSearch.toLowerCase())).slice(0, 8);
-  }, [normalizedRows, deferredSearch]);
+    if (deferredSearch.trim()) {
+      return normalizedRows.filter((row) => JSON.stringify(row).toLowerCase().includes(deferredSearch.toLowerCase())).slice(0, DATASET_PREVIEW_LIMIT);
+    }
+
+    if (datasetPreviewMode === "selected-chip") {
+      return normalizedRows.filter((row) => row.chip_id === selectedChip).slice(0, DATASET_PREVIEW_LIMIT);
+    }
+
+    return buildCrossChipSample(normalizedRows, DATASET_PREVIEW_LIMIT);
+  }, [normalizedRows, deferredSearch, datasetPreviewMode, selectedChip]);
   const primaryMetric = activeTab === "heater"
     ? { key: "heater", value: heaterMean, title: "Mean Heater Efficiency", icon: "Thermal" }
     : activeTab === "insertion"
@@ -1056,6 +1093,7 @@ export default function App() {
       : metrics.propagation.byChip;
   const activeMetricKey = activeTab === "heater" ? "heater" : activeTab === "insertion" ? "insertion" : "propagation";
   const activeMetricDetail = activeMetricKey === "heater" ? heaterLead : activeMetricKey === "insertion" ? insertionLead : propagationLead;
+  const chipOptions = uniqueOptions(metrics.propagation.byChip.map((item) => item.chipId));
   const legendItems = activeMetricKey === "propagation"
     ? (sourceMeta.type.includes("Automated")
       ? [
@@ -1286,7 +1324,7 @@ export default function App() {
                   <div className="analysis-card-controls propagation-headline-controls">
                     <span>{activeMetricKey === "propagation" ? `Lambda0 ${sourceMeta.propagationTargetWavelengthNm} nm` : `${activeMetricItems.length} selected dies`}</span>
                     <span>{activeMetricKey === "propagation" ? `Window +/- ${sourceMeta.propagationWindowNm} nm` : sourceMeta.type}</span>
-                    <span>{activeMetricKey === "propagation" ? `MSE <= ${sourceMeta.propagationMseThreshold}` : `${datasetSummary.families.join(", ") || "single metric"}`}</span>
+                    <span>{activeMetricKey === "propagation" ? `MSE <= ${sourceMeta.propagationMseThreshold}` : `${datasetSummary.families.join(", ") || "single metric"}`}</span>{activeMetricKey === "propagation" ? <select value={selectedChip} onChange={(event) => setSelectedChip(event.target.value)}>{chipOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select> : null}
                   </div>
                 </div>
                 <div className="analysis-card-body split-layout">
@@ -1341,7 +1379,7 @@ export default function App() {
 
             <section className="analysis-bottom-grid">
               <article className="analysis-card wide-span">
-                <div className="analysis-card-head"><div><h2>Normalized Dataset</h2><p>Unified CSV-ready rows from the shared translation layer.</p></div><div className="dataset-toolbar"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search rows, chips, or devices" /><button type="button" onClick={exportNormalizedCsv}>Export CSV</button></div></div>
+                <div className="analysis-card-head"><div><h2>Normalized Dataset</h2><p>Unified CSV-ready rows from the shared translation layer.</p></div><div className="dataset-toolbar"><select value={datasetPreviewMode} onChange={(event) => setDatasetPreviewMode(event.target.value)}><option value="all-chips">All-chip sample</option><option value="selected-chip">Selected chip</option></select><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search rows, chips, or devices" /><button type="button" onClick={exportNormalizedCsv}>Export CSV</button></div></div>
                 <div className="dashboard-table-wrap"><table><thead><tr><th>Device ID</th><th>Wafer</th><th>X</th><th>Y</th><th>Source</th><th>Rel. Length (mm)</th><th>Loss / Transmission (dB)</th><th>Propagation Loss</th><th>Wavelength</th></tr></thead><tbody>{filteredRows.map((row) => { const chipMetric = metrics.propagation.byChip.find((item) => item.chipId === row.chip_id); return <tr key={`${row.source_name}-${row.row_index}`}><td>{row.chip_id || row.waveguide_id || "--"}</td><td>{row.wafer_label || waferName}</td><td>{row.die_x ?? "--"}</td><td>{row.die_y ?? "--"}</td><td>{row.source_type.includes("excel") ? "XLSX" : row.source_type.includes("Automated") ? row.waveguide_id || "TXT trace" : row.source_type}</td><td>{row.relative_length_mm ?? "--"}</td><td>{measurementDisplay(row) ?? "--"}</td><td>{chipMetric?.lossDbPerCm !== null && chipMetric?.lossDbPerCm !== undefined ? chipMetric.lossDbPerCm.toFixed(2) : "--"}</td><td>{row.wavelength_nm ?? sourceMeta.defaultWavelengthNm}</td></tr>; })}</tbody></table></div>
               </article>
               <article className="analysis-card"><div className="analysis-card-head stacked"><div><h2>File Translator Status</h2><p>{statusMessage}</p></div></div><TranslationStatus sourceName={sourceMeta.name} sourceType={sourceMeta.type} totalRows={datasetSummary.rows} matchedDevices={matchedDevices} unmatchedDevices={unmatchedDevices} /><button type="button" className="secondary-action" onClick={() => updateTab("audit")}>Open Audit Log</button></article>
@@ -1361,6 +1399,9 @@ export default function App() {
     </div>
   );
 }
+
+
+
 
 
 

@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { numeric } from "./analysis";
+import { applyWaferTemplate } from "./waferTemplates";
 
 const COLUMN_ALIASES = {
   chip_id: ["chip", "chip_id", "chip no", "chip number", "die", "die_id"],
@@ -244,7 +245,7 @@ export async function readFileRows(file, options = {}) {
 export function buildNormalizedRows(rows, mapping, sourceMeta) {
   return rows.map((row, index) => {
     if (row.__normalized) {
-      const normalized = {
+      const normalized = applyWaferTemplate({
         ...row,
         source_name: row.source_name || sourceMeta.name,
         source_type: row.source_type || sourceMeta.type,
@@ -259,11 +260,11 @@ export function buildNormalizedRows(rows, mapping, sourceMeta) {
         die_x: numeric(row.die_x),
         die_y: numeric(row.die_y),
         row_index: row.row_index ?? index + 1
-      };
+      });
       return normalized;
     }
 
-    const normalized = {
+    const normalized = applyWaferTemplate({
       source_name: sourceMeta.name,
       source_type: sourceMeta.type,
       wafer_label: mapping.wafer_label ? row[mapping.wafer_label] : "",
@@ -290,7 +291,7 @@ export function buildNormalizedRows(rows, mapping, sourceMeta) {
       current_ma: mapping.current_ma ? numeric(row[mapping.current_ma]) : null,
       voltage_v: mapping.voltage_v ? numeric(row[mapping.voltage_v]) : null,
       row_index: index + 1
-    };
+    });
 
     if (normalized.heater_power_mw === null && normalized.current_ma !== null && normalized.voltage_v !== null) {
       normalized.heater_power_mw = normalized.current_ma * normalized.voltage_v;
@@ -330,5 +331,9 @@ export function sourceTypeLabel(fileName) {
 export function requiredColumns() {
   return REQUIRED_EXPORT_COLUMNS;
 }
+
+
+
+
 
 

@@ -560,21 +560,21 @@ label.upload-measurement-button {
 
 .wafer-notch {
   position: absolute;
-  right: -10px;
-  top: 50%;
+  left: 50%;
+  bottom: -10px;
   width: 28px;
   height: 28px;
   border-radius: 50%;
   background: var(--panel);
   border: 2px solid #a9b9bf;
-  transform: translateY(-50%);
+  transform: translateX(-50%);
 }
 
 .wafer-grid {
   display: grid;
   gap: 3px;
   height: 100%;
-  align-content: start;
+  align-content: center;
 }
 
 .wafer-grid-cell {
@@ -1469,4 +1469,5 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 }
+
 

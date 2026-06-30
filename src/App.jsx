@@ -497,7 +497,9 @@ function WaferMapPanel({ cells, metricKey, selectedChip, onSelect, overlayMode =
   }
 
   const cols = Math.max(...cells.map((cell) => cell.dieX || 0), 1);
-  const rows = Math.max(...cells.map((cell) => cell.dieY || 0), 1);
+  const rowValues = Array.from(new Set(cells.map((cell) => cell.dieY).filter((value) => value !== null && value !== undefined)))
+    .sort((a, b) => b - a);
+  const rows = rowValues.length;
   const hue = metricKey === "heater" ? 16 : metricKey === "insertion" ? 210 : 174;
 
   const colorFor = (value) => {
@@ -519,18 +521,19 @@ function WaferMapPanel({ cells, metricKey, selectedChip, onSelect, overlayMode =
         <div className="wafer-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
           {Array.from({ length: rows * cols }, (_, index) => {
             const x = (index % cols) + 1;
-            const y = Math.floor(index / cols) + 1;
+            const rowIndex = Math.floor(index / cols);
+            const y = rowValues[rowIndex];
             const cell = cells.find((item) => item.dieX === x && item.dieY === y);
             const selected = selectedChip === cell?.chipId;
             const cellLabel = cell ? labelFor(cell) : "";
             return (
               <button
-                key={`${x}-${y}`}
+                key={`${x}-${y ?? rowIndex}`}
                 type="button"
                 className={selected ? "wafer-grid-cell selected" : "wafer-grid-cell"}
                 style={cell ? { background: colorFor(cell.value) } : undefined}
                 onClick={() => cell && onSelect(cell.chipId)}
-                title={cell ? `${cell.chipId}: ${cell.detail || formatMetric(metricKey, cell.value)}` : `Empty die (${x}, ${y})`}
+                title={cell ? `${cell.chipId}: ${cell.detail || formatMetric(metricKey, cell.value)}` : `Empty die (${x}, ${y ?? "NA"})`}
               >
                 {cell ? <span>{cellLabel}</span> : null}
               </button>
@@ -1399,6 +1402,7 @@ export default function App() {
     </div>
   );
 }
+
 
 
 

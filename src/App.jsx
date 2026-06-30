@@ -24,7 +24,6 @@ import {
 } from "./components/InteractivePlots";
 
 const APP_TABS = [
-  { id: "intake", label: "Intake" },
   { id: "propagation", label: "Propagation Loss" },
   { id: "insertion", label: "Insertion Loss" },
   { id: "heater", label: "Heater Efficiency" }
@@ -74,10 +73,6 @@ const DEFAULT_SETTINGS = {
   propagationWaveguideLengthsMm: DEFAULT_WAVEGUIDE_LENGTHS_MM
 };
 const HELP_TOPICS = [
-  {
-    title: "Intake",
-    body: "Upload tester TXT/CSV or manual XLSX/XLS files, then review how columns map into the shared normalized schema."
-  },
   {
     title: "Projects",
     body: "Save the current workspace context, including wafer metadata, source file context, and translation settings."
@@ -1439,6 +1434,7 @@ export default function App() {
     </div>
   );
 }
+
 
 
 

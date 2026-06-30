@@ -1327,3 +1327,146 @@ tbody tr:last-child td {
   stroke-dasharray: 6 6;
 }
 
+.metric-comparison-plot {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.metric-comparison-item {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.42fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff, #f8fbfb);
+  text-align: left;
+}
+
+.metric-comparison-item.selected {
+  border-color: #7fcfc7;
+  box-shadow: 0 14px 28px rgba(15, 138, 131, 0.12);
+}
+
+.metric-comparison-copy strong,
+.metric-comparison-copy span,
+.metric-comparison-value {
+  display: block;
+}
+
+.metric-comparison-copy span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.metric-comparison-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #e7f0f1;
+  overflow: hidden;
+}
+
+.metric-comparison-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), #4fc6ba);
+}
+
+.metric-comparison-value {
+  color: var(--teal-strong);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.metric-inspector-card .chart-empty.compact {
+  min-height: 160px;
+}
+
+.diagnostics-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.diagnostics-card .analysis-card-head {
+  padding: 14px 14px 0;
+}
+
+.diagnostics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 14px 14px;
+}
+
+.diagnostics-grid div {
+  padding: 14px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff, #f7fbfb);
+}
+
+.diagnostics-grid strong,
+.diagnostics-grid span {
+  display: block;
+}
+
+.diagnostics-grid strong {
+  font-size: 1.2rem;
+}
+
+.diagnostics-grid span {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.report-preview-note-card {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.report-preview-note-card small,
+.report-preview-note-card strong,
+.report-preview-note-card span {
+  display: block;
+}
+
+.report-preview-note-card small,
+.report-preview-note-card span {
+  color: var(--muted);
+}
+
+.report-preview-note-card strong {
+  margin-top: 8px;
+  font-size: 1rem;
+}
+
+.report-preview-note-card ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--text);
+}
+
+.report-preview-note-card li + li {
+  margin-top: 6px;
+}
+
+@media (max-width: 1200px) {
+  .diagnostics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 840px) {
+  .metric-comparison-item,
+  .diagnostics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

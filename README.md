@@ -93,6 +93,7 @@ On push to `main`, GitHub Actions:
 - [Versioning And Documentation Guide](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\VERSIONING_AND_DOCUMENTATION.md)
 - [Release Features: v0.1.0](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.1.0\FEATURES.md)
 - [Release Changelog: v0.1.0](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.1.0\CHANGELOG.md)
+- [Full Project Version History](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\PROJECT_VERSION_HISTORY.md)
 
 ## Recommended Repository Hygiene
 
@@ -110,3 +111,4 @@ When new features are added, update:
 1. `README.md` for high-level user-facing changes
 2. `docs/releases/<version>/FEATURES.md` for feature behavior
 3. `docs/releases/<version>/CHANGELOG.md` for change history
+

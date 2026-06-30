@@ -30,14 +30,13 @@ function loadPlotly() {
 
 function openPlotInWindow({ title, data, layout, config }) {
   if (typeof window === "undefined") return;
-  const popup = window.open("", "_blank", "noopener,noreferrer,width=1180,height=760");
+  const popup = window.open("", "_blank", "width=1180,height=760");
   if (!popup) return;
 
   const encodedData = JSON.stringify(data);
   const encodedLayout = JSON.stringify({ ...layout, autosize: true, width: undefined, height: undefined });
   const encodedConfig = JSON.stringify(config);
-
-  popup.document.write(`<!doctype html>
+  const html = `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -55,11 +54,24 @@ function openPlotInWindow({ title, data, layout, config }) {
       const data = ${encodedData};
       const layout = ${encodedLayout};
       const config = ${encodedConfig};
-      window.Plotly.newPlot('plot', data, layout, config);
+      window.addEventListener('load', () => {
+        const render = () => {
+          if (!window.Plotly) {
+            window.setTimeout(render, 50);
+            return;
+          }
+          window.Plotly.newPlot('plot', data, layout, config);
+        };
+        render();
+      });
     </script>
   </body>
-</html>`);
-  popup.document.close();
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  popup.location.replace(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function PlotlyFigure({ data, layout, config, emptyMessage, windowTitle, height = 360 }) {
@@ -356,3 +368,4 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
     />
   );
 }
+

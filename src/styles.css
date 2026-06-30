@@ -1223,6 +1223,10 @@ tbody tr:last-child td {
 }
 
 @media (max-width: 1200px) {
+  .analysis-spectrum-grid-dual {
+    grid-template-columns: 1fr;
+  }
+
   .propagation-settings-grid,
   .propagation-length-grid,
   .settings-grid-extended,
@@ -1245,9 +1249,11 @@ tbody tr:last-child td {
 }
 
 .analysis-spectrum-grid-dual {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+  align-items: start;
 }
-
 .matlab-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1534,3 +1540,4 @@ tbody tr:last-child td {
 .plotly-figure .svg-container {
   width: 100% !important;
 }
+

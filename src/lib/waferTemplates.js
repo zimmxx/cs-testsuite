@@ -1,4 +1,5 @@
-const DEFAULT_WAFER_TEMPLATE_ID = "bottom-notch-101";
+const DEFAULT_WAFER_TEMPLATE_ID = "wafer-undefined-chip-size";
+const DEFAULT_WAFER_TEMPLATE_NAME = "Wafer-Undefined Chip Size";
 
 const BOTTOM_NOTCH_101_TEMPLATE = `
 ChipID	Column	Row
@@ -105,6 +106,11 @@ ChipID	Column	Row
 101	10	1
 `;
 
+function toNumber(value, fallback = null) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
 function parseTemplateRows(text) {
   return String(text || "")
     .trim()
@@ -124,15 +130,61 @@ function parseTemplateRows(text) {
     .filter((entry) => Number.isFinite(entry.chipNumber) && Number.isFinite(entry.dieX) && Number.isFinite(entry.dieY));
 }
 
-const TEMPLATE_LAYOUTS = {
-  [DEFAULT_WAFER_TEMPLATE_ID]: parseTemplateRows(BOTTOM_NOTCH_101_TEMPLATE)
-};
+function normalizeLayout(layout = []) {
+  return layout
+    .map((entry, index) => {
+      const chipNumber = toNumber(entry.chipNumber) ?? chipNumberFromId(entry.chipId) ?? index + 1;
+      const dieX = toNumber(entry.dieX ?? entry.column);
+      const dieY = toNumber(entry.dieY ?? entry.row);
+      if (!Number.isFinite(chipNumber) || !Number.isFinite(dieX) || !Number.isFinite(dieY)) return null;
+      return {
+        chipId: entry.chipId || `Chip${chipNumber}`,
+        chipNumber,
+        dieX,
+        dieY
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (b.dieY - a.dieY) || (a.dieX - b.dieX));
+}
 
-const TEMPLATE_MAPS = {
-  [DEFAULT_WAFER_TEMPLATE_ID]: new Map(
-    TEMPLATE_LAYOUTS[DEFAULT_WAFER_TEMPLATE_ID].map((entry) => [entry.chipNumber, { dieX: entry.dieX, dieY: entry.dieY }])
-  )
-};
+function layoutToMap(layout = []) {
+  return new Map(normalizeLayout(layout).map((entry) => [entry.chipNumber, { dieX: entry.dieX, dieY: entry.dieY }]));
+}
+
+const BUILT_IN_TEMPLATES = [
+  {
+    id: DEFAULT_WAFER_TEMPLATE_ID,
+    name: DEFAULT_WAFER_TEMPLATE_NAME,
+    notchOrientation: "south",
+    layout: parseTemplateRows(BOTTOM_NOTCH_101_TEMPLATE),
+    source: "built-in",
+    description: "Reference bottom-notch wafer template imported from the existing WST chip population."
+  }
+];
+
+function resolveTemplateRecord(templateOrId = DEFAULT_WAFER_TEMPLATE_ID) {
+  if (Array.isArray(templateOrId)) {
+    return {
+      id: "ad-hoc-layout",
+      name: "Ad hoc layout",
+      layout: normalizeLayout(templateOrId)
+    };
+  }
+
+  if (templateOrId && typeof templateOrId === "object") {
+    return {
+      ...templateOrId,
+      layout: normalizeLayout(templateOrId.layout || [])
+    };
+  }
+
+  return BUILT_IN_TEMPLATES.find((template) => template.id === templateOrId) || BUILT_IN_TEMPLATES[0];
+}
+
+function clampInteger(value, fallback, minimum = 1) {
+  return Math.max(Math.round(toNumber(value, fallback)), minimum);
+}
 
 export function chipNumberFromId(chipId) {
   const match = String(chipId || "").match(/(\d+)/);
@@ -144,22 +196,103 @@ export function shortChipLabel(chipId) {
   return number === null ? String(chipId || "") : String(number);
 }
 
-export function getWaferTemplateCoordinate(chipId, templateId = DEFAULT_WAFER_TEMPLATE_ID) {
+export function getBuiltInWaferTemplates() {
+  return BUILT_IN_TEMPLATES.map((template) => ({
+    ...template,
+    layout: normalizeLayout(template.layout)
+  }));
+}
+
+export function buildWaferTemplateDefinition(definition = {}) {
+  return {
+    id: definition.id || `wafer-template-${Date.now()}`,
+    name: definition.name || "Custom Wafer Template",
+    rows: clampInteger(definition.rows, 9),
+    columns: clampInteger(definition.columns, 13),
+    rowSpacing: toNumber(definition.rowSpacing, 1),
+    columnSpacing: toNumber(definition.columnSpacing, 1),
+    chipLengthX: Math.max(toNumber(definition.chipLengthX, 1), 0.1),
+    chipWidthY: Math.max(toNumber(definition.chipWidthY, 1), 0.1),
+    notchOrientation: definition.notchOrientation || "south",
+    source: definition.source || "custom",
+    description: definition.description || "User-generated center-filled wafer template.",
+    layout: normalizeLayout(definition.layout || [])
+  };
+}
+
+export function createCenterFilledWaferTemplate(definition = {}) {
+  const rows = clampInteger(definition.rows, 9);
+  const columns = clampInteger(definition.columns, 13);
+  const rowSpacing = Math.max(toNumber(definition.rowSpacing, 1), 0.1);
+  const columnSpacing = Math.max(toNumber(definition.columnSpacing, 1), 0.1);
+  const chipLengthX = Math.max(toNumber(definition.chipLengthX, 1), 0.1);
+  const chipWidthY = Math.max(toNumber(definition.chipWidthY, 1), 0.1);
+  const radius = 100;
+  const cellWidth = Math.max(chipLengthX + columnSpacing, 0.1);
+  const cellHeight = Math.max(chipWidthY + rowSpacing, 0.1);
+  const xCenter = (columns + 1) / 2;
+  const yCenter = (rows + 1) / 2;
+  const slots = [];
+
+  for (let row = rows; row >= 1; row -= 1) {
+    for (let column = 1; column <= columns; column += 1) {
+      const offsetX = (column - xCenter) * cellWidth;
+      const offsetY = (row - yCenter) * cellHeight;
+      const chipRadius = Math.hypot(offsetX, offsetY);
+      const edgeAllowance = Math.max(Math.hypot(chipLengthX, chipWidthY) / 2, Math.max(cellWidth, cellHeight) * 0.35);
+      if (chipRadius <= radius - edgeAllowance) {
+        slots.push({ column, row, radius: chipRadius });
+      }
+    }
+  }
+
+  slots.sort((a, b) => a.radius - b.radius || b.row - a.row || a.column - b.column);
+
+  const numberedLayout = slots
+    .map((slot, index) => ({
+      chipId: `Chip${index + 1}`,
+      chipNumber: index + 1,
+      dieX: slot.column,
+      dieY: slot.row
+    }))
+    .sort((a, b) => (b.dieY - a.dieY) || (a.dieX - b.dieX));
+
+  return buildWaferTemplateDefinition({
+    ...definition,
+    rows,
+    columns,
+    rowSpacing,
+    columnSpacing,
+    chipLengthX,
+    chipWidthY,
+    layout: numberedLayout
+  });
+}
+
+export function getWaferTemplateCoordinate(chipId, templateOrId = DEFAULT_WAFER_TEMPLATE_ID) {
   const chipNumber = chipNumberFromId(chipId);
   if (chipNumber === null) return null;
-  return TEMPLATE_MAPS[templateId]?.get(chipNumber) || null;
+  return layoutToMap(resolveTemplateRecord(templateOrId).layout).get(chipNumber) || null;
 }
 
-export function getWaferTemplateLayout(templateId = DEFAULT_WAFER_TEMPLATE_ID) {
-  return TEMPLATE_LAYOUTS[templateId] || [];
+export function getWaferTemplateLayout(templateOrId = DEFAULT_WAFER_TEMPLATE_ID) {
+  return resolveTemplateRecord(templateOrId).layout;
 }
 
-export function applyWaferTemplate(row, templateId = DEFAULT_WAFER_TEMPLATE_ID) {
+export function getWaferTemplateMeta(templateOrId = DEFAULT_WAFER_TEMPLATE_ID) {
+  const { layout, ...meta } = resolveTemplateRecord(templateOrId);
+  return {
+    ...meta,
+    layout: normalizeLayout(layout)
+  };
+}
+
+export function applyWaferTemplate(row, templateOrId = DEFAULT_WAFER_TEMPLATE_ID) {
   if (row.die_x !== null && row.die_x !== undefined && row.die_y !== null && row.die_y !== undefined) {
     return row;
   }
 
-  const coordinate = getWaferTemplateCoordinate(row.chip_id, templateId);
+  const coordinate = getWaferTemplateCoordinate(row.chip_id, templateOrId);
   if (!coordinate) return row;
 
   return {

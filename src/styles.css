@@ -1541,3 +1541,79 @@ tbody tr:last-child td {
   width: 100% !important;
 }
 
+
+.wafer-outline-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.wafer-template-badge {
+  justify-self: start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fbfcfc;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.wafer-footer-bar {
+  flex-wrap: wrap;
+}
+
+.wafer-footer-bar input,
+.wafer-footer-bar select {
+  min-height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  padding: 0 12px;
+}
+
+.waveguide-configurator {
+  display: grid;
+  gap: 12px;
+}
+
+.waveguide-generator-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.compact-toggle-row {
+  margin-top: 0;
+}
+
+.waveguide-preview-card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff, #f7fbfb);
+}
+
+.waveguide-preview-card strong,
+.waveguide-preview-card span {
+  display: block;
+}
+
+.waveguide-preview-card span {
+  margin-top: 6px;
+  color: var(--teal-strong);
+  font-weight: 600;
+}
+
+.wafermap-template-summary {
+  margin-top: 14px;
+}
+
+@media (max-width: 1200px) {
+  .waveguide-generator-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 840px) {
+  .waveguide-generator-grid {
+    grid-template-columns: 1fr;
+  }
+}

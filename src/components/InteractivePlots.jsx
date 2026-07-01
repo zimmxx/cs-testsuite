@@ -9,7 +9,7 @@ function loadPlotly() {
   if (plotlyPromise) return plotlyPromise;
 
   plotlyPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[data-plotly-loader="true"]`);
+    const existing = document.querySelector('script[data-plotly-loader="true"]');
     if (existing) {
       existing.addEventListener("load", () => resolve(window.Plotly));
       existing.addEventListener("error", () => reject(new Error("Failed to load Plotly.")));
@@ -36,7 +36,8 @@ function openPlotInWindow({ title, data, layout, config }) {
   const encodedData = JSON.stringify(data);
   const encodedLayout = JSON.stringify({ ...layout, autosize: true, width: undefined, height: undefined });
   const encodedConfig = JSON.stringify(config);
-  const html = `<!doctype html>
+  popup.document.open();
+  popup.document.write(`<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -66,12 +67,8 @@ function openPlotInWindow({ title, data, layout, config }) {
       });
     </script>
   </body>
-</html>`;
-
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  popup.location.replace(url);
-  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+</html>`);
+  popup.document.close();
 }
 
 function PlotlyFigure({ data, layout, config, emptyMessage, windowTitle, height = 360 }) {
@@ -137,36 +134,93 @@ function baseConfig(filename) {
   };
 }
 
+function buildConfidenceBand(rows, fit) {
+  if (!rows.length || !fit || rows.length < 3) return null;
+
+  const points = rows
+    .map((row) => ({ x: Number(row.relative_length_mm), y: Number(row.transmission_db) }))
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+  if (points.length < 3) return null;
+
+  const xValues = points.map((point) => point.x);
+  const yValues = points.map((point) => point.y);
+  const meanX = xValues.reduce((sum, value) => sum + value, 0) / xValues.length;
+  const sxx = xValues.reduce((sum, value) => sum + (value - meanX) ** 2, 0);
+  if (!sxx) return null;
+
+  const residuals = points.map((point) => point.y - (fit.slope * point.x + fit.intercept));
+  const residualSumSquares = residuals.reduce((sum, value) => sum + value ** 2, 0);
+  const sigma = Math.sqrt(residualSumSquares / Math.max(points.length - 2, 1));
+  const critical = 1.96;
+  const minX = Math.min(...xValues);
+  const maxX = Math.max(...xValues);
+  const steps = 40;
+  const x = Array.from({ length: steps }, (_, index) => minX + ((maxX - minX) * index) / (steps - 1));
+  const y = x.map((value) => fit.slope * value + fit.intercept);
+  const delta = x.map((value) => critical * sigma * Math.sqrt((1 / points.length) + (((value - meanX) ** 2) / sxx)));
+
+  return {
+    x,
+    y,
+    upper: y.map((value, index) => value + delta[index]),
+    lower: y.map((value, index) => value - delta[index])
+  };
+}
+
 export function InteractivePropagationPlot({ rows, fit, chipId }) {
   const plot = useMemo(() => {
     if (!rows.length || !fit) return null;
 
     const x = rows.map((row) => row.relative_length_mm);
     const y = rows.map((row) => row.transmission_db);
-    const minX = Math.min(...x);
-    const maxX = Math.max(...x);
+    const confidenceBand = buildConfidenceBand(rows, fit);
 
-    return {
-      data: [
+    const data = [
+      {
+        type: "scatter",
+        mode: "markers",
+        name: "Window-averaged points",
+        x,
+        y,
+        marker: { color: "#4f8df3", size: 9, line: { color: "#ffffff", width: 1.5 } },
+        hovertemplate: "Length: %{x:.2f} mm<br>Transmission: %{y:.2f} dB<extra></extra>"
+      },
+      {
+        type: "scatter",
+        mode: "lines",
+        name: "Linear fit",
+        x: confidenceBand?.x || [Math.min(...x), Math.max(...x)],
+        y: confidenceBand?.y || [fit.slope * Math.min(...x) + fit.intercept, fit.slope * Math.max(...x) + fit.intercept],
+        line: { color: "#0f8a83", width: 3 },
+        hovertemplate: "Fit transmission: %{y:.2f} dB<extra></extra>"
+      }
+    ];
+
+    if (confidenceBand) {
+      data.push(
         {
           type: "scatter",
-          mode: "markers",
-          name: "Window-averaged points",
-          x,
-          y,
-          marker: { color: "#4f8df3", size: 9, line: { color: "#ffffff", width: 1.5 } },
-          hovertemplate: "Length: %{x:.2f} mm<br>Transmission: %{y:.2f} dB<extra></extra>"
+          mode: "lines",
+          name: "95% confidence upper",
+          x: confidenceBand.x,
+          y: confidenceBand.upper,
+          line: { color: "#f08a3c", width: 2, dash: "dot" },
+          hovertemplate: "Upper bound: %{y:.2f} dB<extra></extra>"
         },
         {
           type: "scatter",
           mode: "lines",
-          name: "Linear fit",
-          x: [minX, maxX],
-          y: [fit.slope * minX + fit.intercept, fit.slope * maxX + fit.intercept],
-          line: { color: "#0f8a83", width: 3 },
-          hovertemplate: "Fit transmission: %{y:.2f} dB<extra></extra>"
+          name: "95% confidence lower",
+          x: confidenceBand.x,
+          y: confidenceBand.lower,
+          line: { color: "#f08a3c", width: 2, dash: "dot" },
+          hovertemplate: "Lower bound: %{y:.2f} dB<extra></extra>"
         }
-      ],
+      );
+    }
+
+    return {
+      data,
       layout: {
         margin: { l: 66, r: 24, t: 18, b: 56 },
         paper_bgcolor: "rgba(0,0,0,0)",
@@ -368,4 +422,3 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
     />
   );
 }
-

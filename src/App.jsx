@@ -16,7 +16,7 @@ import {
   requiredColumns,
   sourceTypeLabel
 } from "./lib/parsers";
-import { getWaferTemplateLayout, shortChipLabel } from "./lib/waferTemplates";
+import { createCenterFilledWaferTemplate, defaultWaferTemplateId, getBuiltInWaferTemplates, getWaferTemplateLayout, shortChipLabel } from "./lib/waferTemplates";
 import {
   InteractivePropagationPlot,
   InteractivePropagationSpectrumPlot,
@@ -36,6 +36,7 @@ const RAIL_SECTIONS = [
     items: [
       { id: "projects", label: "Projects" },
       { id: "datasets", label: "Datasets" },
+      { id: "wafermaps", label: "Wafermaps" },
       { id: "settings", label: "Settings" },
       { id: "audit", label: "Audit Log" },
       { id: "help", label: "Help" }
@@ -45,20 +46,32 @@ const RAIL_SECTIONS = [
 
 const DEFAULT_MAPPING_OPTIONS = ["propagation", "insertion", "heater"];
 const DATASET_PREVIEW_LIMIT = 12;
-const DEFAULT_WAVEGUIDE_LENGTHS_MM = {
-  1: 0,
-  2: 4,
-  3: 8,
-  4: 12,
-  5: 16,
-  6: 20
-};
+const DEFAULT_WAVEGUIDE_COUNT = 6;
+const DEFAULT_WAVEGUIDE_START_MM = 0;
+const DEFAULT_WAVEGUIDE_INTERVAL_MM = 4;
 const STORAGE_KEYS = {
   projects: "wps.projects.v1",
   datasets: "wps.datasets.v1",
+  waferTemplates: "wps.wafer-templates.v1",
   settings: "wps.settings.v1",
   audit: "wps.audit.v1"
 };
+const DEFAULT_WAFER_TEMPLATE_DRAFT = {
+  id: "",
+  name: "Custom Wafer Template",
+  rows: 9,
+  columns: 13,
+  rowSpacing: 1,
+  columnSpacing: 1,
+  chipLengthX: 10,
+  chipWidthY: 5,
+  notchOrientation: "south"
+};
+const DEFAULT_WAVEGUIDE_LENGTHS_MM = buildGeneratedWaveguideLengthMap(
+  DEFAULT_WAVEGUIDE_COUNT,
+  DEFAULT_WAVEGUIDE_START_MM,
+  DEFAULT_WAVEGUIDE_INTERVAL_MM
+);
 const DEFAULT_SETTINGS = {
   operatorName: "s.engineer",
   operatorRole: "Engineer",
@@ -70,7 +83,12 @@ const DEFAULT_SETTINGS = {
   propagationWindowNm: 5,
   propagationSpectralStepNm: 10,
   propagationMseThreshold: 0.5,
-  propagationWaveguideLengthsMm: DEFAULT_WAVEGUIDE_LENGTHS_MM
+  propagationWaveguideCount: DEFAULT_WAVEGUIDE_COUNT,
+  propagationWaveguideStartMm: DEFAULT_WAVEGUIDE_START_MM,
+  propagationWaveguideIntervalMm: DEFAULT_WAVEGUIDE_INTERVAL_MM,
+  propagationWaveguideManualMode: false,
+  propagationWaveguideLengthsMm: DEFAULT_WAVEGUIDE_LENGTHS_MM,
+  defaultWaferTemplateId: defaultWaferTemplateId()
 };
 const HELP_TOPICS = [
   {
@@ -228,17 +246,83 @@ function average(values) {
   return values.reduce((acc, value) => acc + value, 0) / values.length;
 }
 
-function cloneWaveguideLengthMap(map = DEFAULT_WAVEGUIDE_LENGTHS_MM) {
+function buildGeneratedWaveguideLengthMap(count = DEFAULT_WAVEGUIDE_COUNT, start = DEFAULT_WAVEGUIDE_START_MM, interval = DEFAULT_WAVEGUIDE_INTERVAL_MM) {
+  const safeCount = Math.max(Math.round(Number(count) || DEFAULT_WAVEGUIDE_COUNT), 1);
+  const safeStart = Number.isFinite(Number(start)) ? Number(start) : DEFAULT_WAVEGUIDE_START_MM;
+  const safeInterval = Number.isFinite(Number(interval)) ? Number(interval) : DEFAULT_WAVEGUIDE_INTERVAL_MM;
   return Object.fromEntries(
-    Object.keys(DEFAULT_WAVEGUIDE_LENGTHS_MM).map((key) => [key, map?.[key] ?? DEFAULT_WAVEGUIDE_LENGTHS_MM[key]])
+    Array.from({ length: safeCount }, (_, index) => [String(index + 1), safeStart + index * safeInterval])
+  );
+}
+
+function inferWaveguideSequenceSettings(map = DEFAULT_WAVEGUIDE_LENGTHS_MM) {
+  const entries = Object.entries(map || {})
+    .map(([key, value]) => [Number(key), Number(value)])
+    .filter(([key, value]) => Number.isFinite(key) && Number.isFinite(value))
+    .sort((a, b) => a[0] - b[0]);
+
+  if (!entries.length) {
+    return {
+      count: DEFAULT_WAVEGUIDE_COUNT,
+      start: DEFAULT_WAVEGUIDE_START_MM,
+      interval: DEFAULT_WAVEGUIDE_INTERVAL_MM,
+      isUniform: true
+    };
+  }
+
+  const values = entries.map(([, value]) => value);
+  const deltas = values.slice(1).map((value, index) => value - values[index]);
+  const firstDelta = deltas[0] ?? DEFAULT_WAVEGUIDE_INTERVAL_MM;
+  const isUniform = deltas.every((delta) => Math.abs(delta - firstDelta) < 1e-9);
+
+  return {
+    count: entries.length,
+    start: values[0] ?? DEFAULT_WAVEGUIDE_START_MM,
+    interval: isUniform ? firstDelta : DEFAULT_WAVEGUIDE_INTERVAL_MM,
+    isUniform
+  };
+}
+
+function cloneWaveguideLengthMap(
+  map = DEFAULT_WAVEGUIDE_LENGTHS_MM,
+  count = DEFAULT_WAVEGUIDE_COUNT,
+  start = DEFAULT_WAVEGUIDE_START_MM,
+  interval = DEFAULT_WAVEGUIDE_INTERVAL_MM,
+  manualMode = true
+) {
+  const generated = buildGeneratedWaveguideLengthMap(count, start, interval);
+  if (!manualMode) return generated;
+
+  return Object.fromEntries(
+    Object.keys(generated).map((key) => {
+      const candidate = map?.[key];
+      return [key, Number.isFinite(Number(candidate)) ? Number(candidate) : generated[key]];
+    })
   );
 }
 
 function hydrateSettings(stored = {}) {
+  const inferred = inferWaveguideSequenceSettings(stored.propagationWaveguideLengthsMm || DEFAULT_WAVEGUIDE_LENGTHS_MM);
+  const count = Math.max(Math.round(Number(stored.propagationWaveguideCount ?? inferred.count) || inferred.count), 1);
+  const start = Number.isFinite(Number(stored.propagationWaveguideStartMm)) ? Number(stored.propagationWaveguideStartMm) : inferred.start;
+  const interval = Number.isFinite(Number(stored.propagationWaveguideIntervalMm)) ? Number(stored.propagationWaveguideIntervalMm) : inferred.interval;
+  const manualMode = stored.propagationWaveguideManualMode ?? !inferred.isUniform;
+
   return {
     ...DEFAULT_SETTINGS,
     ...stored,
-    propagationWaveguideLengthsMm: cloneWaveguideLengthMap(stored.propagationWaveguideLengthsMm)
+    propagationWaveguideCount: count,
+    propagationWaveguideStartMm: start,
+    propagationWaveguideIntervalMm: interval,
+    propagationWaveguideManualMode: manualMode,
+    defaultWaferTemplateId: stored.defaultWaferTemplateId || defaultWaferTemplateId(),
+    propagationWaveguideLengthsMm: cloneWaveguideLengthMap(
+      stored.propagationWaveguideLengthsMm,
+      count,
+      start,
+      interval,
+      manualMode
+    )
   };
 }
 
@@ -253,8 +337,75 @@ function buildDefaultSourceMeta(settings) {
     propagationWindowNm: settings.propagationWindowNm,
     propagationSpectralStepNm: settings.propagationSpectralStepNm,
     propagationMseThreshold: settings.propagationMseThreshold,
-    waveguideLengthByIndex: cloneWaveguideLengthMap(settings.propagationWaveguideLengthsMm)
+    propagationWaveguideCount: settings.propagationWaveguideCount,
+    propagationWaveguideStartMm: settings.propagationWaveguideStartMm,
+    propagationWaveguideIntervalMm: settings.propagationWaveguideIntervalMm,
+    propagationWaveguideManualMode: settings.propagationWaveguideManualMode,
+    waveguideLengthByIndex: cloneWaveguideLengthMap(
+      settings.propagationWaveguideLengthsMm,
+      settings.propagationWaveguideCount,
+      settings.propagationWaveguideStartMm,
+      settings.propagationWaveguideIntervalMm,
+      settings.propagationWaveguideManualMode
+    ),
+    waferTemplateId: settings.defaultWaferTemplateId || defaultWaferTemplateId(),
+    waferTemplateLayout: null,
+    waferTemplateName: "",
+    waferTemplateNotchOrientation: "south",
+    waferColorScaleMin: null,
+    waferColorScaleMax: null
   };
+}
+
+function applyWaveguideSettingsToSourceMeta(previous, patch = {}) {
+  const next = { ...previous, ...patch };
+  const count = Math.max(Math.round(Number(next.propagationWaveguideCount) || DEFAULT_WAVEGUIDE_COUNT), 1);
+  const start = Number.isFinite(Number(next.propagationWaveguideStartMm)) ? Number(next.propagationWaveguideStartMm) : DEFAULT_WAVEGUIDE_START_MM;
+  const interval = Number.isFinite(Number(next.propagationWaveguideIntervalMm)) ? Number(next.propagationWaveguideIntervalMm) : DEFAULT_WAVEGUIDE_INTERVAL_MM;
+  const manualMode = Boolean(next.propagationWaveguideManualMode);
+
+  return {
+    ...next,
+    propagationWaveguideCount: count,
+    propagationWaveguideStartMm: start,
+    propagationWaveguideIntervalMm: interval,
+    propagationWaveguideManualMode: manualMode,
+    waveguideLengthByIndex: cloneWaveguideLengthMap(next.waveguideLengthByIndex, count, start, interval, manualMode)
+  };
+}
+
+function applyWaveguideSettingsToDraft(previous, patch = {}) {
+  const next = { ...previous, ...patch };
+  const count = Math.max(Math.round(Number(next.propagationWaveguideCount) || DEFAULT_WAVEGUIDE_COUNT), 1);
+  const start = Number.isFinite(Number(next.propagationWaveguideStartMm)) ? Number(next.propagationWaveguideStartMm) : DEFAULT_WAVEGUIDE_START_MM;
+  const interval = Number.isFinite(Number(next.propagationWaveguideIntervalMm)) ? Number(next.propagationWaveguideIntervalMm) : DEFAULT_WAVEGUIDE_INTERVAL_MM;
+  const manualMode = Boolean(next.propagationWaveguideManualMode);
+
+  return {
+    ...next,
+    propagationWaveguideCount: count,
+    propagationWaveguideStartMm: start,
+    propagationWaveguideIntervalMm: interval,
+    propagationWaveguideManualMode: manualMode,
+    propagationWaveguideLengthsMm: cloneWaveguideLengthMap(next.propagationWaveguideLengthsMm, count, start, interval, manualMode)
+  };
+}
+
+function formatWaveguideLengthPreview(map = {}) {
+  const values = Object.entries(map)
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([, value]) => formatMetricNumber(value, Number.isInteger(value) ? 0 : 2));
+  return values.length ? `[${values.join(" ")}] mm` : "[] mm";
+}
+
+function mergeWaferTemplates(...groups) {
+  const merged = new Map();
+  groups.flat().filter(Boolean).forEach((template) => {
+    if (template?.id && !merged.has(template.id)) {
+      merged.set(template.id, template);
+    }
+  });
+  return Array.from(merged.values());
 }
 
 function sourceCount(rows) {
@@ -473,12 +624,26 @@ function metricDescriptorForComparison(metricKey, item) {
   return `${item.samples ?? 0} heater rows`;
 }
 
-function WaferMapPanel({ cells, metricKey, selectedChip, onSelect, overlayMode = "none" }) {
+function WaferMapPanel({
+  cells,
+  metricKey,
+  selectedChip,
+  onSelect,
+  overlayMode = "none",
+  templateName = "",
+  notchOrientation = "south",
+  colorScaleMin = null,
+  colorScaleMax = null
+}) {
   if (!cells.length) {
     return <div className="chart-empty">No wafermap values available for this metric.</div>;
   }
 
-  const range = getMetricRange(cells);
+  const automaticRange = getMetricRange(cells);
+  const hasManualRange = Number.isFinite(Number(colorScaleMin)) && Number.isFinite(Number(colorScaleMax)) && Number(colorScaleMax) > Number(colorScaleMin);
+  const range = hasManualRange
+    ? { min: Number(colorScaleMin), max: Number(colorScaleMax) }
+    : automaticRange;
   const cols = Math.max(...cells.map((cell) => cell.dieX || 0), 1);
   const rowValues = Array.from(new Set(cells.map((cell) => cell.dieY).filter((value) => value !== null && value !== undefined)))
     .sort((a, b) => b - a);
@@ -487,7 +652,8 @@ function WaferMapPanel({ cells, metricKey, selectedChip, onSelect, overlayMode =
 
   const colorFor = (value) => {
     if (!range || value === null || value === undefined) return "#eef2f4";
-    const ratio = (value - range.min) / Math.max(range.max - range.min, 0.0001);
+    const rawRatio = (value - range.min) / Math.max(range.max - range.min, 0.0001);
+    const ratio = Math.min(Math.max(rawRatio, 0), 1);
     const lightness = 82 - ratio * 34;
     return `hsl(${hue} 72% ${lightness}%)`;
   };
@@ -501,30 +667,33 @@ function WaferMapPanel({ cells, metricKey, selectedChip, onSelect, overlayMode =
 
   return (
     <div className="wafer-card-layout">
-      <div className="wafer-outline">
-        <div className="wafer-notch" />
-        <div className="wafer-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-          {Array.from({ length: rows * cols }, (_, index) => {
-            const x = (index % cols) + 1;
-            const rowIndex = Math.floor(index / cols);
-            const y = rowValues[rowIndex];
-            const cell = cells.find((item) => item.dieX === x && item.dieY === y);
-            const selected = selectedChip === cell?.chipId;
-            const cellLabel = cell ? labelFor(cell) : "";
-            const interactive = cell?.hasMeasurement;
-            return (
-              <button
-                key={`${x}-${y ?? rowIndex}`}
-                type="button"
-                className={selected ? "wafer-grid-cell selected" : "wafer-grid-cell"}
-                style={cell ? { background: colorFor(cell.value) } : undefined}
-                onClick={() => interactive && onSelect(cell.chipId)}
-                title={cell ? `${cell.chipId}: ${cell.detail || (cell.value !== null && cell.value !== undefined ? formatMetric(metricKey, cell.value) : "No measurement loaded")}` : `Empty die (${x}, ${y ?? "NA"})`}
-              >
-                {cell ? <span className={interactive ? "wafer-cell-label" : "wafer-cell-label muted"}>{cellLabel}</span> : null}
-              </button>
-            );
-          })}
+      <div className="wafer-outline-shell">
+        {templateName ? <div className="wafer-template-badge">{templateName}</div> : null}
+        <div className="wafer-outline">
+          <div className={`wafer-notch notch-${notchOrientation || "south"}`} />
+          <div className="wafer-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+            {Array.from({ length: rows * cols }, (_, index) => {
+              const x = (index % cols) + 1;
+              const rowIndex = Math.floor(index / cols);
+              const y = rowValues[rowIndex];
+              const cell = cells.find((item) => item.dieX === x && item.dieY === y);
+              const selected = selectedChip === cell?.chipId;
+              const cellLabel = cell ? labelFor(cell) : "";
+              const interactive = cell?.hasMeasurement;
+              return (
+                <button
+                  key={`${x}-${y ?? rowIndex}`}
+                  type="button"
+                  className={selected ? "wafer-grid-cell selected" : "wafer-grid-cell"}
+                  style={cell ? { background: colorFor(cell.value) } : undefined}
+                  onClick={() => interactive && onSelect(cell.chipId)}
+                  title={cell ? `${cell.chipId}: ${cell.detail || (cell.value !== null && cell.value !== undefined ? formatMetric(metricKey, cell.value) : "No measurement loaded")}` : `Empty die (${x}, ${y ?? "NA"})`}
+                >
+                  {cell ? <span className={interactive ? "wafer-cell-label" : "wafer-cell-label muted"}>{cellLabel}</span> : null}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
       <div className="wafer-side-scale">
@@ -954,13 +1123,123 @@ function MatlabSummaryPanel({ summary }) {
   );
 }
 
+function WaveguideLengthConfigurator({
+  count,
+  start,
+  interval,
+  manualMode,
+  lengths,
+  onNumberChange,
+  onLengthChange,
+  onManualModeChange
+}) {
+  return (
+    <div className="waveguide-configurator">
+      <div className="propagation-length-grid waveguide-generator-grid">
+        <label className="mapping-field">
+          <span>Number of waveguides</span>
+          <input type="number" min="1" value={count ?? ""} onChange={(event) => onNumberChange("propagationWaveguideCount", Math.max(Number(event.target.value) || 1, 1))} />
+        </label>
+        <label className="mapping-field">
+          <span>Start waveguide length (mm)</span>
+          <input type="number" value={start ?? ""} onChange={(event) => onNumberChange("propagationWaveguideStartMm", Number(event.target.value) || 0)} />
+        </label>
+        <label className="mapping-field">
+          <span>Waveguide length interval (mm)</span>
+          <input type="number" value={interval ?? ""} onChange={(event) => onNumberChange("propagationWaveguideIntervalMm", Number(event.target.value) || 0)} />
+        </label>
+      </div>
+      <label className="toggle-row compact-toggle-row">
+        <input type="checkbox" checked={manualMode} onChange={(event) => onManualModeChange(event.target.checked)} />
+        <div>
+          <strong>Manually override processed lengths</strong>
+          <span>Turn this on when the interval is not uniform and you want to edit each waveguide length directly.</span>
+        </div>
+      </label>
+      <div className="waveguide-preview-card">
+        <strong>Processed waveguide length</strong>
+        <span>{formatWaveguideLengthPreview(lengths)}</span>
+      </div>
+      {manualMode ? (
+        <div className="propagation-length-grid">
+          {Object.keys(lengths || {}).map((key) => (
+            <label key={key} className="mapping-field">
+              <span>{`WG${key} length (mm)`}</span>
+              <input type="number" value={lengths?.[key] ?? ""} onChange={(event) => onLengthChange(key, event.target.value)} />
+            </label>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function WafermapsLibrary({ draft, onDraftChange, onSaveTemplate, templates, selectedTemplateId, onUseTemplate, onDeleteTemplate }) {
+  const previewTemplate = createCenterFilledWaferTemplate(draft);
+
+  return (
+    <section className="library-stack">
+      <article className="analysis-card">
+        <div className="analysis-card-head">
+          <div>
+            <h2>Wafermaps</h2>
+            <p>Create reusable wafermap templates for different chip sizes and chip populations. Chips are filled from the centre of a fixed 8-inch wafer outline for a uniform layout.</p>
+          </div>
+          <div className="library-action-row">
+            <button type="button" onClick={onSaveTemplate}>Generate And Save Template</button>
+          </div>
+        </div>
+        <div className="settings-grid settings-grid-extended">
+          <label className="mapping-field"><span>Wafer Name</span><input value={draft.name} onChange={(event) => onDraftChange("name", event.target.value)} /></label>
+          <label className="mapping-field"><span>Rows</span><input type="number" min="1" value={draft.rows} onChange={(event) => onDraftChange("rows", Math.max(Number(event.target.value) || 1, 1))} /></label>
+          <label className="mapping-field"><span>Columns</span><input type="number" min="1" value={draft.columns} onChange={(event) => onDraftChange("columns", Math.max(Number(event.target.value) || 1, 1))} /></label>
+          <label className="mapping-field"><span>Row Spacing</span><input type="number" value={draft.rowSpacing} onChange={(event) => onDraftChange("rowSpacing", Number(event.target.value) || 0)} /></label>
+          <label className="mapping-field"><span>Column Spacing</span><input type="number" value={draft.columnSpacing} onChange={(event) => onDraftChange("columnSpacing", Number(event.target.value) || 0)} /></label>
+          <label className="mapping-field"><span>Chip Length (X)</span><input type="number" min="0.1" value={draft.chipLengthX} onChange={(event) => onDraftChange("chipLengthX", Number(event.target.value) || 0.1)} /></label>
+          <label className="mapping-field"><span>Chip Width (Y)</span><input type="number" min="0.1" value={draft.chipWidthY} onChange={(event) => onDraftChange("chipWidthY", Number(event.target.value) || 0.1)} /></label>
+        </div>
+        <div className="translator-metrics wafermap-template-summary">
+          <div><strong>{previewTemplate.layout.length}</strong><span>Generated chips</span></div>
+          <div><strong>{previewTemplate.rows} x {previewTemplate.columns}</strong><span>Grid envelope</span></div>
+          <div><strong>{previewTemplate.notchOrientation}</strong><span>Notch orientation</span></div>
+        </div>
+      </article>
+      <article className="analysis-card">
+        <div className="analysis-card-head">
+          <div>
+            <h2>Saved Wafermap Templates</h2>
+            <p>Select the active template for the analysis views or keep custom templates ready for future wafers.</p>
+          </div>
+        </div>
+        <LibraryTable
+          columns={["Template", "Rows", "Columns", "Chips", "Status", "Actions"]}
+          rows={templates.map((template) => (
+            <tr key={template.id}>
+              <td>{template.name}</td>
+              <td>{template.rows || "--"}</td>
+              <td>{template.columns || "--"}</td>
+              <td>{template.layout?.length ?? 0}</td>
+              <td>{template.id === selectedTemplateId ? "Active" : template.source === "built-in" ? "Built-in" : "Custom"}</td>
+              <td className="library-table-actions">
+                <button type="button" onClick={() => onUseTemplate(template)}>Use</button>
+                {template.source === "custom" ? <button type="button" className="danger-action" onClick={() => onDeleteTemplate(template.id)}>Delete</button> : null}
+              </td>
+            </tr>
+          ))}
+          emptyMessage="No wafermap templates are available yet."
+        />
+      </article>
+    </section>
+  );
+}
+
 function PropagationSettingsPanel({ sourceMeta, onNumberChange, onLengthChange }) {
   return (
     <section className="analysis-card propagation-settings-card">
       <div className="analysis-card-head">
         <div>
           <h2>Propagation Processing Settings</h2>
-          <p>Configure launch power, target wavelength, averaging window, fit-quality filtering, and the editable WG length map used for automated WST traces.</p>
+          <p>Configure launch power, target wavelength, averaging window, fit-quality filtering, and the generated or manual WG length map used for automated WST traces.</p>
         </div>
       </div>
       <div className="propagation-settings-grid">
@@ -985,14 +1264,16 @@ function PropagationSettingsPanel({ sourceMeta, onNumberChange, onLengthChange }
           <input type="number" step="0.01" value={sourceMeta.propagationMseThreshold ?? ""} onChange={(event) => onNumberChange("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} />
         </label>
       </div>
-      <div className="propagation-length-grid">
-        {Object.keys(cloneWaveguideLengthMap(sourceMeta.waveguideLengthByIndex)).map((key) => (
-          <label key={key} className="mapping-field">
-            <span>{`WG${key} length (mm)`}</span>
-            <input type="number" value={sourceMeta.waveguideLengthByIndex?.[key] ?? ""} onChange={(event) => onLengthChange(key, event.target.value)} />
-          </label>
-        ))}
-      </div>
+      <WaveguideLengthConfigurator
+        count={sourceMeta.propagationWaveguideCount}
+        start={sourceMeta.propagationWaveguideStartMm}
+        interval={sourceMeta.propagationWaveguideIntervalMm}
+        manualMode={sourceMeta.propagationWaveguideManualMode}
+        lengths={sourceMeta.waveguideLengthByIndex}
+        onNumberChange={onNumberChange}
+        onLengthChange={onLengthChange}
+        onManualModeChange={(checked) => onNumberChange("propagationWaveguideManualMode", checked)}
+      />
     </section>
   );
 }
@@ -1004,9 +1285,7 @@ export default function App() {
   const [rawRows, setRawRows] = useState([]);
   const [columnMap, setColumnMap] = useState({});
   const [sourceMeta, setSourceMeta] = useState(() => buildDefaultSourceMeta(initialSettings));
-  const [statusMessage, setStatusMessage] = useState(
-    "Loaded a demonstration wafer dataset with matched tester and manual measurement rows."
-  );
+  const [statusMessage, setStatusMessage] = useState("Workspace ready. Load a project or upload measurement files to begin.");
   const [search, setSearch] = useState("");
   const [datasetPreviewMode, setDatasetPreviewMode] = useState("all-chips");
   const [selectedWaferMetric, setSelectedWaferMetric] = useState("propagation");
@@ -1016,15 +1295,33 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState("");
   const [savedProjects, setSavedProjects] = useState(() => readStoredJson(STORAGE_KEYS.projects, []));
   const [savedDatasets, setSavedDatasets] = useState(() => readStoredJson(STORAGE_KEYS.datasets, []));
+  const [savedWaferTemplates, setSavedWaferTemplates] = useState(() => readStoredJson(STORAGE_KEYS.waferTemplates, []));
   const [auditLog, setAuditLog] = useState(() => readStoredJson(STORAGE_KEYS.audit, []));
   const [appSettings, setAppSettings] = useState(initialSettings);
   const [settingsDraft, setSettingsDraft] = useState(initialSettings);
+  const [waferTemplateDraft, setWaferTemplateDraft] = useState(DEFAULT_WAFER_TEMPLATE_DRAFT);
   const [loadingBundledId, setLoadingBundledId] = useState("");
   const [waferMapDisplayMode, setWaferMapDisplayMode] = useState("all");
   const [waferMapOverlayMode, setWaferMapOverlayMode] = useState("none");
 
   const deferredSearch = useDeferredValue(search);
-  const waferTemplateLayout = useMemo(() => getWaferTemplateLayout(), []);
+  const builtInWaferTemplates = useMemo(() => getBuiltInWaferTemplates(), []);
+  const allWaferTemplates = useMemo(() => mergeWaferTemplates(builtInWaferTemplates, savedWaferTemplates), [builtInWaferTemplates, savedWaferTemplates]);
+  const currentWaferTemplate = useMemo(() => {
+    const selected = allWaferTemplates.find((template) => template.id === sourceMeta.waferTemplateId);
+    if (selected) return selected;
+    if (sourceMeta.waferTemplateLayout?.length) {
+      return {
+        id: sourceMeta.waferTemplateId || "active-template",
+        name: sourceMeta.waferTemplateName || "Current Template",
+        notchOrientation: sourceMeta.waferTemplateNotchOrientation || "south",
+        layout: sourceMeta.waferTemplateLayout,
+        source: "active"
+      };
+    }
+    return allWaferTemplates[0] || builtInWaferTemplates[0];
+  }, [allWaferTemplates, builtInWaferTemplates, sourceMeta.waferTemplateId, sourceMeta.waferTemplateLayout, sourceMeta.waferTemplateName, sourceMeta.waferTemplateNotchOrientation]);
+  const waferTemplateLayout = useMemo(() => getWaferTemplateLayout(currentWaferTemplate || defaultWaferTemplateId()), [currentWaferTemplate]);
   const hasLoadedData = rawRows.length > 0;
   const currentRows = rawRows;
   const currentMap = Object.keys(columnMap).length ? columnMap : inferColumnMap(Object.keys(currentRows[0] || {}));
@@ -1254,15 +1551,65 @@ export default function App() {
       setLoadingBundledId("");
     }
   }
-  function updatePropagationMeta(field, value) { setSourceMeta((previous) => ({ ...previous, [field]: value })); }
+  function updatePropagationMeta(field, value) {
+    setSourceMeta((previous) => applyWaveguideSettingsToSourceMeta(previous, { [field]: value }));
+  }
   function updateWaveguideLength(index, value) {
-    setSourceMeta((previous) => ({
-      ...previous,
+    setSourceMeta((previous) => applyWaveguideSettingsToSourceMeta(previous, {
+      propagationWaveguideManualMode: true,
       waveguideLengthByIndex: {
-        ...cloneWaveguideLengthMap(previous.waveguideLengthByIndex),
+        ...cloneWaveguideLengthMap(
+          previous.waveguideLengthByIndex,
+          previous.propagationWaveguideCount,
+          previous.propagationWaveguideStartMm,
+          previous.propagationWaveguideIntervalMm,
+          true
+        ),
         [index]: value === "" ? null : Number(value)
       }
     }));
+  }
+  function updateWaferTemplateDraft(field, value) { setWaferTemplateDraft((previous) => ({ ...previous, [field]: value })); }
+  function useWaferTemplate(template) {
+    setSourceMeta((previous) => ({
+      ...previous,
+      waferTemplateId: template.id,
+      waferTemplateName: template.name,
+      waferTemplateLayout: template.layout || null,
+      waferTemplateNotchOrientation: template.notchOrientation || "south"
+    }));
+    setWaferTemplateDraft({
+      id: template.source === "custom" ? template.id : "",
+      name: template.name || DEFAULT_WAFER_TEMPLATE_DRAFT.name,
+      rows: template.rows || DEFAULT_WAFER_TEMPLATE_DRAFT.rows,
+      columns: template.columns || DEFAULT_WAFER_TEMPLATE_DRAFT.columns,
+      rowSpacing: template.rowSpacing || DEFAULT_WAFER_TEMPLATE_DRAFT.rowSpacing,
+      columnSpacing: template.columnSpacing || DEFAULT_WAFER_TEMPLATE_DRAFT.columnSpacing,
+      chipLengthX: template.chipLengthX || DEFAULT_WAFER_TEMPLATE_DRAFT.chipLengthX,
+      chipWidthY: template.chipWidthY || DEFAULT_WAFER_TEMPLATE_DRAFT.chipWidthY,
+      notchOrientation: template.notchOrientation || "south"
+    });
+    setStatusMessage(`Using wafermap template ${template.name}.`);
+  }
+  function saveWaferTemplate() {
+    const nextTemplate = createCenterFilledWaferTemplate({
+      ...waferTemplateDraft,
+      id: waferTemplateDraft.id || createId("wafermap"),
+      source: "custom"
+    });
+    setSavedWaferTemplates((previous) => [nextTemplate, ...previous.filter((template) => template.id !== nextTemplate.id)].slice(0, 40));
+    useWaferTemplate(nextTemplate);
+    setWaferTemplateDraft({ ...waferTemplateDraft, id: nextTemplate.id, name: nextTemplate.name });
+    appendAudit("wafermap", "Wafermap template saved", `Saved wafermap template ${nextTemplate.name} with ${nextTemplate.layout.length} generated chip slots.`);
+  }
+  function deleteWaferTemplate(templateId) {
+    const target = savedWaferTemplates.find((template) => template.id === templateId);
+    setSavedWaferTemplates((previous) => previous.filter((template) => template.id !== templateId));
+    if (sourceMeta.waferTemplateId === templateId) {
+      const fallback = builtInWaferTemplates[0];
+      useWaferTemplate(fallback);
+    }
+    appendAudit("wafermap", "Wafermap template deleted", `Deleted wafermap template ${target?.name || templateId}.`);
   }
   function downloadBlob(content, fileName, mimeType) { const blob = new Blob([content], { type: mimeType }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url); }
   function exportNormalizedCsv() { downloadBlob(normalizedRowsToCsv(normalizedRows), "normalized-wafer-measurements.csv", "text/csv;charset=utf-8"); appendAudit("export", "Normalized CSV exported", `Exported ${normalizedRows.length} normalized rows to CSV.`); }
@@ -1279,17 +1626,23 @@ export default function App() {
   function saveCurrentDataset(autoSaved = false) { const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
   function loadDataset(dataset) { setProjectName(dataset.projectName || projectName); setWaferName(dataset.waferName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(dataset.rawRows || []); setColumnMap(dataset.columnMap || {}); setSourceMeta(dataset.sourceMeta || buildDefaultSourceMeta(appSettings)); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${dataset.projectName}.`); }
   function deleteDataset(datasetId) { const target = savedDatasets.find((dataset) => dataset.id === datasetId); setSavedDatasets((previous) => previous.filter((dataset) => dataset.id !== datasetId)); appendAudit("dataset", "Dataset deleted", `Deleted dataset snapshot ${target?.label || datasetId}.`); }
-  function updateSettingsDraft(field, value) { setSettingsDraft((previous) => ({ ...previous, [field]: value })); }
+  function updateSettingsDraft(field, value) { setSettingsDraft((previous) => applyWaveguideSettingsToDraft(previous, { [field]: value })); }
   function updateSettingsWaveguideLength(index, value) {
-    setSettingsDraft((previous) => ({
-      ...previous,
+    setSettingsDraft((previous) => applyWaveguideSettingsToDraft(previous, {
+      propagationWaveguideManualMode: true,
       propagationWaveguideLengthsMm: {
-        ...cloneWaveguideLengthMap(previous.propagationWaveguideLengthsMm),
+        ...cloneWaveguideLengthMap(
+          previous.propagationWaveguideLengthsMm,
+          previous.propagationWaveguideCount,
+          previous.propagationWaveguideStartMm,
+          previous.propagationWaveguideIntervalMm,
+          true
+        ),
         [index]: value === "" ? null : Number(value)
       }
     }));
   }
-  function saveSettings() { const nextSettings = hydrateSettings(settingsDraft); setAppSettings(nextSettings); setSourceMeta((previous) => ({ ...previous, defaultMetricFamily: nextSettings.defaultMetricFamily, defaultWavelengthNm: nextSettings.defaultWavelengthNm, launchPowerDbm: nextSettings.launchPowerDbm, propagationTargetWavelengthNm: nextSettings.propagationTargetWavelengthNm, propagationWindowNm: nextSettings.propagationWindowNm, propagationSpectralStepNm: nextSettings.propagationSpectralStepNm, propagationMseThreshold: nextSettings.propagationMseThreshold, waveguideLengthByIndex: cloneWaveguideLengthMap(nextSettings.propagationWaveguideLengthsMm) })); appendAudit("settings", "Settings saved", `Updated defaults for operator ${nextSettings.operatorName}, launch power ${nextSettings.launchPowerDbm} dBm, wavelength ${nextSettings.propagationTargetWavelengthNm} nm, interval ${nextSettings.propagationSpectralStepNm} nm, and MSE threshold ${nextSettings.propagationMseThreshold}.`); setStatusMessage("Application settings saved in local browser storage."); }
+  function saveSettings() { const nextSettings = hydrateSettings(settingsDraft); setAppSettings(nextSettings); setSourceMeta((previous) => applyWaveguideSettingsToSourceMeta({ ...previous, defaultMetricFamily: nextSettings.defaultMetricFamily, defaultWavelengthNm: nextSettings.defaultWavelengthNm, launchPowerDbm: nextSettings.launchPowerDbm, propagationTargetWavelengthNm: nextSettings.propagationTargetWavelengthNm, propagationWindowNm: nextSettings.propagationWindowNm, propagationSpectralStepNm: nextSettings.propagationSpectralStepNm, propagationMseThreshold: nextSettings.propagationMseThreshold, propagationWaveguideCount: nextSettings.propagationWaveguideCount, propagationWaveguideStartMm: nextSettings.propagationWaveguideStartMm, propagationWaveguideIntervalMm: nextSettings.propagationWaveguideIntervalMm, propagationWaveguideManualMode: nextSettings.propagationWaveguideManualMode, waveguideLengthByIndex: nextSettings.propagationWaveguideLengthsMm, waferTemplateId: previous.waferTemplateId || nextSettings.defaultWaferTemplateId }, {})); appendAudit("settings", "Settings saved", `Updated defaults for operator ${nextSettings.operatorName}, launch power ${nextSettings.launchPowerDbm} dBm, wavelength ${nextSettings.propagationTargetWavelengthNm} nm, interval ${nextSettings.propagationSpectralStepNm} nm, and MSE threshold ${nextSettings.propagationMseThreshold}.`); setStatusMessage("Application settings saved in local browser storage."); }
   function resetSettings() { const reset = hydrateSettings(DEFAULT_SETTINGS); setSettingsDraft(reset); setAppSettings(reset); setSourceMeta(buildDefaultSourceMeta(reset)); appendAudit("settings", "Settings reset", "Restored the default application settings for operator, metric family, propagation window, and launch power."); setStatusMessage("Application settings were reset to the default values."); }
   function clearAuditLog() { setAuditLog([]); setStatusMessage("Audit log cleared from local browser storage."); }
 
@@ -1384,9 +1737,8 @@ export default function App() {
                 <div className="analysis-card-head">
                   <div><h2>Wafermap - {metricLabel(selectedWaferMetric)}</h2></div>
                   <div className="analysis-card-controls compact"><span>Metric</span><select value={selectedWaferMetric} onChange={(event) => setSelectedWaferMetric(event.target.value)}><option value="propagation">Propagation Loss</option><option value="insertion">Insertion Loss</option><option value="heater">Heater Efficiency</option></select></div>
-                </div>
-                <WaferMapPanel cells={currentWaferCells} metricKey={selectedWaferMetric} selectedChip={selectedChip} onSelect={setSelectedChip} overlayMode={waferMapOverlayMode} />
-                <div className="wafer-footer-bar"><div><span>Show</span><select value={waferMapDisplayMode} onChange={(event) => setWaferMapDisplayMode(event.target.value)} disabled={selectedWaferMetric !== "propagation"}><option value="all">All Dies</option><option value="passing">Passing only</option></select></div><div><span>Overlay</span><select value={waferMapOverlayMode} onChange={(event) => setWaferMapOverlayMode(event.target.value)}><option value="none">None</option><option value="chip">Chip ID</option><option value="value">Metric value</option></select></div></div>
+                </div>                <WaferMapPanel cells={currentWaferCells} metricKey={selectedWaferMetric} selectedChip={selectedChip} onSelect={setSelectedChip} overlayMode={waferMapOverlayMode} templateName={currentWaferTemplate?.name || ""} notchOrientation={currentWaferTemplate?.notchOrientation || "south"} colorScaleMin={sourceMeta.waferColorScaleMin} colorScaleMax={sourceMeta.waferColorScaleMax} />
+                <div className="wafer-footer-bar"><div><span>Show</span><select value={waferMapDisplayMode} onChange={(event) => setWaferMapDisplayMode(event.target.value)} disabled={selectedWaferMetric !== "propagation"}><option value="all">All Dies</option><option value="passing">Passing only</option></select></div><div><span>Overlay</span><select value={waferMapOverlayMode} onChange={(event) => setWaferMapOverlayMode(event.target.value)}><option value="none">None</option><option value="chip">Chip ID</option><option value="value">Metric value</option></select></div><div><span>Template</span><select value={currentWaferTemplate?.id || defaultWaferTemplateId()} onChange={(event) => { const match = allWaferTemplates.find((template) => template.id === event.target.value); if (match) useWaferTemplate(match); }}><option value="">Select</option>{allWaferTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select></div><div><span>Scale Min</span><input type="number" value={sourceMeta.waferColorScaleMin ?? ""} onChange={(event) => setSourceMeta((previous) => ({ ...previous, waferColorScaleMin: event.target.value === "" ? null : Number(event.target.value) }))} /></div><div><span>Scale Max</span><input type="number" value={sourceMeta.waferColorScaleMax ?? ""} onChange={(event) => setSourceMeta((previous) => ({ ...previous, waferColorScaleMax: event.target.value === "" ? null : Number(event.target.value) }))} /></div></div>
               </article>
             </section>
 
@@ -1426,7 +1778,8 @@ export default function App() {
 
           {activeTab === "projects" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Projects Workspace</h2><p>Save the current wafer analysis context so you can reopen the same project state later.</p></div><div className="library-action-row"><button type="button" onClick={saveCurrentProject}>Save Current Project</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Back To Analysis</button></div></div><div className="translator-metrics"><div><strong>{projectName}</strong><span>Project</span></div><div><strong>{waferName}</strong><span>Wafer</span></div><div><strong>{datasetSummary.rows}</strong><span>Rows</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Projects</h2><p>Stored locally in this browser.</p></div></div><LibraryTable columns={["Project", "Wafer", "Dataset", "Rows", "Saved", "Actions"]} rows={[...bundledProjectRows, ...currentProjectRows]} emptyMessage="No bundled or saved projects are available yet." /></article></section> : null}
           {activeTab === "datasets" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Datasets Library</h2><p>Manage normalized dataset snapshots stored locally in this browser for quick reload and comparison.</p></div><div className="library-action-row"><button type="button" onClick={() => saveCurrentDataset(false)}>Save Dataset Snapshot</button><button type="button" className="ghost-action" onClick={clearWorkspace}>Clear Workspace</button></div></div><div className="translator-metrics"><div><strong>{sourceMeta.name}</strong><span>Current Source</span></div><div><strong>{sourceMeta.type}</strong><span>Type</span></div><div><strong>{appSettings.autoSaveUploads ? "Enabled" : "Disabled"}</strong><span>Auto Save</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Datasets</h2><p>Each entry can be loaded back into the dashboard.</p></div></div><LibraryTable columns={["Dataset", "Project", "Wafer", "Rows", "Saved", "Actions"]} rows={[...bundledDatasetRows, ...currentDatasetRows]} emptyMessage="No bundled or saved dataset snapshots are available yet." /></article></section> : null}
-          {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label><label className="mapping-field"><span>Propagation spectral interval (nm)</span><input type="number" min="1" value={settingsDraft.propagationSpectralStepNm} onChange={(event) => updateSettingsDraft("propagationSpectralStepNm", Math.max(Number(event.target.value) || 1, 1))} /></label><label className="mapping-field"><span>Propagation fit MSE threshold</span><input type="number" step="0.01" value={settingsDraft.propagationMseThreshold} onChange={(event) => updateSettingsDraft("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} /></label></div><div className="propagation-length-grid propagation-length-grid-settings">{Object.keys(cloneWaveguideLengthMap(settingsDraft.propagationWaveguideLengthsMm)).map((key) => <label key={key} className="mapping-field"><span>{`WG${key} length (mm)`}</span><input type="number" value={settingsDraft.propagationWaveguideLengthsMm?.[key] ?? ""} onChange={(event) => updateSettingsWaveguideLength(key, event.target.value)} /></label>)}</div><label className="toggle-row"><input type="checkbox" checked={settingsDraft.autoSaveUploads} onChange={(event) => updateSettingsDraft("autoSaveUploads", event.target.checked)} /><div><strong>Automatically save uploaded datasets</strong><span>Each new upload is stored as a reusable dataset snapshot in the local browser library.</span></div></label></article></section> : null}
+          {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label><label className="mapping-field"><span>Propagation spectral interval (nm)</span><input type="number" min="1" value={settingsDraft.propagationSpectralStepNm} onChange={(event) => updateSettingsDraft("propagationSpectralStepNm", Math.max(Number(event.target.value) || 1, 1))} /></label><label className="mapping-field"><span>Propagation fit MSE threshold</span><input type="number" step="0.01" value={settingsDraft.propagationMseThreshold} onChange={(event) => updateSettingsDraft("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} /></label></div><WaveguideLengthConfigurator count={settingsDraft.propagationWaveguideCount} start={settingsDraft.propagationWaveguideStartMm} interval={settingsDraft.propagationWaveguideIntervalMm} manualMode={settingsDraft.propagationWaveguideManualMode} lengths={settingsDraft.propagationWaveguideLengthsMm} onNumberChange={updateSettingsDraft} onLengthChange={updateSettingsWaveguideLength} onManualModeChange={(checked) => updateSettingsDraft("propagationWaveguideManualMode", checked)} /><label className="toggle-row"><input type="checkbox" checked={settingsDraft.autoSaveUploads} onChange={(event) => updateSettingsDraft("autoSaveUploads", event.target.checked)} /><div><strong>Automatically save uploaded datasets</strong><span>Each new upload is stored as a reusable dataset snapshot in the local browser library.</span></div></label></article></section> : null}
+          {activeTab === "wafermaps" ? <WafermapsLibrary draft={waferTemplateDraft} onDraftChange={updateWaferTemplateDraft} onSaveTemplate={saveWaferTemplate} templates={allWaferTemplates} selectedTemplateId={currentWaferTemplate?.id || ""} onUseTemplate={useWaferTemplate} onDeleteTemplate={deleteWaferTemplate} /> : null}
           {activeTab === "audit" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Audit Log</h2><p>Review the local activity trail for uploads, exports, saves, loads, and settings changes.</p></div><div className="library-action-row"><button type="button" className="ghost-action" onClick={clearAuditLog}>Clear Audit Log</button></div></div><LibraryTable columns={["Action", "Type", "Detail", "Time"]} rows={auditRows} emptyMessage="No audit entries yet." /></article></section> : null}
           {activeTab === "help" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Help Center</h2><p>Quick in-app guidance for the current release, focused on how data flows through propagation processing, storage, and reporting.</p></div><div className="library-action-row"><button type="button" onClick={() => updateTab("projects")}>Open Projects</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Open Propagation View</button></div></div><div className="help-grid">{HELP_TOPICS.map((topic) => <article key={topic.title} className="help-card"><h3>{topic.title}</h3><p>{topic.body}</p></article>)}</div><div className="doc-link-list">{DOC_LINKS.map((doc) => <a key={doc.label} className="doc-link-item" href={doc.href} target="_blank" rel="noreferrer"><strong>{doc.label}</strong><span>{doc.path}</span></a>)}</div></article></section> : null}
         </main>
@@ -1434,6 +1787,21 @@ export default function App() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

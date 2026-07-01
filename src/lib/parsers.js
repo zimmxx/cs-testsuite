@@ -243,6 +243,7 @@ export async function readFileRows(file, options = {}) {
 }
 
 export function buildNormalizedRows(rows, mapping, sourceMeta) {
+  const templateChoice = sourceMeta?.waferTemplateLayout?.length ? sourceMeta.waferTemplateLayout : sourceMeta?.waferTemplateId;
   return rows.map((row, index) => {
     if (row.__normalized) {
       const normalized = applyWaferTemplate({
@@ -260,7 +261,7 @@ export function buildNormalizedRows(rows, mapping, sourceMeta) {
         die_x: numeric(row.die_x),
         die_y: numeric(row.die_y),
         row_index: row.row_index ?? index + 1
-      });
+      }, templateChoice);
       return normalized;
     }
 
@@ -291,7 +292,7 @@ export function buildNormalizedRows(rows, mapping, sourceMeta) {
       current_ma: mapping.current_ma ? numeric(row[mapping.current_ma]) : null,
       voltage_v: mapping.voltage_v ? numeric(row[mapping.voltage_v]) : null,
       row_index: index + 1
-    });
+    }, templateChoice);
 
     if (normalized.heater_power_mw === null && normalized.current_ma !== null && normalized.voltage_v !== null) {
       normalized.heater_power_mw = normalized.current_ma * normalized.voltage_v;
@@ -331,6 +332,11 @@ export function sourceTypeLabel(fileName) {
 export function requiredColumns() {
   return REQUIRED_EXPORT_COLUMNS;
 }
+
+
+
+
+
 
 
 

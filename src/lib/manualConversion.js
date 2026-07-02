@@ -1,8 +1,23 @@
 import * as XLSX from "xlsx";
 import { numeric } from "./analysis";
 
-const WAVELENGTH_ALIASES = ["wavelength", "wavelength (nm)", "wavelength_nm", "lambda", "wl"];
-const IL_ALIASES = ["il", "il (db)", "insertion loss", "insertion_loss_db", "loss", "loss (db)"];
+const WAVELENGTH_ALIASES = [
+  "wavelength",
+  "wavelength (nm)",
+  "wavelength_nm",
+  "wavelength_m",
+  "lambda",
+  "wl"
+];
+const IL_ALIASES = [
+  "il",
+  "il (db)",
+  "il_db",
+  "insertion loss",
+  "insertion_loss_db",
+  "loss",
+  "loss (db)"
+];
 
 function normalizeHeader(value) {
   return String(value || "")
@@ -27,6 +42,23 @@ function powerDbmToWatts(powerDbm) {
 function isAliasMatch(value, aliases) {
   const normalized = normalizeHeader(value);
   return aliases.some((alias) => normalizeHeader(alias) === normalized);
+}
+
+function inferWavelengthScale(headerValue, sampleValue) {
+  const normalized = normalizeHeader(headerValue);
+  if (normalized.includes("(m)") || normalized.endsWith(" m") || normalized.includes("wavelength m")) {
+    return 1e9;
+  }
+  if (normalized.includes("(um)") || normalized.endsWith(" um")) {
+    return 1e3;
+  }
+  if (normalized.includes("(pm)") || normalized.endsWith(" pm")) {
+    return 1e-3;
+  }
+  if (typeof sampleValue === "number" && Math.abs(sampleValue) < 0.01) {
+    return 1e9;
+  }
+  return 1;
 }
 
 function findWorkbookColumns(rows) {
@@ -57,12 +89,20 @@ function findWorkbookColumns(rows) {
 }
 
 function buildConvertedRows(rows, columnInfo, launchPowerDbm) {
+  const headerRow = rows[columnInfo.dataStartIndex - 1] || [];
+  const firstDataRow = rows[columnInfo.dataStartIndex] || [];
+  const wavelengthScale = inferWavelengthScale(
+    headerRow[columnInfo.wavelengthIndex],
+    numeric(firstDataRow?.[columnInfo.wavelengthIndex])
+  );
+
   return rows
     .slice(columnInfo.dataStartIndex)
     .map((row) => {
-      const wavelengthNm = numeric(row?.[columnInfo.wavelengthIndex]);
+      const wavelengthValue = numeric(row?.[columnInfo.wavelengthIndex]);
       const ilDb = numeric(row?.[columnInfo.ilIndex]);
-      if (wavelengthNm === null || ilDb === null) return null;
+      if (wavelengthValue === null || ilDb === null) return null;
+      const wavelengthNm = wavelengthValue * wavelengthScale;
       const opticalPowerDbm = launchPowerDbm - ilDb;
       const opticalPowerW = powerDbmToWatts(opticalPowerDbm);
       return {
@@ -125,19 +165,39 @@ export function parseManualMeasurementPath(file) {
   };
 }
 
+function getWorkbookRows(workbook) {
+  const candidateNames = workbook.SheetNames.filter((sheetName) => {
+    const normalized = normalizeHeader(sheetName);
+    return normalized === "il" || normalized.includes("insertion loss");
+  });
+  const orderedNames = [
+    ...candidateNames,
+    ...workbook.SheetNames.filter((sheetName) => !candidateNames.includes(sheetName))
+  ];
+
+  for (const sheetName of orderedNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+    const columnInfo = findWorkbookColumns(rawRows);
+    if (columnInfo) {
+      return { rawRows, columnInfo, sheetName };
+    }
+  }
+
+  return null;
+}
+
 export async function convertManualMeasurementWorkbook(file, options = {}) {
   const launchPowerDbm = numeric(options.launchPowerDbm) ?? 10;
   const outputFormat = options.outputFormat === "csv" ? "csv" : "txt";
   const meta = parseManualMeasurementPath(file);
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: "array" });
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
-  const columnInfo = findWorkbookColumns(rawRows);
-  if (!columnInfo) {
+  const workbookRows = getWorkbookRows(workbook);
+  if (!workbookRows) {
     throw new Error(`Unable to identify wavelength and IL columns in ${meta.relativePath}.`);
   }
+  const { rawRows, columnInfo, sheetName } = workbookRows;
 
   const convertedRows = buildConvertedRows(rawRows, columnInfo, launchPowerDbm);
   if (!convertedRows.length) {
@@ -163,7 +223,7 @@ export async function convertManualMeasurementWorkbook(file, options = {}) {
     wavelengthMinNm: convertedRows[0]?.wavelengthNm ?? null,
     wavelengthMaxNm: convertedRows[convertedRows.length - 1]?.wavelengthNm ?? null,
     launchPowerDbm,
-    parser: "xlsx (SheetJS CE)",
+    parser: `xlsx (SheetJS CE, sheet: ${sheetName})`,
     flavor: meta.flavorSegment || ""
   };
 }

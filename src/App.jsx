@@ -305,6 +305,16 @@ function average(values) {
   return values.reduce((acc, value) => acc + value, 0) / values.length;
 }
 
+function arrayMin(values, fallback = 0) {
+  if (!values.length) return fallback;
+  return values.reduce((min, value) => (value < min ? value : min), values[0]);
+}
+
+function arrayMax(values, fallback = 0) {
+  if (!values.length) return fallback;
+  return values.reduce((max, value) => (value > max ? value : max), values[0]);
+}
+
 function buildGeneratedWaveguideLengthMap(count = DEFAULT_WAVEGUIDE_COUNT, start = DEFAULT_WAVEGUIDE_START_MM, interval = DEFAULT_WAVEGUIDE_INTERVAL_MM) {
   const safeCount = Math.max(Math.round(Number(count) || DEFAULT_WAVEGUIDE_COUNT), 1);
   const safeStart = Number.isFinite(Number(start)) ? Number(start) : DEFAULT_WAVEGUIDE_START_MM;
@@ -574,10 +584,10 @@ function PropagationPlot({ rows, fit }) {
   const padding = { top: 26, right: 20, bottom: 44, left: 54 };
   const xs = rows.map((row) => row.relative_length_mm);
   const ys = rows.map((row) => row.transmission_db);
-  const xMin = Math.min(...xs);
-  const xMax = Math.max(...xs);
-  const yMin = Math.min(...ys) - 2;
-  const yMax = Math.max(...ys) + 2;
+  const xMin = arrayMin(xs);
+  const xMax = arrayMax(xs);
+  const yMin = arrayMin(ys) - 2;
+  const yMax = arrayMax(ys) + 2;
 
   const scaleX = (value) =>
     padding.left + ((value - xMin) / Math.max(xMax - xMin, 1)) * (width - padding.left - padding.right);
@@ -665,8 +675,8 @@ function buildMiniBars(values) {
   const clean = values.filter((value) => value !== null && value !== undefined && !Number.isNaN(value));
   if (!clean.length) return [36, 48, 58, 72, 62, 50, 40];
   const trimmed = clean.slice(0, 7);
-  const min = Math.min(...trimmed);
-  const max = Math.max(...trimmed);
+  const min = arrayMin(trimmed);
+  const max = arrayMax(trimmed);
   return trimmed.map((value) => {
     if (max === min) return 68;
     return 26 + ((value - min) / (max - min)) * 58;
@@ -707,7 +717,7 @@ function WaferMapPanel({
   const range = hasManualRange
     ? { min: Number(colorScaleMin), max: Number(colorScaleMax) }
     : automaticRange;
-  const cols = Math.max(...cells.map((cell) => cell.dieX || 0), 1);
+  const cols = Math.max(arrayMax(cells.map((cell) => cell.dieX || 0), 0), 1);
   const rowValues = Array.from(new Set(cells.map((cell) => cell.dieY).filter((value) => value !== null && value !== undefined)))
     .sort((a, b) => b - a);
   const rows = rowValues.length;
@@ -777,8 +787,8 @@ function MetricComparisonPlot({ metricKey, items, selectedKey, onSelect, emptyMe
   }
 
   const values = items.map((item) => metricValueForComparison(metricKey, item)).filter((value) => value !== null && value !== undefined);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = arrayMin(values);
+  const max = arrayMax(values);
 
   return (
     <div className="metric-comparison-plot">
@@ -969,8 +979,8 @@ function SourceDiagnosticsCard({ rows, summary, sourceMeta }) {
   const waveguides = new Set(rows.map((row) => row.waveguide_id).filter(Boolean));
   const slots = new Set(rows.map((row) => row.slot_id).filter(Boolean));
   const wavelengths = rows.map((row) => row.wavelength_nm).filter((value) => value !== null && value !== undefined);
-  const minWavelength = wavelengths.length ? Math.min(...wavelengths) : null;
-  const maxWavelength = wavelengths.length ? Math.max(...wavelengths) : null;
+  const minWavelength = wavelengths.length ? arrayMin(wavelengths) : null;
+  const maxWavelength = wavelengths.length ? arrayMax(wavelengths) : null;
 
   return (
     <article className="analysis-card diagnostics-card">
@@ -1014,12 +1024,12 @@ function PropagationSpectrumPlot({ series, targetWavelengthNm, windowNm, spectra
   const xs = series.map((point) => point.wavelengthNm);
   const lossValues = series.map((point) => point.lossDbPerCm);
   const mseValues = series.map((point) => point.mse);
-  const xMin = Math.min(...xs);
-  const xMax = Math.max(...xs);
-  const lossMin = Math.min(...lossValues) - 0.2;
-  const lossMax = Math.max(...lossValues) + 0.2;
+  const xMin = arrayMin(xs);
+  const xMax = arrayMax(xs);
+  const lossMin = arrayMin(lossValues) - 0.2;
+  const lossMax = arrayMax(lossValues) + 0.2;
   const mseMin = 0;
-  const mseMax = Math.max(...mseValues, 0.001) * 1.15;
+  const mseMax = Math.max(arrayMax(mseValues, 0.001), 0.001) * 1.15;
 
   const scaleX = (value) =>
     padding.left + ((value - xMin) / Math.max(xMax - xMin, 1)) * (width - padding.left - padding.right);
@@ -1105,10 +1115,10 @@ function TransmissionSpectrumPlot({ series, targetWavelengthNm, chipId }) {
   const points = series.flatMap((item) => item.points);
   const xs = points.map((point) => point.wavelengthNm);
   const ys = points.map((point) => point.transmissionDb);
-  const xMin = Math.min(...xs);
-  const xMax = Math.max(...xs);
-  const yMin = Math.min(...ys) - 0.4;
-  const yMax = Math.max(...ys) + 0.4;
+  const xMin = arrayMin(xs);
+  const xMax = arrayMax(xs);
+  const yMin = arrayMin(ys) - 0.4;
+  const yMax = arrayMax(ys) + 0.4;
   const palette = ["#4f8df3", "#ff8f45", "#0f8a83", "#9d5cf6", "#d6658f", "#2f7d68"];
 
   const scaleX = (value) =>

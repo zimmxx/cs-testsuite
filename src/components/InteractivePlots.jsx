@@ -134,6 +134,16 @@ function baseConfig(filename) {
   };
 }
 
+function arrayMin(values, fallback = 0) {
+  if (!values.length) return fallback;
+  return values.reduce((min, value) => (value < min ? value : min), values[0]);
+}
+
+function arrayMax(values, fallback = 0) {
+  if (!values.length) return fallback;
+  return values.reduce((max, value) => (value > max ? value : max), values[0]);
+}
+
 function buildConfidenceBand(rows, fit) {
   if (!rows.length || !fit || rows.length < 3) return null;
 
@@ -152,8 +162,8 @@ function buildConfidenceBand(rows, fit) {
   const residualSumSquares = residuals.reduce((sum, value) => sum + value ** 2, 0);
   const sigma = Math.sqrt(residualSumSquares / Math.max(points.length - 2, 1));
   const critical = 1.96;
-  const minX = Math.min(...xValues);
-  const maxX = Math.max(...xValues);
+  const minX = arrayMin(xValues);
+  const maxX = arrayMax(xValues);
   const steps = 40;
   const x = Array.from({ length: steps }, (_, index) => minX + ((maxX - minX) * index) / (steps - 1));
   const y = x.map((value) => fit.slope * value + fit.intercept);
@@ -189,8 +199,8 @@ export function InteractivePropagationPlot({ rows, fit, chipId }) {
         type: "scatter",
         mode: "lines",
         name: "Linear fit",
-        x: confidenceBand?.x || [Math.min(...x), Math.max(...x)],
-        y: confidenceBand?.y || [fit.slope * Math.min(...x) + fit.intercept, fit.slope * Math.max(...x) + fit.intercept],
+        x: confidenceBand?.x || [arrayMin(x), arrayMax(x)],
+        y: confidenceBand?.y || [fit.slope * arrayMin(x) + fit.intercept, fit.slope * arrayMax(x) + fit.intercept],
         line: { color: "#0f8a83", width: 3 },
         hovertemplate: "Fit transmission: %{y:.2f} dB<extra></extra>"
       }
@@ -264,8 +274,8 @@ export function InteractivePropagationSpectrumPlot({ series, targetWavelengthNm,
     if (!series.length) return null;
 
     const x = series.map((point) => point.wavelengthNm);
-    const bandStart = Math.max(targetWavelengthNm - windowNm, Math.min(...x));
-    const bandEnd = Math.min(targetWavelengthNm + windowNm, Math.max(...x));
+    const bandStart = Math.max(targetWavelengthNm - windowNm, arrayMin(x));
+    const bandEnd = Math.min(targetWavelengthNm + windowNm, arrayMax(x));
 
     return {
       data: [
@@ -358,7 +368,7 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
     if (!series.length) return null;
 
     const palette = ["#4f8df3", "#ff8f45", "#0f8a83", "#9d5cf6", "#d6658f", "#2f7d68"];
-    const minWavelength = Math.min(...series.flatMap((item) => item.points.map((point) => point.wavelengthNm)));
+    const minWavelength = arrayMin(series.flatMap((item) => item.points.map((point) => point.wavelengthNm)));
 
     return {
       data: series.map((item, index) => ({

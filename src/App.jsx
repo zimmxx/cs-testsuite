@@ -415,6 +415,10 @@ function formatWaveguideLengthPreview(map = {}) {
   return values.length ? `[${values.join(" ")}] mm` : "[] mm";
 }
 
+function normalizeStoredDatasets(value) {
+  return Array.isArray(value) ? value.filter((item) => item && typeof item === "object") : [];
+}
+
 function mergeWaferTemplates(...groups) {
   const merged = new Map();
   groups.flat().filter(Boolean).forEach((template) => {
@@ -1311,7 +1315,7 @@ export default function App() {
   const [waferName, setWaferName] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [savedProjects, setSavedProjects] = useState(() => readStoredJson(STORAGE_KEYS.projects, []));
-  const [savedDatasets, setSavedDatasets] = useState(() => readStoredJson(STORAGE_KEYS.datasets, []));
+  const [savedDatasets, setSavedDatasets] = useState(() => normalizeStoredDatasets(readStoredJson(STORAGE_KEYS.datasets, [])));
   const [savedWaferTemplates, setSavedWaferTemplates] = useState(() => readStoredJson(STORAGE_KEYS.waferTemplates, []));
   const [auditLog, setAuditLog] = useState(() => readStoredJson(STORAGE_KEYS.audit, []));
   const [appSettings, setAppSettings] = useState(initialSettings);
@@ -1762,7 +1766,7 @@ export default function App() {
   const bundledDatasetRows = remoteLibraryDatasets.map((definition) => (
     <tr key={`bundled-dataset-${definition.id}`}><td>{definition.label}</td><td>{definition.projectName}</td><td>{definition.waferName}</td><td>{`${definition.traceCount} raw traces`}</td><td>Bundled with app</td><td className="library-table-actions"><button type="button" onClick={() => loadBundledDataset(definition, "dataset")} disabled={loadingBundledId === definition.id}>{loadingBundledId === definition.id ? "Loading..." : "Load"}</button></td></tr>
   ));
-  const currentDatasetRows = savedDatasets.map((dataset) => ({
+  const currentDatasetRows = normalizeStoredDatasets(savedDatasets).map((dataset) => ({
     ...dataset,
     display: dataset.display || buildDatasetSnapshotMetadata(dataset),
     savedDisplay: formatSavedTime(dataset.savedAt)

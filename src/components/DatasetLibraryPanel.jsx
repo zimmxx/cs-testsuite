@@ -5,6 +5,30 @@ function GitHubStatusBadge({ status }) {
   return <span className={`dataset-status-chip ${tone}`}>{label}</span>;
 }
 
+function safeDatasetDisplay(dataset = {}) {
+  const display = dataset.display || {};
+  const summaryRows = Number(dataset.summary?.rows);
+  const displayRows = Number(display.rowCount);
+  const rawSourceCount = Array.isArray(dataset.rawRows)
+    ? new Set(dataset.rawRows.map((row) => row?.source_name).filter(Boolean)).size
+    : 0;
+
+  return {
+    shortLabel: display.shortLabel || dataset.label || "Dataset snapshot",
+    fullLabel: dataset.label || display.label || display.shortLabel || "Dataset snapshot",
+    measurementMode: display.measurementMode || dataset.sourceMeta?.type || "Measurement",
+    waferName: dataset.waferName || display.waferName || "--",
+    sourceLabel: display.sourceLabel || `${rawSourceCount} file${rawSourceCount === 1 ? "" : "s"}`,
+    rowText: Number.isFinite(summaryRows)
+      ? summaryRows.toLocaleString()
+      : Number.isFinite(displayRows)
+        ? displayRows.toLocaleString()
+        : "--",
+    savedDisplay: dataset.savedDisplay || (dataset.savedAt ? new Date(dataset.savedAt).toLocaleString() : "--"),
+    githubStatus: dataset.githubSync?.status || "local"
+  };
+}
+
 export default function DatasetLibraryPanel({
   sourceMeta,
   appSettings,
@@ -26,6 +50,15 @@ export default function DatasetLibraryPanel({
   loadingBundledId,
   publishingDatasetId
 }) {
+  const safeRemoteDatasets = Array.isArray(remoteDatasets) ? remoteDatasets : [];
+  const safeLocalDatasets = Array.isArray(localDatasets) ? localDatasets : [];
+  const safeGithubConfig = {
+    owner: githubConfig?.owner || "",
+    repo: githubConfig?.repo || "",
+    branch: githubConfig?.branch || "main",
+    token: githubConfig?.token || ""
+  };
+
   return (
     <section className="library-stack">
       <article className="analysis-card">
@@ -43,9 +76,9 @@ export default function DatasetLibraryPanel({
 
         <div className="translator-metrics github-library-metrics">
           <div><strong>{currentDatasetMeta?.shortLabel || "No dataset"}</strong><span>Current dataset</span></div>
-          <div><strong>{currentDatasetMeta?.measurementMode || sourceMeta.type}</strong><span>Measurement mode</span></div>
-          <div><strong>{remoteDatasets.length}</strong><span>GitHub library sets</span></div>
-          <div><strong>{appSettings.autoSaveUploads ? "Enabled" : "Disabled"}</strong><span>Auto save</span></div>
+          <div><strong>{currentDatasetMeta?.measurementMode || sourceMeta?.type || "Measurement"}</strong><span>Measurement mode</span></div>
+          <div><strong>{safeRemoteDatasets.length}</strong><span>GitHub library sets</span></div>
+          <div><strong>{appSettings?.autoSaveUploads ? "Enabled" : "Disabled"}</strong><span>Auto save</span></div>
         </div>
       </article>
 
@@ -59,19 +92,19 @@ export default function DatasetLibraryPanel({
         <div className="settings-grid settings-grid-extended">
           <label className="mapping-field">
             <span>Repository owner</span>
-            <input value={githubConfig.owner} onChange={(event) => onGithubConfigChange("owner", event.target.value)} />
+            <input value={safeGithubConfig.owner} onChange={(event) => onGithubConfigChange("owner", event.target.value)} />
           </label>
           <label className="mapping-field">
             <span>Repository</span>
-            <input value={githubConfig.repo} onChange={(event) => onGithubConfigChange("repo", event.target.value)} />
+            <input value={safeGithubConfig.repo} onChange={(event) => onGithubConfigChange("repo", event.target.value)} />
           </label>
           <label className="mapping-field">
             <span>Branch</span>
-            <input value={githubConfig.branch} onChange={(event) => onGithubConfigChange("branch", event.target.value)} />
+            <input value={safeGithubConfig.branch} onChange={(event) => onGithubConfigChange("branch", event.target.value)} />
           </label>
           <label className="mapping-field">
             <span>GitHub token</span>
-            <input type="password" value={githubConfig.token} placeholder="Fine-grained PAT with Contents: write" onChange={(event) => onGithubConfigChange("token", event.target.value)} />
+            <input type="password" value={safeGithubConfig.token} placeholder="Fine-grained PAT with Contents: write" onChange={(event) => onGithubConfigChange("token", event.target.value)} />
           </label>
         </div>
         <div className="github-sync-actions">
@@ -101,17 +134,17 @@ export default function DatasetLibraryPanel({
               </tr>
             </thead>
             <tbody>
-              {remoteDatasets.length ? remoteDatasets.map((dataset) => (
-                <tr key={`remote-${dataset.id}`}>
+              {safeRemoteDatasets.length ? safeRemoteDatasets.map((dataset) => (
+                <tr key={`remote-${dataset.id || dataset.label}`}>
                   <td>
-                    <strong>{dataset.label}</strong>
-                    <div className="dataset-subcopy">{dataset.mpw || "--"} • {dataset.slot || "--"} • {dataset.waveguideType || "--"}</div>
+                    <strong>{dataset.label || "Measurement dataset"}</strong>
+                    <div className="dataset-subcopy">{dataset.mpw || "--"} - {dataset.slot || "--"} - {dataset.waveguideType || "--"}</div>
                   </td>
                   <td>{dataset.measurementMode || dataset.sourceType || "--"}</td>
-                  <td>{dataset.projectName}</td>
-                  <td>{dataset.waferName}</td>
+                  <td>{dataset.projectName || "--"}</td>
+                  <td>{dataset.waferName || "--"}</td>
                   <td>{dataset.traceCount ?? dataset.files?.length ?? "--"}</td>
-                  <td>{dataset.rowCount ? dataset.rowCount.toLocaleString() : `${dataset.traceCount ?? 0} raw traces`}</td>
+                  <td>{dataset.rowCount ? Number(dataset.rowCount).toLocaleString() : `${dataset.traceCount ?? 0} raw traces`}</td>
                   <td className="library-table-actions">
                     <button type="button" onClick={() => onLoadRemoteDataset(dataset)} disabled={loadingBundledId === dataset.id}>{loadingBundledId === dataset.id ? "Loading..." : "Load"}</button>
                   </td>
@@ -148,25 +181,28 @@ export default function DatasetLibraryPanel({
               </tr>
             </thead>
             <tbody>
-              {localDatasets.length ? localDatasets.map((dataset) => (
-                <tr key={dataset.id}>
-                  <td>
-                    <strong>{dataset.display.shortLabel}</strong>
-                    <div className="dataset-subcopy">{dataset.label}</div>
-                  </td>
-                  <td>{dataset.display.measurementMode}</td>
-                  <td>{dataset.waferName || dataset.display.waferName}</td>
-                  <td>{dataset.display.sourceLabel}</td>
-                  <td>{dataset.summary?.rows?.toLocaleString?.() ?? dataset.display.rowCount?.toLocaleString?.() ?? "--"}</td>
-                  <td>{dataset.savedDisplay}</td>
-                  <td><GitHubStatusBadge status={dataset.githubSync?.status} /></td>
-                  <td className="library-table-actions">
-                    <button type="button" onClick={() => onLoadLocalDataset(dataset)}>Load</button>
-                    <button type="button" className="secondary-action" onClick={() => onPublishLocalDataset(dataset)} disabled={publishingDatasetId === dataset.id}>{publishingDatasetId === dataset.id ? "Publishing..." : "Save to GitHub"}</button>
-                    <button type="button" className="danger-action" onClick={() => onDeleteLocalDataset(dataset.id)}>Delete</button>
-                  </td>
-                </tr>
-              )) : (
+              {safeLocalDatasets.length ? safeLocalDatasets.map((dataset) => {
+                const info = safeDatasetDisplay(dataset);
+                return (
+                  <tr key={dataset.id || info.fullLabel}>
+                    <td>
+                      <strong>{info.shortLabel}</strong>
+                      <div className="dataset-subcopy">{info.fullLabel}</div>
+                    </td>
+                    <td>{info.measurementMode}</td>
+                    <td>{info.waferName}</td>
+                    <td>{info.sourceLabel}</td>
+                    <td>{info.rowText}</td>
+                    <td>{info.savedDisplay}</td>
+                    <td><GitHubStatusBadge status={info.githubStatus} /></td>
+                    <td className="library-table-actions">
+                      <button type="button" onClick={() => onLoadLocalDataset(dataset)}>Load</button>
+                      <button type="button" className="secondary-action" onClick={() => onPublishLocalDataset(dataset)} disabled={publishingDatasetId === dataset.id}>{publishingDatasetId === dataset.id ? "Publishing..." : "Save to GitHub"}</button>
+                      <button type="button" className="danger-action" onClick={() => onDeleteLocalDataset(dataset.id)}>Delete</button>
+                    </td>
+                  </tr>
+                );
+              }) : (
                 <tr>
                   <td colSpan="8"><div className="chart-empty compact">No local dataset snapshots are available yet.</div></td>
                 </tr>

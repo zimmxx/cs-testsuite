@@ -78,7 +78,7 @@ export default function DatasetLibraryPanel({
           <div><strong>{currentDatasetMeta?.shortLabel || "No dataset"}</strong><span>Current dataset</span></div>
           <div><strong>{currentDatasetMeta?.measurementMode || sourceMeta?.type || "Measurement"}</strong><span>Measurement mode</span></div>
           <div><strong>{safeRemoteDatasets.length}</strong><span>GitHub library sets</span></div>
-          <div><strong>{appSettings?.autoSaveUploads ? "Enabled" : "Disabled"}</strong><span>Auto save</span></div>
+          <div><strong>Manual only</strong><span>Dataset saving</span></div>
         </div>
       </article>
 
@@ -223,3 +223,4 @@ export default function DatasetLibraryPanel({
     </section>
   );
 }
+

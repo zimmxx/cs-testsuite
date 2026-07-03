@@ -1804,3 +1804,36 @@ tbody tr:last-child td {
     align-items: flex-start;
   }
 }
+
+.crash-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.crash-card {
+  max-width: 760px;
+  width: min(100%, 760px);
+}
+
+.crash-metrics {
+  margin-bottom: 20px;
+}
+
+.crash-detail {
+  align-items: flex-start;
+  text-align: left;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.crash-detail strong {
+  font-size: 1rem;
+}
+
+.crash-detail span {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

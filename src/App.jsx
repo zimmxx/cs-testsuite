@@ -54,6 +54,10 @@ const DATASET_PREVIEW_LIMIT = 12;
 const DEFAULT_WAVEGUIDE_COUNT = 6;
 const DEFAULT_WAVEGUIDE_START_MM = 0;
 const DEFAULT_WAVEGUIDE_INTERVAL_MM = 4;
+const UPLOAD_BATCH_SIZE = 8;
+const MAX_LOCAL_SNAPSHOT_ROWS = 150000;
+const MAX_LOCAL_SNAPSHOT_FILES = 120;
+const MAX_LOCAL_SNAPSHOT_ESTIMATED_BYTES = 4500000;
 const STORAGE_KEYS = {
   projects: "wps.projects.v1",
   datasets: "wps.datasets.v1",
@@ -198,6 +202,40 @@ function persistStoredJson(key, value) {
   } catch {
     // Ignore storage failures in restricted browser contexts.
   }
+}
+
+function estimateSnapshotBytes(rows = [], columnMap = {}, sourceMeta = {}) {
+  const sample = rows.slice(0, Math.min(rows.length, 24));
+  const sampleJson = JSON.stringify(sample);
+  const avgRowBytes = sample.length ? sampleJson.length / sample.length : 0;
+  return Math.round(avgRowBytes * rows.length + JSON.stringify(columnMap).length + JSON.stringify(sourceMeta).length + 1024);
+}
+
+function evaluateLocalSnapshotCapacity(rows = [], sourceMeta = {}) {
+  const sourceFiles = new Set(rows.map((row) => row?.source_name).filter(Boolean)).size;
+  const estimatedBytes = estimateSnapshotBytes(rows, {}, sourceMeta);
+  if (rows.length > MAX_LOCAL_SNAPSHOT_ROWS) {
+    return { ok: false, reason: `Dataset has ${rows.length.toLocaleString()} rows, above the local browser snapshot limit of ${MAX_LOCAL_SNAPSHOT_ROWS.toLocaleString()} rows.` };
+  }
+  if (sourceFiles > MAX_LOCAL_SNAPSHOT_FILES) {
+    return { ok: false, reason: `Dataset has ${sourceFiles} source files, above the local browser snapshot limit of ${MAX_LOCAL_SNAPSHOT_FILES} files.` };
+  }
+  if (estimatedBytes > MAX_LOCAL_SNAPSHOT_ESTIMATED_BYTES) {
+    return { ok: false, reason: `Estimated browser storage footprint is about ${(estimatedBytes / 1000000).toFixed(1)} MB, above the safe local snapshot limit.` };
+  }
+  return { ok: true, sourceFiles, estimatedBytes };
+}
+
+async function readFilesInBatches(files, reader, batchSize = UPLOAD_BATCH_SIZE, onProgress) {
+  const rows = [];
+  for (let index = 0; index < files.length; index += batchSize) {
+    const batch = files.slice(index, index + batchSize);
+    onProgress?.(Math.min(index + batch.length, files.length), files.length);
+    const batchRows = await Promise.all(batch.map((file) => reader(file)));
+    rows.push(...batchRows.flat());
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+  }
+  return rows;
 }
 
 function createId(prefix) {
@@ -1327,6 +1365,7 @@ export default function App() {
   const [remoteLibraryStatus, setRemoteLibraryStatus] = useState("GitHub measurement library ready. Refresh to pull the latest published folders.");
   const [githubConfig, setGithubConfig] = useState(() => ({ ...DEFAULT_GITHUB_CONFIG, ...readStoredJson(STORAGE_KEYS.github, {}) }));
   const [toastItems, setToastItems] = useState([]);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [waferMapDisplayMode, setWaferMapDisplayMode] = useState("all");
   const [waferMapOverlayMode, setWaferMapOverlayMode] = useState("none");
 
@@ -1509,29 +1548,59 @@ export default function App() {
   }
   async function handleFileUpload(event) {
     const files = Array.from(event.target.files || []);
-    if (!files.length) return;
-    const fileRowSets = await Promise.all(files.map((file) => readFileRows(file, { launchPowerDbm: sourceMeta.launchPowerDbm, defaultMetricFamily: sourceMeta.defaultMetricFamily, defaultWavelengthNm: sourceMeta.defaultWavelengthNm })));
-    const rows = fileRowSets.flat();
-    if (!rows.length) {
-      setStatusMessage("The selected files did not contain readable measurement rows.");
-      appendAudit("upload", "Upload failed", `The uploaded selection (${files.map((file) => file.name).join(", ")}) did not produce readable rows.`);
-      return;
+    if (!files.length || isUploadingFiles) return;
+    setIsUploadingFiles(true);
+    try {
+      const rows = await readFilesInBatches(
+        files,
+        (file) => readFileRows(file, {
+          launchPowerDbm: sourceMeta.launchPowerDbm,
+          defaultMetricFamily: sourceMeta.defaultMetricFamily,
+          defaultWavelengthNm: sourceMeta.defaultWavelengthNm
+        }),
+        UPLOAD_BATCH_SIZE,
+        (completed, total) => {
+          setStatusMessage(`Reading measurement files... ${completed}/${total} processed.`);
+        }
+      );
+      if (!rows.length) {
+        setStatusMessage("The selected files did not contain readable measurement rows.");
+        appendAudit("upload", "Upload failed", `The uploaded selection (${files.map((file) => file.name).join(", ")}) did not produce readable rows.`);
+        return;
+      }
+      const firstType = sourceTypeLabel(files[0].name);
+      const sharedType = files.every((file) => sourceTypeLabel(file.name) === firstType)
+        ? (files.length > 1 && firstType === "Automated WST trace" ? "Automated WST trace set" : firstType)
+        : "Mixed measurement upload";
+      const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
+      const nextSourceMeta = { ...sourceMeta, name: files.length === 1 ? files[0].name : `${files.length} measurement files`, type: sharedType };
+      setRawRows(rows);
+      setColumnMap(inferredMap);
+      setSourceMeta(nextSourceMeta);
+      setStatusMessage(files.length === 1 ? `Loaded ${rows.length} rows from ${files[0].name}.` : `Loaded ${rows.length} rows from ${files.length} uploaded measurement files.`);
+      appendAudit("upload", "Measurement file uploaded", `Loaded ${rows.length} rows from ${files.length} file(s) as ${sharedType}.`);
+      pushToast("Files loaded", files.length === 1 ? `${files[0].name} loaded successfully.` : `${files.length} measurement files loaded.`, "success");
+      if (appSettings.autoSaveUploads) {
+        const snapshotCapacity = evaluateLocalSnapshotCapacity(rows, nextSourceMeta);
+        if (snapshotCapacity.ok) {
+          rememberDatasetSnapshot(true, rows, inferredMap, nextSourceMeta, nextSourceMeta.name);
+          appendAudit("dataset", "Dataset auto-saved", `Saved ${nextSourceMeta.name} into the local dataset library automatically.`);
+        } else {
+          const detail = `Loaded ${nextSourceMeta.name}, but skipped browser auto-save because the dataset is too large for reliable local storage. ${snapshotCapacity.reason}`;
+          setStatusMessage(detail);
+          appendAudit("dataset", "Dataset auto-save skipped", detail);
+          pushToast("Auto-save skipped", "Large uploads stay in the workspace, but are not auto-saved to browser storage.", "progress");
+        }
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown upload error.";
+      setStatusMessage(`Upload failed: ${detail}`);
+      appendAudit("upload", "Upload failed", detail);
+      pushToast("Upload failed", detail, "danger");
+    } finally {
+      setIsUploadingFiles(false);
+      if (event.target) event.target.value = "";
     }
-    const firstType = sourceTypeLabel(files[0].name);
-    const sharedType = files.every((file) => sourceTypeLabel(file.name) === firstType) ? (files.length > 1 && firstType === "Automated WST trace" ? "Automated WST trace set" : firstType) : "Mixed measurement upload";
-    const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
-    const nextSourceMeta = { ...sourceMeta, name: files.length === 1 ? files[0].name : `${files.length} measurement files`, type: sharedType };
-    setRawRows(rows);
-    setColumnMap(inferredMap);
-    setSourceMeta(nextSourceMeta);
-    setStatusMessage(files.length === 1 ? `Loaded ${rows.length} rows from ${files[0].name}.` : `Loaded ${rows.length} rows from ${files.length} uploaded measurement files.`);
-    appendAudit("upload", "Measurement file uploaded", `Loaded ${rows.length} rows from ${files.length} file(s) as ${sharedType}.`);
-    pushToast("Files loaded", files.length === 1 ? `${files[0].name} loaded successfully.` : `${files.length} measurement files loaded.`, "success");
-    if (appSettings.autoSaveUploads) {
-      rememberDatasetSnapshot(true, rows, inferredMap, nextSourceMeta, nextSourceMeta.name);
-      appendAudit("dataset", "Dataset auto-saved", `Saved ${nextSourceMeta.name} into the local dataset library automatically.`);
-    }
-    event.target.value = "";
   }
   function clearWorkspace() {
     setProjectName(""); setWaferName(""); setSelectedDate(""); setRawRows([]); setColumnMap({}); setSelectedChip("");
@@ -1657,10 +1726,10 @@ export default function App() {
     downloadBlob(buildHtmlReport(reportState, reportTitle), `${safeWafer}-report-summary.html`, "text/html;charset=utf-8");
     appendAudit("export", "Report summary exported", `Exported HTML and JSON reports for ${waferName}.`);
   }
-  function saveCurrentProject() { const projectRecord = { id: createId("project"), projectName, waferName, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${projectName} for wafer ${waferName}.`); setStatusMessage(`Saved project ${projectName}. You can reopen it later from the Projects section.`); }
+  function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const projectRecord = { id: createId("project"), projectName, waferName, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${projectName} for wafer ${waferName}.`); setStatusMessage(`Saved project ${projectName}. You can reopen it later from the Projects section.`); }
   function loadProject(project) { setProjectName(project.projectName); setWaferName(project.waferName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${project.projectName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${project.projectName} for wafer ${project.waferName}.`); }
   function deleteProject(projectId) { const target = savedProjects.find((project) => project.id === projectId); setSavedProjects((previous) => previous.filter((project) => project.id !== projectId)); appendAudit("project", "Project deleted", `Deleted saved project ${target?.projectName || projectId}.`); }
-  function saveCurrentDataset(autoSaved = false) { const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
+  function saveCurrentDataset(autoSaved = false) { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!snapshotCapacity.ok) { const detail = `Dataset save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("dataset", autoSaved ? "Dataset auto-save skipped" : "Dataset save skipped", detail); pushToast(autoSaved ? "Auto-save skipped" : "Dataset save skipped", "This dataset is too large for reliable browser storage.", "progress"); return; } const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
   function loadDataset(dataset) { setProjectName(dataset.projectName || projectName); setWaferName(dataset.waferName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(dataset.rawRows || []); setColumnMap(dataset.columnMap || {}); setSourceMeta(dataset.sourceMeta || buildDefaultSourceMeta(appSettings)); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${dataset.projectName}.`); }
   function deleteDataset(datasetId) { const target = savedDatasets.find((dataset) => dataset.id === datasetId); setSavedDatasets((previous) => previous.filter((dataset) => dataset.id !== datasetId)); appendAudit("dataset", "Dataset deleted", `Deleted dataset snapshot ${target?.label || datasetId}.`); }
   function updateGithubConfig(field, value) { setGithubConfig((previous) => ({ ...previous, [field]: value })); }
@@ -1795,7 +1864,7 @@ export default function App() {
               <FilterField label="Project" value={projectName} onChange={setProjectName} options={projectOptions} />
               <FilterField label="Wafer" value={waferName} onChange={setWaferName} options={waferOptions} />
               <FilterField label="Date" value={selectedDate} onChange={setSelectedDate} options={dateOptions} icon="Cal" />
-              <label className="upload-measurement-button"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleFileUpload} /><span>Upload Measurement Files</span></label>
+              <label className="upload-measurement-button"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleFileUpload} disabled={isUploadingFiles} /><span>{isUploadingFiles ? "Processing Files..." : "Upload Measurement Files"}</span></label>
             </div>
           </header>
 
@@ -1899,6 +1968,8 @@ export default function App() {
     </div>
   );
 }
+
+
 
 
 

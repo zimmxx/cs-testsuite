@@ -16,6 +16,16 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function arrayMin(values, fallback = null) {
+  if (!values.length) return fallback;
+  return values.reduce((min, value) => (value < min ? value : min), values[0]);
+}
+
+function arrayMax(values, fallback = null) {
+  if (!values.length) return fallback;
+  return values.reduce((max, value) => (value > max ? value : max), values[0]);
+}
+
 function summarizeWavelength(rows) {
   const values = rows
     .map((row) => Number(row.wavelength_nm))
@@ -23,7 +33,7 @@ function summarizeWavelength(rows) {
   if (!values.length) {
     return { min: null, max: null };
   }
-  return { min: Math.min(...values), max: Math.max(...values) };
+  return { min: arrayMin(values), max: arrayMax(values) };
 }
 
 function inferDatasetTokens(projectName, waferName, sourceMeta = {}, rows = []) {

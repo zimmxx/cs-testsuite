@@ -156,11 +156,20 @@ function buildTransmissionSeries(rows) {
     });
 }
 
+function arrayMin(values, fallback = null) {
+  if (!values.length) return fallback;
+  return values.reduce((min, value) => (value < min ? value : min), values[0]);
+}
+
+function arrayMax(values, fallback = null) {
+  if (!values.length) return fallback;
+  return values.reduce((max, value) => (value > max ? value : max), values[0]);
+}
 function summarizeTransmission(series) {
   const wg1 = series.find((item) => item.waveguideId === "WG1") || series[0] || null;
   if (!wg1 || !wg1.points.length) return null;
   const transmissionValues = wg1.points.map((point) => point.transmissionDb);
-  const peakTransmissionDb = Math.max(...transmissionValues);
+  const peakTransmissionDb = arrayMax(transmissionValues);
   const peakPoint = wg1.points.find((point) => point.transmissionDb === peakTransmissionDb) || null;
   const halfMax = peakTransmissionDb - 3;
   const withinBandwidth = wg1.points.filter((point) => point.transmissionDb >= halfMax);
@@ -480,8 +489,8 @@ export function getMetricRange(cells) {
   const values = cells.map((cell) => cell.value).filter((value) => value !== null && value !== undefined);
   if (!values.length) return null;
   return {
-    min: Math.min(...values),
-    max: Math.max(...values)
+    min: arrayMin(values),
+    max: arrayMax(values)
   };
 }
 

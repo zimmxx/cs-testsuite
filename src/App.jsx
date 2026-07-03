@@ -17,12 +17,15 @@ import {
   sourceTypeLabel
 } from "./lib/parsers";
 import { createCenterFilledWaferTemplate, defaultWaferTemplateId, getBuiltInWaferTemplates, getWaferTemplateLayout, shortChipLabel } from "./lib/waferTemplates";
+import { buildDatasetSnapshotMetadata, buildGithubDatasetPackage, publishDatasetPackageToGithub } from "./lib/githubLibrary";
 import {
   InteractivePropagationPlot,
   InteractivePropagationSpectrumPlot,
   InteractiveTransmissionSpectrumPlot
 } from "./components/InteractivePlots";
 import ManualConversionPanel from "./components/ManualConversionPanel";
+import DatasetLibraryPanel from "./components/DatasetLibraryPanel";
+import ToastTray from "./components/ToastTray";
 
 const APP_TABS = [
   { id: "propagation", label: "Propagation Loss" },
@@ -56,7 +59,8 @@ const STORAGE_KEYS = {
   datasets: "wps.datasets.v1",
   waferTemplates: "wps.wafer-templates.v1",
   settings: "wps.settings.v1",
-  audit: "wps.audit.v1"
+  audit: "wps.audit.v1",
+  github: "wps.github.v1"
 };
 const DEFAULT_WAFER_TEMPLATE_DRAFT = {
   id: "",
@@ -107,6 +111,9 @@ const HELP_TOPICS = [
   }
 ];
 const REPO_DOC_BASE = "https://github.com/zimmxx/cs-testsuite/blob/main/";
+const GITHUB_LIBRARY_MANIFEST_PATH = "public/sample-data/wst/library-index.json";
+const GITHUB_LIBRARY_MANIFEST_MIRROR_PATH = "sample-data/wst/library-index.json";
+const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "main", token: "" };
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
@@ -138,6 +145,14 @@ function bundledTraceNames(definition) {
 function bundledAssetUrl(relativePath) {
   const base = (import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
   return `${base}${String(relativePath || "").replace(/^\/+/, "")}`;
+}
+
+function normalizeLibraryDataset(definition) {
+  return {
+    ...definition,
+    files: definition.files?.length ? definition.files : bundledTraceNames(definition),
+    source: definition.source || "github-library"
+  };
 }
 const DEMO_ROWS = [];
 
@@ -1303,6 +1318,11 @@ export default function App() {
   const [settingsDraft, setSettingsDraft] = useState(initialSettings);
   const [waferTemplateDraft, setWaferTemplateDraft] = useState(DEFAULT_WAFER_TEMPLATE_DRAFT);
   const [loadingBundledId, setLoadingBundledId] = useState("");
+  const [publishingDatasetId, setPublishingDatasetId] = useState("");
+  const [remoteLibraryDatasets, setRemoteLibraryDatasets] = useState(() => BUNDLED_LIBRARY_DATASETS.map(normalizeLibraryDataset));
+  const [remoteLibraryStatus, setRemoteLibraryStatus] = useState("GitHub measurement library ready. Refresh to pull the latest published folders.");
+  const [githubConfig, setGithubConfig] = useState(() => ({ ...DEFAULT_GITHUB_CONFIG, ...readStoredJson(STORAGE_KEYS.github, {}) }));
+  const [toastItems, setToastItems] = useState([]);
   const [waferMapDisplayMode, setWaferMapDisplayMode] = useState("all");
   const [waferMapOverlayMode, setWaferMapOverlayMode] = useState("none");
 
@@ -1459,6 +1479,13 @@ export default function App() {
   function appendAudit(kind, title, detail) {
     setAuditLog((previous) => [{ id: createId("audit"), kind, title, detail, timestamp: new Date().toISOString() }, ...previous].slice(0, 120));
   }
+  function pushToast(title, message, tone = "info") {
+    const id = createId("toast");
+    setToastItems((previous) => [...previous, { id, title, message, tone }].slice(-4));
+    window.setTimeout(() => {
+      setToastItems((previous) => previous.filter((item) => item.id !== id));
+    }, 3200);
+  }
   function updateTab(tabId) {
     startTransition(() => {
       setActiveTab(tabId);
@@ -1470,7 +1497,9 @@ export default function App() {
   function rememberDatasetSnapshot(autoSaved, nextRows, nextMap, nextSourceMeta, sourceLabel, nextProjectName = projectName, nextWaferName = waferName, nextDate = selectedDate) {
     const snapshotRows = nextRows;
     const snapshotSummary = summarizeDataset(buildNormalizedRows(snapshotRows, nextMap, nextSourceMeta));
-    const snapshot = { id: createId("dataset"), label: sourceLabel, projectName: nextProjectName, waferName: nextWaferName, selectedDate: nextDate, rawRows: snapshotRows, columnMap: nextMap, sourceMeta: nextSourceMeta, summary: snapshotSummary, autoSaved, savedAt: new Date().toISOString() };
+    const baseSnapshot = { id: createId("dataset"), label: sourceLabel, projectName: nextProjectName, waferName: nextWaferName, selectedDate: nextDate, rawRows: snapshotRows, columnMap: nextMap, sourceMeta: nextSourceMeta, summary: snapshotSummary, autoSaved, savedAt: new Date().toISOString() };
+    const display = buildDatasetSnapshotMetadata(baseSnapshot);
+    const snapshot = { ...baseSnapshot, label: display.label, display, githubSync: { status: "local" } };
     setSavedDatasets((previous) => [snapshot, ...previous].slice(0, 40));
     return snapshot;
   }
@@ -1493,6 +1522,7 @@ export default function App() {
     setSourceMeta(nextSourceMeta);
     setStatusMessage(files.length === 1 ? `Loaded ${rows.length} rows from ${files[0].name}.` : `Loaded ${rows.length} rows from ${files.length} uploaded measurement files.`);
     appendAudit("upload", "Measurement file uploaded", `Loaded ${rows.length} rows from ${files.length} file(s) as ${sharedType}.`);
+    pushToast("Files loaded", files.length === 1 ? `${files[0].name} loaded successfully.` : `${files.length} measurement files loaded.`, "success");
     if (appSettings.autoSaveUploads) {
       rememberDatasetSnapshot(true, rows, inferredMap, nextSourceMeta, nextSourceMeta.name);
       appendAudit("dataset", "Dataset auto-saved", `Saved ${nextSourceMeta.name} into the local dataset library automatically.`);
@@ -1509,7 +1539,7 @@ export default function App() {
   async function loadBundledDataset(definition, libraryKind = "dataset") {
     setLoadingBundledId(definition.id);
     try {
-      const fileNames = bundledTraceNames(definition);
+      const fileNames = definition.files?.length ? definition.files : bundledTraceNames(definition);
       const rowSets = await Promise.all(
         fileNames.map(async (fileName) => {
           const response = await fetch(bundledAssetUrl(`${definition.folder}/${fileName}`));
@@ -1541,6 +1571,7 @@ export default function App() {
       setSelectedChip(rows[0]?.chip_id || "");
       setActiveTab("propagation");
       setStatusMessage(`Loaded bundled sample ${definition.label} from GitHub-hosted files (${fileNames.length} traces).`);
+      pushToast("Dataset loaded", `${definition.label} loaded from the GitHub measurement library.`, "success");
       appendAudit("dataset", "Bundled dataset loaded", `Loaded ${definition.label} from bundled GitHub-hosted files.`);
       if (libraryKind === "project") {
         appendAudit("project", "Bundled project loaded", `Opened ${definition.projectName} from the bundled sample library.`);
@@ -1628,6 +1659,77 @@ export default function App() {
   function saveCurrentDataset(autoSaved = false) { const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
   function loadDataset(dataset) { setProjectName(dataset.projectName || projectName); setWaferName(dataset.waferName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(dataset.rawRows || []); setColumnMap(dataset.columnMap || {}); setSourceMeta(dataset.sourceMeta || buildDefaultSourceMeta(appSettings)); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${dataset.projectName}.`); }
   function deleteDataset(datasetId) { const target = savedDatasets.find((dataset) => dataset.id === datasetId); setSavedDatasets((previous) => previous.filter((dataset) => dataset.id !== datasetId)); appendAudit("dataset", "Dataset deleted", `Deleted dataset snapshot ${target?.label || datasetId}.`); }
+  function updateGithubConfig(field, value) { setGithubConfig((previous) => ({ ...previous, [field]: value })); }
+  function saveGithubConfig() { persistStoredJson(STORAGE_KEYS.github, githubConfig); setStatusMessage(`Saved GitHub sync settings for ${githubConfig.owner}/${githubConfig.repo} on ${githubConfig.branch}.`); appendAudit("github", "GitHub settings saved", `Saved GitHub dataset sync settings for ${githubConfig.owner}/${githubConfig.repo}.`); pushToast("GitHub settings saved", `${githubConfig.owner}/${githubConfig.repo} stored in this browser.`, "success"); }
+  async function refreshRemoteLibrary(silent = false) {
+    setRemoteLibraryStatus("Refreshing GitHub measurement library...");
+    try {
+      const response = await fetch(bundledAssetUrl("sample-data/wst/library-index.json"), { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const catalog = await response.json();
+      const normalized = Array.isArray(catalog) ? catalog.map(normalizeLibraryDataset) : [];
+      setRemoteLibraryDatasets(normalized.length ? normalized : BUNDLED_LIBRARY_DATASETS.map(normalizeLibraryDataset));
+      setRemoteLibraryStatus(`GitHub measurement library refreshed. ${normalized.length} dataset folder(s) are currently published.`);
+      if (!silent) pushToast("Library refreshed", `${normalized.length} GitHub measurement dataset${normalized.length === 1 ? "" : "s"} ready.`, "success");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown error";
+      setRemoteLibraryDatasets(BUNDLED_LIBRARY_DATASETS.map(normalizeLibraryDataset));
+      setRemoteLibraryStatus(`Could not refresh the GitHub library, so the app is using the bundled fallback set. ${detail}`);
+      if (!silent) pushToast("Library refresh failed", detail, "danger");
+    }
+  }
+  async function publishDatasetToGithub(dataset) {
+    if (!githubConfig.token) {
+      const message = "Add a fine-grained GitHub token in the Datasets tab before publishing measurement data.";
+      setStatusMessage(message);
+      pushToast("GitHub token required", message, "danger");
+      return;
+    }
+    if (!dataset?.rawRows?.length) {
+      const message = "This dataset has no raw rows available for GitHub publishing.";
+      setStatusMessage(message);
+      pushToast("Publish skipped", message, "danger");
+      return;
+    }
+    setPublishingDatasetId(dataset.id);
+    setSavedDatasets((previous) => previous.map((item) => item.id === dataset.id ? { ...item, githubSync: { status: "publishing" } } : item));
+    const packageData = buildGithubDatasetPackage(dataset);
+    setStatusMessage(`Publishing ${packageData.identity.label} to GitHub...`);
+    pushToast("GitHub publish started", `Preparing ${packageData.traceFiles.length} trace file(s) and README.md.`, "progress");
+    try {
+      const result = await publishDatasetPackageToGithub({
+        owner: githubConfig.owner,
+        repo: githubConfig.repo,
+        branch: githubConfig.branch,
+        token: githubConfig.token,
+        manifestPath: GITHUB_LIBRARY_MANIFEST_PATH,
+        mirrorManifestPath: GITHUB_LIBRARY_MANIFEST_MIRROR_PATH,
+        packageData,
+        existingManifest: remoteLibraryDatasets,
+        onProgress: ({ completed, total, path }) => {
+          setRemoteLibraryStatus(`Publishing to GitHub: ${completed}/${total} files processed. Latest: ${path}`);
+        }
+      });
+      setRemoteLibraryDatasets(result.manifest.map(normalizeLibraryDataset));
+      setSavedDatasets((previous) => previous.map((item) => item.id === dataset.id ? { ...item, githubSync: { status: "published", publishedAt: new Date().toISOString(), folderUrl: result.folderUrl } } : item));
+      setStatusMessage(`Saved ${packageData.identity.label} to GitHub successfully.`);
+      setRemoteLibraryStatus(`GitHub publish complete. ${packageData.identity.folderName} is now in the shared measurement-data library.`);
+      appendAudit("github", "Dataset published to GitHub", `Published ${packageData.identity.label} into ${githubConfig.owner}/${githubConfig.repo}.`);
+      pushToast("GitHub publish successful", `${packageData.identity.label} was committed to the repository.`, "success");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown error";
+      setSavedDatasets((previous) => previous.map((item) => item.id === dataset.id ? { ...item, githubSync: { status: "failed", detail } } : item));
+      setStatusMessage(`GitHub publish failed: ${detail}`);
+      setRemoteLibraryStatus(`GitHub publish failed. ${detail}`);
+      appendAudit("github", "Dataset publish failed", `Failed to publish ${dataset.label}: ${detail}`);
+      pushToast("GitHub publish failed", detail, "danger");
+    } finally {
+      setPublishingDatasetId("");
+    }
+  }
+  useEffect(() => {
+    refreshRemoteLibrary(true);
+  }, []);
   function updateSettingsDraft(field, value) { setSettingsDraft((previous) => applyWaveguideSettingsToDraft(previous, { [field]: value })); }
   function updateSettingsWaveguideLength(index, value) {
     setSettingsDraft((previous) => applyWaveguideSettingsToDraft(previous, {
@@ -1651,24 +1753,27 @@ export default function App() {
   const projectOptions = uniqueOptions([projectName, ...savedProjects.map((project) => project.projectName)].filter(Boolean));
   const waferOptions = uniqueOptions([waferName, ...savedProjects.map((project) => project.waferName)].filter(Boolean));
   const dateOptions = uniqueOptions([selectedDate, ...savedProjects.map((project) => project.selectedDate)].filter(Boolean));
-  const bundledProjectRows = BUNDLED_LIBRARY_DATASETS.map((definition) => (
+  const bundledProjectRows = remoteLibraryDatasets.map((definition) => (
     <tr key={`bundled-project-${definition.id}`}><td>{definition.projectName}</td><td>{definition.waferName}</td><td>{definition.label}</td><td>{`${definition.traceCount} raw traces`}</td><td>Bundled with app</td><td className="library-table-actions"><button type="button" onClick={() => loadBundledDataset(definition, "project")} disabled={loadingBundledId === definition.id}>{loadingBundledId === definition.id ? "Loading..." : "Load"}</button></td></tr>
   ));
   const currentProjectRows = savedProjects.map((project) => (
     <tr key={project.id}><td>{project.projectName}</td><td>{project.waferName}</td><td>{project.sourceMeta.name}</td><td>{project.summary.rows}</td><td>{formatSavedTime(project.savedAt)}</td><td className="library-table-actions"><button type="button" onClick={() => loadProject(project)}>Load</button><button type="button" className="danger-action" onClick={() => deleteProject(project.id)}>Delete</button></td></tr>
   ));
-  const bundledDatasetRows = BUNDLED_LIBRARY_DATASETS.map((definition) => (
+  const bundledDatasetRows = remoteLibraryDatasets.map((definition) => (
     <tr key={`bundled-dataset-${definition.id}`}><td>{definition.label}</td><td>{definition.projectName}</td><td>{definition.waferName}</td><td>{`${definition.traceCount} raw traces`}</td><td>Bundled with app</td><td className="library-table-actions"><button type="button" onClick={() => loadBundledDataset(definition, "dataset")} disabled={loadingBundledId === definition.id}>{loadingBundledId === definition.id ? "Loading..." : "Load"}</button></td></tr>
   ));
-  const currentDatasetRows = savedDatasets.map((dataset) => (
-    <tr key={dataset.id}><td>{dataset.label}</td><td>{dataset.projectName}</td><td>{dataset.waferName}</td><td>{dataset.summary.rows}</td><td>{formatSavedTime(dataset.savedAt)}</td><td className="library-table-actions"><button type="button" onClick={() => loadDataset(dataset)}>Load</button><button type="button" className="danger-action" onClick={() => deleteDataset(dataset.id)}>Delete</button></td></tr>
-  ));
+  const currentDatasetRows = savedDatasets.map((dataset) => ({
+    ...dataset,
+    display: dataset.display || buildDatasetSnapshotMetadata(dataset),
+    savedDisplay: formatSavedTime(dataset.savedAt)
+  }));
   const auditRows = auditLog.map((entry) => (
     <tr key={entry.id}><td>{entry.title}</td><td>{entry.kind}</td><td>{entry.detail}</td><td>{formatSavedTime(entry.timestamp)}</td></tr>
   ));
 
   return (
     <div className="dashboard-page">
+      <ToastTray items={toastItems} />
       <div className="dashboard-shell">
         <aside className="dashboard-rail">
           <div className="brand-mark"><div className="brand-wafer" /></div>
@@ -1779,7 +1884,7 @@ export default function App() {
 </> : null}
 
           {activeTab === "projects" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Projects Workspace</h2><p>Save the current wafer analysis context so you can reopen the same project state later.</p></div><div className="library-action-row"><button type="button" onClick={saveCurrentProject}>Save Current Project</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Back To Analysis</button></div></div><div className="translator-metrics"><div><strong>{projectName}</strong><span>Project</span></div><div><strong>{waferName}</strong><span>Wafer</span></div><div><strong>{datasetSummary.rows}</strong><span>Rows</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Projects</h2><p>Stored locally in this browser.</p></div></div><LibraryTable columns={["Project", "Wafer", "Dataset", "Rows", "Saved", "Actions"]} rows={[...bundledProjectRows, ...currentProjectRows]} emptyMessage="No bundled or saved projects are available yet." /></article></section> : null}
-          {activeTab === "datasets" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Datasets Library</h2><p>Manage normalized dataset snapshots stored locally in this browser for quick reload and comparison.</p></div><div className="library-action-row"><button type="button" onClick={() => saveCurrentDataset(false)}>Save Dataset Snapshot</button><button type="button" className="ghost-action" onClick={clearWorkspace}>Clear Workspace</button></div></div><div className="translator-metrics"><div><strong>{sourceMeta.name}</strong><span>Current Source</span></div><div><strong>{sourceMeta.type}</strong><span>Type</span></div><div><strong>{appSettings.autoSaveUploads ? "Enabled" : "Disabled"}</strong><span>Auto Save</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Datasets</h2><p>Each entry can be loaded back into the dashboard.</p></div></div><LibraryTable columns={["Dataset", "Project", "Wafer", "Rows", "Saved", "Actions"]} rows={[...bundledDatasetRows, ...currentDatasetRows]} emptyMessage="No bundled or saved dataset snapshots are available yet." /></article></section> : null}
+          {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} appSettings={appSettings} currentDatasetMeta={currentRows.length ? buildDatasetSnapshotMetadata({ projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta }) : null} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={refreshRemoteLibrary} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label><label className="mapping-field"><span>Propagation spectral interval (nm)</span><input type="number" min="1" value={settingsDraft.propagationSpectralStepNm} onChange={(event) => updateSettingsDraft("propagationSpectralStepNm", Math.max(Number(event.target.value) || 1, 1))} /></label><label className="mapping-field"><span>Propagation fit MSE threshold</span><input type="number" step="0.01" value={settingsDraft.propagationMseThreshold} onChange={(event) => updateSettingsDraft("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} /></label></div><WaveguideLengthConfigurator count={settingsDraft.propagationWaveguideCount} start={settingsDraft.propagationWaveguideStartMm} interval={settingsDraft.propagationWaveguideIntervalMm} manualMode={settingsDraft.propagationWaveguideManualMode} lengths={settingsDraft.propagationWaveguideLengthsMm} onNumberChange={updateSettingsDraft} onLengthChange={updateSettingsWaveguideLength} onManualModeChange={(checked) => updateSettingsDraft("propagationWaveguideManualMode", checked)} /><label className="toggle-row"><input type="checkbox" checked={settingsDraft.autoSaveUploads} onChange={(event) => updateSettingsDraft("autoSaveUploads", event.target.checked)} /><div><strong>Automatically save uploaded datasets</strong><span>Each new upload is stored as a reusable dataset snapshot in the local browser library.</span></div></label></article></section> : null}
           {activeTab === "wafermaps" ? <WafermapsLibrary draft={waferTemplateDraft} onDraftChange={updateWaferTemplateDraft} onSaveTemplate={saveWaferTemplate} templates={allWaferTemplates} selectedTemplateId={currentWaferTemplate?.id || ""} onUseTemplate={useWaferTemplate} onDeleteTemplate={deleteWaferTemplate} /> : null}

@@ -14,6 +14,9 @@ The app translates uploaded measurement data into a normalized internal schema, 
 - MZI heater efficiency analysis in `mW/pi`
 - Wafermap visualization
 - Report preview and export-ready reporting state
+- GitHub-hosted dataset library management
+- Cross-dataset comparison for wafer/process variation studies
+- Filename and manual-measurement conversion into standardized trace names
 
 Live deployment:
 - [https://zimmxx.github.io/cs-testsuite/](https://zimmxx.github.io/cs-testsuite/)
@@ -22,8 +25,9 @@ Live deployment:
 
 - Replace rigid MATLAB app workflows with a more flexible web interface
 - Support multiple incoming file formats through one translation layer
-- Make wafer-level analysis easier to review, share, and extend
+- Make wafer-level analysis easier to review, share, compare, and extend
 - Keep the project easy to maintain locally and on GitHub
+- Standardize measurement file naming for long-term dataset reuse
 
 ## Tech Stack
 
@@ -73,24 +77,28 @@ On push to `main`, GitHub Actions:
 ## Main Source Files
 
 - [src/App.jsx](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\App.jsx)
-  Main UI layout, tabs, sidebar, upload flow, charts, wafermap, report preview
+  Main UI layout, tabs, sidebar, upload flow, charts, wafermap, report preview, and library integration
 
 - [src/styles.css](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\styles.css)
-  Visual styling, layout, typography, component appearance, responsive rules
+  Visual styling, layout, typography, component appearance, and responsive rules
 
 - [src/lib/parsers.js](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\lib\parsers.js)
-  File parsing, column mapping, normalization, CSV export
+  File parsing, column mapping, normalization, and CSV export
 
 - [src/lib/analysis.js](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\lib\analysis.js)
-  Metric calculations, wafer summaries, report state generation
+  Metric calculations, wafer summaries, report state generation, and propagation spectrum logic
 
-- [index.html](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\index.html)
-  Vite app entry HTML
+- [src/lib/manualConversion.js](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\lib\manualConversion.js)
+  Manual `.xlsx` to WST-compatible trace conversion and zip/manifest export
+
+- [src/lib/filenameStandardization.js](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\lib\filenameStandardization.js)
+  Shared naming rules for datasets, traces, archive exports, and filename conversion
 
 ## Documentation Index
 
 - [Local Git And GitHub Workflow](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\LOCAL_GIT_GITHUB_WORKFLOW.md)
 - [Versioning And Documentation Guide](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\VERSIONING_AND_DOCUMENTATION.md)
+- [Dataset And Filename Standard](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\DATASET_FILENAME_STANDARD.md)
 - [Release Features: v0.1.0](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.1.0\FEATURES.md)
 - [Release Changelog: v0.1.0](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.1.0\CHANGELOG.md)
 - [Full Project Version History](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\PROJECT_VERSION_HISTORY.md)
@@ -109,6 +117,6 @@ The following local scratch/demo files are not part of the deployed app source a
 When new features are added, update:
 
 1. `README.md` for high-level user-facing changes
-2. `docs/releases/<version>/FEATURES.md` for feature behavior
-3. `docs/releases/<version>/CHANGELOG.md` for change history
-
+2. `docs/DATASET_FILENAME_STANDARD.md` if the naming convention changes
+3. `docs/releases/<version>/FEATURES.md` for feature behavior
+4. `docs/releases/<version>/CHANGELOG.md` for change history

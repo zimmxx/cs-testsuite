@@ -96,17 +96,25 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 - Removed the Intake workspace from the active app flow.
 - Simplified the UI so the remaining tabs focus on the main post-processing tasks.
 
+### 2026-07-06
+
+#### Current working-tree upgrade
+- Added a new `Comparison` library page that can load multiple GitHub or local datasets and compare wafer-level propagation, insertion, and heater metrics side by side.
+- Added a new `Filename Conversion` library page to standardize uploaded measurement filenames before saving them into the GitHub measurement-data library.
+- Upgraded the manual-measurement conversion workflow so exported traces, manifests, and zip archives follow the standardized dataset naming pattern.
+- Added a dedicated dataset and filename standard document to guide future measurement storage and GitHub library population.
+
 ## Current Development State
 
-Latest recorded application update:
-- `528328e` on `2026-06-30`
-- Title: `Refine spectrum layout and remove intake workspace`
+Latest recorded working-tree update:
+- Date: `2026-07-06`
+- Theme: `Comparison library, filename standardization, and standardized converted archive exports`
 
 ## How To Extend This File
 
 When a new update is made:
 1. Add the calendar date section if it does not already exist.
-2. Add the commit hash and commit title.
+2. Add the commit hash and commit title when the change is committed.
 3. Summarize the major user-facing or technical upgrades in 2 to 5 bullet points.
 4. Keep this file as the full project-level history, while keeping release-specific notes inside:
    - `docs/releases/<version>/FEATURES.md`

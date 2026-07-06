@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import {
+  buildManualConversionArchiveName,
   buildManualConversionManifestCsv,
   buildStoredZip,
   convertManualMeasurementFiles
@@ -35,6 +36,8 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10 }) {
     rows: convertedEntries.reduce((sum, entry) => sum + entry.rowCount, 0)
   }), [convertedEntries, failedEntries, ignoredPaths]);
 
+  const archiveBaseName = useMemo(() => buildManualConversionArchiveName(convertedEntries), [convertedEntries]);
+
   async function handleSelection(event) {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
@@ -57,13 +60,13 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10 }) {
 
   function exportZip() {
     if (!convertedEntries.length) return;
-    const zip = buildStoredZip(convertedEntries);
-    downloadBlob(zip, "manual-measurement-converted.zip");
+    const zip = buildStoredZip(convertedEntries, { rootFolderName: archiveBaseName });
+    downloadBlob(zip, `${archiveBaseName}.zip`);
   }
 
   function exportManifest() {
     if (!convertedEntries.length) return;
-    downloadText(buildManualConversionManifestCsv(convertedEntries), "manual-measurement-manifest.csv", "text/csv;charset=utf-8");
+    downloadText(buildManualConversionManifestCsv(convertedEntries), `${archiveBaseName}_manifest.csv`, "text/csv;charset=utf-8");
   }
 
   return (
@@ -94,7 +97,7 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10 }) {
           </label>
           <div className="mapping-field manual-conversion-note">
             <span>Input mode</span>
-            <p>Upload the folder directly from Edge/Chrome so the app can read subfolders. Zip export is supported now; zip import can be added later if you want it.</p>
+            <p>Upload the folder directly from Edge/Chrome so the app can read subfolders. The exported archive now uses the standardized dataset name so the converted folder is ready for GitHub library storage.</p>
           </div>
         </div>
 
@@ -112,7 +115,7 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10 }) {
         <div className="translator-metrics manual-conversion-summary">
           <div><strong>{summary.converted}</strong><span>Converted workbooks</span></div>
           <div><strong>{summary.rows.toLocaleString()}</strong><span>Trace rows generated</span></div>
-          <div><strong>{summary.ignored}</strong><span>Ignored files</span></div>
+          <div><strong>{archiveBaseName}</strong><span>Archive base name</span></div>
         </div>
       </article>
 

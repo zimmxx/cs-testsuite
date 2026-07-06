@@ -1,5 +1,11 @@
 import * as XLSX from "xlsx";
 import { numeric } from "./analysis";
+import {
+  buildConvertedArchiveName,
+  buildStandardMeasurementFileName,
+  detectStandardFilenameMetadata,
+  mergeBatchStandardMetadata
+} from "./filenameStandardization";
 
 const WAVELENGTH_ALIASES = [
   "wavelength",
@@ -146,11 +152,23 @@ export function parseManualMeasurementPath(file) {
   const slotId = slotNumber !== null ? `Slot${slotNumber}` : "";
   const chipId = chipNumber !== null ? `Chip${chipNumber}` : "";
   const waveguideId = waveguideNumber !== null ? `WG${waveguideNumber}` : "";
-  const prefixTokens = [`Wafer${projectToken}`];
-  if (slotId) prefixTokens.push(slotId);
-  if (flavorToken) prefixTokens.push(flavorToken.toLowerCase());
-  prefixTokens.push("manual");
-  const outputBaseName = `${prefixTokens.join("_")}_${chipId}_${waveguideId}`;
+  const standardMeta = detectStandardFilenameMetadata(relativePath, {
+    mpw: projectToken.toUpperCase().startsWith("MPW") ? projectToken.toUpperCase() : "",
+    slot: slotId,
+    waveguideDescriptor: /rib/i.test(flavorToken)
+      ? "RibWaveguide"
+      : /strip/i.test(flavorToken)
+        ? "StripWaveguide"
+        : /slot/i.test(flavorToken)
+          ? "SlotWaveguide"
+          : "",
+    measurementType: "PropagationLoss",
+    mode: "Manual",
+    chipId,
+    waveguideId,
+    extension: "txt"
+  });
+  const outputBaseName = buildStandardMeasurementFileName({ ...standardMeta, extension: "txt" }).replace(/\.(txt|csv)$/i, "");
 
   return {
     relativePath,
@@ -161,7 +179,8 @@ export function parseManualMeasurementPath(file) {
     waveguideId,
     waveguideNumber,
     flavorSegment,
-    outputBaseName
+    outputBaseName,
+    standardMeta
   };
 }
 
@@ -204,7 +223,10 @@ export async function convertManualMeasurementWorkbook(file, options = {}) {
     throw new Error(`No numeric wavelength/IL rows were found in ${meta.relativePath}.`);
   }
 
-  const outputFileName = `${meta.outputBaseName}.${outputFormat}`;
+  const outputFileName = buildStandardMeasurementFileName({
+    ...meta.standardMeta,
+    extension: outputFormat
+  });
   const content = outputFormat === "csv"
     ? ["wavelength_nm,optical_power_w", ...convertedRows.map((row) => `${row.wavelengthNm},${row.opticalPowerW}`)].join("\n")
     : convertedRows.map((row) => `${row.wavelengthNm}\t${row.opticalPowerW}`).join("\n");
@@ -224,7 +246,11 @@ export async function convertManualMeasurementWorkbook(file, options = {}) {
     wavelengthMaxNm: convertedRows[convertedRows.length - 1]?.wavelengthNm ?? null,
     launchPowerDbm,
     parser: `xlsx (SheetJS CE, sheet: ${sheetName})`,
-    flavor: meta.flavorSegment || ""
+    flavor: meta.flavorSegment || "",
+    standardMeta: {
+      ...meta.standardMeta,
+      extension: outputFormat
+    }
   };
 }
 
@@ -253,7 +279,7 @@ export async function convertManualMeasurementFiles(files, options = {}) {
 }
 
 export function buildManualConversionManifestCsv(entries) {
-  const header = ["source_path", "output_file", "chip_id", "slot_id", "waveguide_id", "rows", "wavelength_min_nm", "wavelength_max_nm", "launch_power_dbm"];
+  const header = ["source_path", "output_file", "chip_id", "slot_id", "waveguide_id", "rows", "wavelength_min_nm", "wavelength_max_nm", "launch_power_dbm", "mpw", "platform", "waveguide_descriptor", "measurement_type", "mode"];
   const lines = entries.map((entry) => [
     entry.sourcePath,
     entry.outputFileName,
@@ -263,7 +289,12 @@ export function buildManualConversionManifestCsv(entries) {
     entry.rowCount,
     entry.wavelengthMinNm,
     entry.wavelengthMaxNm,
-    entry.launchPowerDbm
+    entry.launchPowerDbm,
+    entry.standardMeta?.mpw,
+    entry.standardMeta?.platform,
+    entry.standardMeta?.waveguideDescriptor,
+    entry.standardMeta?.measurementType,
+    entry.standardMeta?.mode
   ].map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","));
   return [header.join(","), ...lines].join("\n");
 }
@@ -326,7 +357,7 @@ function concatUint8Arrays(chunks) {
   return merged;
 }
 
-export function buildStoredZip(entries) {
+export function buildStoredZip(entries, options = {}) {
   const encoder = new TextEncoder();
   const localParts = [];
   const centralParts = [];
@@ -334,8 +365,11 @@ export function buildStoredZip(entries) {
   const stamp = dosDateTime();
 
   entries.forEach((entry) => {
-    const fileNameBytes = encoder.encode(entry.outputFileName);
-    const dataBytes = encoder.encode(entry.content);
+    const zipName = [options.rootFolderName, entry.outputFileName].filter(Boolean).join("/");
+    const fileNameBytes = encoder.encode(zipName);
+    const dataBytes = entry.contentBytes instanceof Uint8Array
+      ? entry.contentBytes
+      : encoder.encode(entry.content || "");
     const crc = crc32(dataBytes);
 
     const localHeader = concatUint8Arrays([
@@ -392,4 +426,14 @@ export function buildStoredZip(entries) {
   ]);
 
   return new Blob([...localParts, centralDirectory, endRecord], { type: "application/zip" });
+}
+
+export function buildManualConversionArchiveName(entries = [], dateValue = new Date()) {
+  return buildConvertedArchiveName(
+    mergeBatchStandardMetadata(entries, {
+      measurementType: "PropagationLoss",
+      mode: "Manual"
+    }),
+    dateValue
+  );
 }

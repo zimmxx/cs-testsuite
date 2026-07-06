@@ -12,6 +12,9 @@ Top-level docs:
 - [docs/LOCAL_GIT_GITHUB_WORKFLOW.md](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\LOCAL_GIT_GITHUB_WORKFLOW.md)
   Local Git and deployment workflow
 
+- [docs/DATASET_FILENAME_STANDARD.md](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\DATASET_FILENAME_STANDARD.md)
+  Standard naming guide for datasets, traces, and converted archives
+
 - [docs/VERSIONING_AND_DOCUMENTATION.md](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\VERSIONING_AND_DOCUMENTATION.md)
   This versioning guide
 
@@ -42,6 +45,7 @@ docs/releases/v0.1.1/
 - changed files
 - known limitations
 - new screenshots or export behavior if relevant
+- dataset naming guidance if the GitHub measurement-data workflow changed
 
 4. Add a short summary to `README.md`
 
@@ -66,6 +70,15 @@ Use for:
 - deployment link
 - documentation links
 
+### DATASET_FILENAME_STANDARD.md
+
+Use for:
+
+- the controlled naming structure for datasets and trace files
+- examples of standard filenames
+- archive naming rules
+- guidance for GitHub-hosted dataset folders
+
 ### FEATURES.md
 
 Use for:
@@ -73,6 +86,8 @@ Use for:
 - what each tab does
 - what each metric means
 - upload behavior
+- comparison behavior
+- conversion behavior
 - report behavior
 - user-facing limitations
 
@@ -90,6 +105,7 @@ Use for:
 Any time you change the app in a meaningful way:
 
 1. update the code
-2. update the release feature doc if behavior changed
-3. update the changelog entry
-4. commit code and docs together
+2. update the filename standard if naming behavior changed
+3. update the release feature doc if behavior changed
+4. update the changelog entry
+5. commit code and docs together

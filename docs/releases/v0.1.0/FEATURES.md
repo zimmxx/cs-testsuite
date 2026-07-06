@@ -6,7 +6,7 @@
 
 Version `v0.1.0` is the first documented web-based release of the Wafer Post-Processing Suite.
 
-It provides:
+It now provides:
 
 - a multi-panel dashboard UI
 - upload support for `.txt`, `.csv`, `.xlsx`, and `.xls`
@@ -14,6 +14,10 @@ It provides:
 - propagation loss, insertion loss, and heater efficiency analysis
 - wafermap visualization
 - report preview and export state generation
+- manual measurement conversion into WST-compatible traces
+- standardized filename conversion for dataset preparation
+- a GitHub-backed measurement dataset library
+- cross-dataset comparison for wafer/process variation review
 
 ## Main User Interface Areas
 
@@ -32,15 +36,16 @@ Purpose:
 Current sections:
 
 - Workspace
-  - Intake
   - Propagation Loss
   - Insertion Loss
   - Heater Efficiency
-  - Wafermap
-  - Report
 - Library
   - Projects
   - Datasets
+  - Manual Conversion
+  - Comparison
+  - Filename Conversion
+  - Wafermaps
   - Settings
   - Audit Log
   - Help
@@ -59,39 +64,29 @@ Current controls:
 - Date selector
 - Upload Measurement Files button
 
-### 3. Intake Tab
-
-Purpose:
-
-- acts as the translation and mapping workspace
-- lets incoming source columns be mapped into the canonical analysis schema
-
-Current capabilities:
-
-- auto-detect some common column names
-- show editable mapping fields
-- define a default metric family when source data does not specify it
-
-### 4. Propagation Loss Tab
+### 3. Propagation Loss Tab
 
 Purpose:
 
 - fit transmission versus relative length
 - estimate propagation loss in `dB/cm`
+- review wavelength-dependent propagation variation using interval-based linear fits
 
 Current outputs:
 
 - KPI card for mean propagation loss
-- plot of transmission versus relative length
+- interactive plot of transmission versus relative length
 - fit results panel
+- propagation spectrum with wavelength interval analysis and MSE tracking
 - wafermap metric mode support
+- transmission spectrum overlay by waveguide length
 
 Formula logic:
 
 - implemented in [src/lib/analysis.js](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\lib\analysis.js)
 - uses a linear regression on propagation rows
 
-### 5. Insertion Loss Tab
+### 4. Insertion Loss Tab
 
 Purpose:
 
@@ -101,13 +96,14 @@ Current outputs:
 
 - insertion loss metric grouping by chip and block
 - wafermap summary per die
+- chip-level inspector view
 
 Current logic:
 
 - averages insertion loss by block
 - falls back to absolute transmission when direct insertion loss is not available
 
-### 6. Heater Efficiency Tab
+### 5. Heater Efficiency Tab
 
 Purpose:
 
@@ -117,30 +113,80 @@ Current outputs:
 
 - heater efficiency wafer metric
 - heater KPI summaries
+- chip-level inspector view
 
 Current logic:
 
 - prefers direct `pi_power_mw`
 - can derive heater power from current and voltage when needed
 
-### 7. Wafermap Tab
+### 6. Datasets Library
 
 Purpose:
 
-- show die-level metric values spatially
+- save browser snapshots of normalized workspaces
+- load bundled or GitHub-hosted measurement datasets
+- optionally publish selected snapshots into the shared GitHub measurement-data library
 
 Current capabilities:
 
-- metric switching between propagation, insertion, and heater
-- die selection highlighting
-- color scale display
+- GitHub token storage in browser-local settings
+- GitHub library refresh
+- dataset snapshot save/load/delete
+- GitHub publish status badges
 
-Current rendering:
+### 7. Manual Measurement - Conversion
 
-- simplified circular wafer representation
-- grid-based die positioning
+Purpose:
 
-### 8. Report Tab
+- translate nested manual measurement Excel folders such as `MPW46/SLOT5/Chip3/STRIP/WG1.xlsx` into WST-compatible traces
+
+Current capabilities:
+
+- reads `WG*.xlsx` or `WG*.xls`
+- detects wavelength and IL columns
+- converts IL + launch power into optical power in watts
+- exports trace files as `.txt` or `.csv`
+- exports standardized zip and manifest names
+
+### 8. Comparison Library
+
+Purpose:
+
+- compare two or more wafer datasets across MPW runs, slots, modes, or waveguide families
+
+Current capabilities:
+
+- loads datasets from the GitHub library or saved local snapshots
+- compares propagation yield, average propagation loss, insertion loss, peak wavelength, and bandwidth
+- shows side-by-side wafermaps using a shared colour scale
+- helps review fabrication/process variation across silicon photonics datasets
+
+### 9. Filename Conversion
+
+Purpose:
+
+- standardize trace and dataset filenames before they are saved to GitHub
+
+Current capabilities:
+
+- detects tokens such as `MPW`, `Slot`, `Chip`, `WG`, measurement mode, and waveguide family
+- lets the user correct missing chip/WG fields
+- exports a renamed archive and manifest using the standard dataset naming rule
+
+### 10. Wafermaps
+
+Purpose:
+
+- create reusable wafermap templates for different chip populations and notch orientations
+
+Current capabilities:
+
+- built-in bottom-notch reference template
+- custom center-filled wafer template generation
+- reusable template save/load/delete workflow
+
+### 11. Report Preview
 
 Purpose:
 
@@ -151,12 +197,7 @@ Current capabilities:
 - report preview card
 - summary statistics
 - highlight lists
-- export state generation
-
-Current export behavior:
-
-- report state is generated in the app
-- export is currently JSON-oriented rather than a final formatted PDF report
+- HTML and JSON report export state generation
 
 ## File Translation Layer
 
@@ -197,40 +238,29 @@ Canonical normalized fields:
 - `current_ma`
 - `voltage_v`
 
-## Dataset Table
+## Naming Standard Layer
+
+Implemented in:
+- [src/lib/filenameStandardization.js](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\lib\filenameStandardization.js)
+- [docs/DATASET_FILENAME_STANDARD.md](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\DATASET_FILENAME_STANDARD.md)
 
 Purpose:
 
-- show normalized rows in a reviewable table
-- give a quick inspection layer before export or reporting
-
-Current capabilities:
-
-- row search
-- CSV export
-- basic metric lookup by chip
-
-## File Translator Status
-
-Purpose:
-
-- provide feedback after upload and normalization
-- show source name and source type
-- summarize total rows and matched/unmatched device counts
+- keep converted traces, dataset labels, and archives consistent
+- make GitHub dataset folders easier to compare and maintain
+- prepare future datasets for the Comparison library
 
 ## Current Limitations In v0.1.0
 
-- report export is not yet a polished final report generator
-- plot support is strongest for propagation loss at present
-- wafermap is currently a stylized grid approximation, not a fabrication-accurate die mask
-- multiple uploaded source files are not yet merged through a full dataset management workflow
-- project, wafer, and date selectors are currently UI-driven rather than backed by persistent storage
+- comparison currently focuses on wafer-level summaries and wafermaps rather than every possible figure from the main workspace
+- GitHub publish still requires a correctly scoped fine-grained personal access token
+- filename conversion helps standardize naming but still depends on the user correcting missing metadata when source folders are ambiguous
+- report export is currently HTML/JSON oriented rather than a final PDF engineering report
 
 ## Priority Upgrade Ideas For Later Versions
 
-- true multi-file intake and merge logic
-- saved projects and datasets
+- richer comparison plots for every metric family
+- manual authoring/import of wafermap templates from uploaded template files
 - stronger report export formats such as PDF
-- richer insertion/heater visualizations
-- persistent settings and audit history
-- more advanced wafer exclusion and pass/fail overlays
+- deeper insertion/heater visualization sets
+- comparison-aware statistical tolerancing across MPW batches

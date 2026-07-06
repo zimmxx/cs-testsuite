@@ -2057,3 +2057,75 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 }
+
+.comparison-wafer-card {
+  align-content: start;
+}
+
+.comparison-wafer-shell {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.comparison-wafer-svg {
+  width: min(100%, 420px);
+  height: auto;
+  display: block;
+}
+
+.comparison-wafer-circle {
+  fill: radial-gradient(circle at 50% 42%, rgba(255,255,255,0.98), rgba(246,250,250,0.96));
+  stroke: rgba(157, 178, 184, 0.9);
+  stroke-width: 0.6;
+}
+
+.comparison-wafer-notch-fill {
+  fill: #ffffff;
+}
+
+.comparison-wafer-notch-stroke {
+  fill: none;
+  stroke: rgba(157, 178, 184, 0.9);
+  stroke-width: 0.6;
+}
+
+.comparison-wafer-slot {
+  fill: rgba(239, 244, 246, 0.72);
+  stroke: rgba(219, 230, 233, 0.95);
+  stroke-width: 0.24;
+}
+
+.comparison-wafer-slot.active {
+  stroke: rgba(16, 57, 69, 0.4);
+  stroke-width: 0.28;
+}
+
+.comparison-wafer-label {
+  fill: rgba(15, 42, 48, 0.92);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.comparison-wafer-meta-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 2px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.comparison-wafer-grid-wide {
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .comparison-wafer-meta-row {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
+

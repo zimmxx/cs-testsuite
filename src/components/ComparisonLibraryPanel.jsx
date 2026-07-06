@@ -167,40 +167,93 @@ function ComparisonAnalytics({ results, selectedMetric, onMetricChange, referenc
 
 function MiniWaferMap({ cells, metricKey, template, sharedRange }) {
   const templateLayout = getWaferTemplateLayout(template || []);
-  const cols = Math.max(...templateLayout.map((cell) => cell.dieX || 0), 1);
-  const rowValues = Array.from(new Set(templateLayout.map((cell) => cell.dieY))).sort((a, b) => b - a);
-  const hue = metricKey === "heater" ? 16 : metricKey === "insertion" ? 210 : 174;
   const lookup = new Map(cells.map((cell) => [cell.chipId, cell]));
+  const measuredSlots = templateLayout.filter((slot) => lookup.has(slot.chipId));
+  const xValues = templateLayout.map((slot) => slot.dieX);
+  const yValues = templateLayout.map((slot) => slot.dieY);
+  const minX = Math.min(...xValues);
+  const maxX = Math.max(...xValues);
+  const minY = Math.min(...yValues);
+  const maxY = Math.max(...yValues);
+  const colCount = Math.max(maxX - minX + 1, 1);
+  const rowCount = Math.max(maxY - minY + 1, 1);
+  const waferRadius = 44;
+  const waferCenter = 50;
+  const mapLeft = 23;
+  const mapTop = 20;
+  const mapWidth = 54;
+  const mapHeight = 60;
+  const stepX = mapWidth / colCount;
+  const stepY = mapHeight / rowCount;
+  const cellWidth = Math.min(stepX * 0.86, 5.4);
+  const cellHeight = Math.min(stepY * 0.86, 5.4);
+  const hue = metricKey === "heater" ? 16 : metricKey === "insertion" ? 210 : 174;
+  const labelSize = measuredSlots.length > 14 ? 1.7 : measuredSlots.length > 8 ? 2.1 : 2.4;
 
   const colorFor = (value) => {
-    if (!sharedRange || value === null || value === undefined) return "#eef2f4";
+    if (!sharedRange || value === null || value === undefined) return "#eef3f5";
     const ratio = Math.min(Math.max((value - sharedRange.min) / Math.max(sharedRange.max - sharedRange.min, 0.0001), 0), 1);
-    return `hsl(${hue} 72% ${82 - ratio * 34}%)`;
+    return `hsl(${hue} 74% ${84 - ratio * 38}%)`;
   };
+
+  const positionedSlots = templateLayout.map((slot) => {
+    const cell = lookup.get(slot.chipId) || null;
+    const x = mapLeft + (slot.dieX - minX) * stepX + (stepX - cellWidth) / 2;
+    const y = mapTop + (maxY - slot.dieY) * stepY + (stepY - cellHeight) / 2;
+    return {
+      ...slot,
+      cell,
+      x,
+      y,
+      active: Boolean(cell)
+    };
+  });
 
   return (
     <div className="comparison-wafer-shell">
-      <div className="comparison-wafer-outline">
-        <div className="wafer-notch notch-south" />
-        <div className="comparison-wafer-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-          {rowValues.flatMap((row) =>
-            Array.from({ length: cols }, (_, index) => {
-              const dieX = index + 1;
-              const slot = templateLayout.find((item) => item.dieX === dieX && item.dieY === row);
-              const cell = slot ? lookup.get(slot.chipId) : null;
-              return (
-                <div
-                  key={`${row}-${dieX}`}
-                  className={cell ? "comparison-wafer-cell active" : "comparison-wafer-cell"}
-                  style={cell ? { background: colorFor(cell.value) } : undefined}
-                  title={cell ? `${cell.chipId}: ${formatValue(cell.value, metricKey === "heater" ? 1 : 2)}` : `No chip (${dieX}, ${row})`}
-                >
-                  {slot ? shortChipLabel(slot.chipId) : ""}
-                </div>
-              );
-            })
-          )}
-        </div>
+      <svg viewBox="0 0 100 100" className="comparison-wafer-svg" role="img" aria-label="Comparison wafermap">
+        <defs>
+          <filter id="wafer-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodColor="#d8e3e6" floodOpacity="0.6" />
+          </filter>
+        </defs>
+        <circle cx={waferCenter} cy={waferCenter} r={waferRadius} className="comparison-wafer-circle" filter="url(#wafer-shadow)" />
+        <path d="M 46 94 A 4 4 0 0 0 54 94" className="comparison-wafer-notch-stroke" />
+        <path d="M 46 94 A 4 4 0 0 0 54 94 L 54 99 L 46 99 Z" className="comparison-wafer-notch-fill" />
+        {positionedSlots.map((slot) => (
+          <g key={slot.chipId}>
+            <rect
+              x={slot.x}
+              y={slot.y}
+              width={cellWidth}
+              height={cellHeight}
+              rx="0.7"
+              className={slot.active ? "comparison-wafer-slot active" : "comparison-wafer-slot"}
+              style={slot.active ? { fill: colorFor(slot.cell?.value) } : undefined}
+            >
+              <title>
+                {slot.active
+                  ? `${slot.chipId}: ${formatValue(slot.cell?.value, metricKey === "heater" ? 1 : 2)}`
+                  : `${slot.chipId}: no measurement`}
+              </title>
+            </rect>
+            {slot.active ? (
+              <text
+                x={slot.x + cellWidth / 2}
+                y={slot.y + cellHeight / 2 + labelSize * 0.35}
+                textAnchor="middle"
+                className="comparison-wafer-label"
+                style={{ fontSize: `${labelSize}px` }}
+              >
+                {shortChipLabel(slot.chipId)}
+              </text>
+            ) : null}
+          </g>
+        ))}
+      </svg>
+      <div className="comparison-wafer-meta-row">
+        <span>{measuredSlots.length} measured chips</span>
+        <span>{sharedRange ? `${formatValue(sharedRange.min, metricKey === "heater" ? 1 : 2)} to ${formatValue(sharedRange.max, metricKey === "heater" ? 1 : 2)}` : "No metric range"}</span>
       </div>
     </div>
   );
@@ -255,6 +308,14 @@ export default function ComparisonLibraryPanel({
     const allCells = results.flatMap((result) => result.metrics[waferMetric]?.waferMetric || []);
     return getMetricRange(allCells);
   }, [results, waferMetric]);
+
+  const waferGridStyle = useMemo(() => {
+    const count = results.length || 1;
+    if (count === 1) return { gridTemplateColumns: "minmax(0, 1fr)" };
+    if (count === 2) return { gridTemplateColumns: "repeat(2, minmax(360px, 1fr))" };
+    if (count === 3) return { gridTemplateColumns: "repeat(2, minmax(320px, 1fr))" };
+    return { gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" };
+  }, [results.length]);
 
   function toggleDataset(datasetId) {
     setSelectedIds((previous) => previous.includes(datasetId) ? previous.filter((id) => id !== datasetId) : [...previous, datasetId].slice(-4));
@@ -438,7 +499,7 @@ export default function ComparisonLibraryPanel({
                 <p>Shared colour scaling is applied to the selected wafer metric so you can inspect chip-level spatial variation across wafers more fairly.</p>
               </div>
             </div>
-            <div className="comparison-wafer-grid-list comparison-wafer-grid-wide">
+            <div className="comparison-wafer-grid-list comparison-wafer-grid-wide" style={waferGridStyle}>
               {results.map((result) => (
                 <article key={`wafer-${result.dataset.id}`} className="comparison-wafer-card">
                   <header>

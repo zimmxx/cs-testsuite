@@ -1,5 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import {
+  PLATFORM_OPTIONS,
+  WAVEGUIDE_TYPE_OPTIONS,
+  MEASUREMENT_MODE_OPTIONS,
   buildConvertedArchiveName,
   buildFilenameConversionManifest,
   buildStandardMeasurementFileName,
@@ -36,9 +39,9 @@ export default function FilenameConversionPanel() {
   const [statusMessage, setStatusMessage] = useState("Upload measurement folders or files to preview standardized filenames before saving them into GitHub datasets.");
   const [batchMeta, setBatchMeta] = useState(() =>
     normalizeStandardMetadata({
-      mpw: "",
+      mpw: "MPWUNDEFINED",
       platform: "220nmSOI",
-      slot: "",
+      slot: "SlotUndefined",
       waveguideDescriptor: "StripWaveguide",
       measurementType: "PropagationLoss",
       mode: "Manual",
@@ -47,58 +50,61 @@ export default function FilenameConversionPanel() {
   );
 
   const readyEntries = useMemo(
-    () => entries.map((entry) => ({
-      ...entry,
-      standardMeta: normalizeStandardMetadata({
+    () => entries.map((entry) => {
+      const standardMeta = normalizeStandardMetadata({
         ...batchMeta,
         chipId: entry.chipId || batchMeta.chipId,
         waveguideId: entry.waveguideId || batchMeta.waveguideId,
         extension: entry.extension
-      }),
-      outputFileName: buildStandardMeasurementFileName({
-        ...batchMeta,
-        chipId: entry.chipId || batchMeta.chipId,
-        waveguideId: entry.waveguideId || batchMeta.waveguideId,
-        extension: entry.extension
-      })
-    })),
+      });
+      return {
+        ...entry,
+        standardMeta,
+        outputFileName: buildStandardMeasurementFileName(standardMeta)
+      };
+    }),
     [batchMeta, entries]
   );
+
+  const archiveBaseName = useMemo(() => buildConvertedArchiveName(batchMeta), [batchMeta]);
 
   async function handleSelection(event) {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
 
-    const nextEntries = files
-      .filter((file) => !/\.omr$/i.test(file.name))
-      .map((file, index) => {
-        const sourcePath = String(file.webkitRelativePath || file.name);
-        const detected = detectStandardFilenameMetadata(sourcePath, {
-          extension: file.name.split(".").pop() || "txt"
-        });
-        return {
-          id: `${sourcePath}-${index}`,
-          file,
-          sourcePath,
-          chipId: detected.chipId,
-          waveguideId: detected.waveguideId,
-          extension: detected.extension,
-          detected
-        };
+    const supportedFiles = files.filter((file) => !/\.omr$/i.test(file.name));
+    const ignoredCount = files.length - supportedFiles.length;
+    const nextEntries = supportedFiles.map((file, index) => {
+      const sourcePath = String(file.webkitRelativePath || file.name);
+      const detected = detectStandardFilenameMetadata(sourcePath, {
+        extension: file.name.split(".").pop() || "txt"
       });
+      return {
+        id: `${sourcePath}-${index}`,
+        file,
+        sourcePath,
+        chipId: detected.chipId,
+        waveguideId: detected.waveguideId,
+        extension: detected.extension,
+        detected
+      };
+    });
 
     const merged = mergeBatchStandardMetadata(nextEntries, {
-      ...batchMeta,
-      extension: nextEntries[0]?.extension || batchMeta.extension
+      extension: nextEntries[0]?.extension || batchMeta.extension,
+      platform: batchMeta.platform === "220nmSOI" ? undefined : batchMeta.platform,
+      waveguideDescriptor: batchMeta.waveguideDescriptor,
+      measurementType: batchMeta.measurementType,
+      mode: batchMeta.mode
     });
 
     setEntries(nextEntries);
-    setBatchMeta((previous) => ({
+    setBatchMeta((previous) => normalizeStandardMetadata({
       ...merged,
-      platform: previous.platform || merged.platform,
-      waveguideDescriptor: previous.waveguideDescriptor || merged.waveguideDescriptor,
+      platform: merged.platform || previous.platform,
+      waveguideDescriptor: merged.waveguideDescriptor || previous.waveguideDescriptor,
       measurementType: previous.measurementType || merged.measurementType,
-      mode: previous.mode || merged.mode
+      mode: merged.mode || previous.mode
     }));
     setStatusMessage(`Prepared ${nextEntries.length} file name${nextEntries.length === 1 ? "" : "s"} for standardized renaming. ${ignoredCount ? `${ignoredCount} unsupported file(s) were ignored. ` : ""}Review the extracted MPW, slot, waveguide type, and chip/WG labels before exporting.`);
     if (event.target) event.target.value = "";
@@ -118,16 +124,15 @@ export default function FilenameConversionPanel() {
       outputFileName: entry.outputFileName,
       contentBytes: new Uint8Array(await entry.file.arrayBuffer())
     })));
-    const archiveBase = buildConvertedArchiveName(batchMeta);
-    const zip = buildStoredZip(preparedEntries, { rootFolderName: archiveBase });
-    downloadBlob(zip, `${archiveBase}.zip`);
+    const zip = buildStoredZip(preparedEntries, { rootFolderName: archiveBaseName });
+    downloadBlob(zip, `${archiveBaseName}.zip`);
   }
 
   function exportManifest() {
     if (!readyEntries.length) return;
     downloadText(
       buildFilenameConversionManifest(readyEntries),
-      `${buildConvertedArchiveName(batchMeta)}_manifest.csv`,
+      `${archiveBaseName}_manifest.csv`,
       "text/csv;charset=utf-8"
     );
   }
@@ -153,19 +158,18 @@ export default function FilenameConversionPanel() {
           </label>
           <label className="mapping-field">
             <span>Platform</span>
-            <input value={batchMeta.platform} onChange={(event) => updateBatchMeta("platform", event.target.value)} placeholder="220nmSOI" />
+            <select value={batchMeta.platform} onChange={(event) => updateBatchMeta("platform", event.target.value)}>
+              {PLATFORM_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
           </label>
           <label className="mapping-field">
             <span>Slot</span>
             <input value={batchMeta.slot} onChange={(event) => updateBatchMeta("slot", event.target.value)} placeholder="Slot5" />
           </label>
           <label className="mapping-field">
-            <span>Waveguide family</span>
+            <span>Waveguide type</span>
             <select value={batchMeta.waveguideDescriptor} onChange={(event) => updateBatchMeta("waveguideDescriptor", event.target.value)}>
-              <option value="StripWaveguide">StripWaveguide</option>
-              <option value="RibWaveguide">RibWaveguide</option>
-              <option value="SlotWaveguide">SlotWaveguide</option>
-              <option value="Waveguide">Waveguide</option>
+              {WAVEGUIDE_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
           </label>
           <label className="mapping-field">
@@ -179,9 +183,7 @@ export default function FilenameConversionPanel() {
           <label className="mapping-field">
             <span>Measurement mode</span>
             <select value={batchMeta.mode} onChange={(event) => updateBatchMeta("mode", event.target.value)}>
-              <option value="Manual">Manual</option>
-              <option value="WST">WST</option>
-              <option value="Measurement">Measurement</option>
+              {MEASUREMENT_MODE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
           </label>
         </div>
@@ -197,10 +199,10 @@ export default function FilenameConversionPanel() {
           </label>
         </div>
 
-        <div className="translator-metrics manual-conversion-summary">
+        <div className="translator-metrics manual-conversion-summary filename-summary-grid">
           <div><strong>{readyEntries.length}</strong><span>Files prepared</span></div>
           <div><strong>{measurementLabel(batchMeta.measurementType)}</strong><span>Detected measurement</span></div>
-          <div><strong>{buildConvertedArchiveName(batchMeta)}</strong><span>Archive base name</span></div>
+          <div className="archive-name-card"><strong>{archiveBaseName}</strong><span>Archive base name</span></div>
         </div>
       </article>
 
@@ -229,7 +231,7 @@ export default function FilenameConversionPanel() {
                     <td>{entry.sourcePath}</td>
                     <td>
                       <input
-                        className="table-inline-input"
+                        className="table-inline-input table-inline-input-wide"
                         value={entry.chipId}
                         onChange={(event) => updateEntry(entry.id, "chipId", event.target.value)}
                         placeholder="Chip3"
@@ -237,13 +239,13 @@ export default function FilenameConversionPanel() {
                     </td>
                     <td>
                       <input
-                        className="table-inline-input"
+                        className="table-inline-input table-inline-input-wide"
                         value={entry.waveguideId}
                         onChange={(event) => updateEntry(entry.id, "waveguideId", event.target.value)}
                         placeholder="WG1"
                       />
                     </td>
-                    <td>
+                    <td className="filename-preview-cell">
                       <strong>{entry.outputFileName}</strong>
                     </td>
                   </tr>
@@ -258,4 +260,3 @@ export default function FilenameConversionPanel() {
     </section>
   );
 }
-

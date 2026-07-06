@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { buildNormalizedRows, inferColumnMap, readNamedTextRows } from "../lib/parsers";
-import { calculateAllMetrics, summarizeDataset, getMetricRange, metricLabel } from "../lib/analysis";
+import { calculateAllMetrics, getMetricRange, summarizeDataset } from "../lib/analysis";
 import { getWaferTemplateLayout, shortChipLabel } from "../lib/waferTemplates";
 
 function bundledAssetUrl(relativePath) {
@@ -12,58 +12,156 @@ function formatValue(value, digits = 2, suffix = "") {
   return value === null || value === undefined || Number.isNaN(value) ? "--" : `${Number(value).toFixed(digits)}${suffix}`;
 }
 
+function mean(values) {
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function standardDeviation(values) {
+  if (values.length < 2) return 0;
+  const avg = mean(values);
+  return Math.sqrt(values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / (values.length - 1));
+}
+
+function rangeStats(values) {
+  if (!values.length) {
+    return { mean: null, std: null, min: null, max: null, range: null };
+  }
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  return {
+    mean: mean(values),
+    std: standardDeviation(values),
+    min,
+    max,
+    range: max - min
+  };
+}
+
+function datasetMetricValue(result, metricKey) {
+  if (metricKey === "yield") return result.metrics.propagation.passRate;
+  if (metricKey === "measuredChips") return result.metrics.propagation.summaryStats.measuredChips;
+  if (metricKey === "propagation") return result.metrics.propagation.summaryStats.avgPropagationLossDbPerCm;
+  if (metricKey === "insertion") return result.metrics.propagation.summaryStats.avgInsertionLossDb;
+  if (metricKey === "peak") return result.metrics.propagation.summaryStats.avgPeakWavelengthNm;
+  if (metricKey === "bandwidth") return result.metrics.propagation.summaryStats.avgBandwidth3dBNm;
+  return null;
+}
+
+function metricConfig(metricKey) {
+  return {
+    yield: { label: "Yield", digits: 1, suffix: "%" },
+    measuredChips: { label: "Measured chips", digits: 0, suffix: "" },
+    propagation: { label: "Avg propagation loss", digits: 2, suffix: " dB/cm" },
+    insertion: { label: "Avg insertion loss", digits: 2, suffix: " dB" },
+    peak: { label: "Avg peak wavelength", digits: 1, suffix: " nm" },
+    bandwidth: { label: "Avg 3 dB bandwidth", digits: 1, suffix: " nm" }
+  }[metricKey];
+}
+
 function ComparisonSummaryCards({ results }) {
-  const datasets = results.length;
-  const propagationValues = results.map((result) => result.metrics.propagation.summaryStats.avgPropagationLossDbPerCm).filter((value) => value !== null);
-  const insertionValues = results.map((result) => result.metrics.propagation.summaryStats.avgInsertionLossDb).filter((value) => value !== null);
-  const heaterValues = results.map((result) => result.metrics.heater.byChip.length ? result.metrics.heater.byChip.reduce((sum, item) => sum + item.efficiencyMwPerPi, 0) / result.metrics.heater.byChip.length : null).filter((value) => value !== null);
+  const measuredChips = results.map((result) => datasetMetricValue(result, "measuredChips")).filter((value) => value !== null);
+  const yieldValues = results.map((result) => datasetMetricValue(result, "yield")).filter((value) => value !== null);
+  const propagationValues = results.map((result) => datasetMetricValue(result, "propagation")).filter((value) => value !== null);
+  const peakValues = results.map((result) => datasetMetricValue(result, "peak")).filter((value) => value !== null);
+
+  const yieldStats = rangeStats(yieldValues);
+  const propagationStats = rangeStats(propagationValues);
+  const peakStats = rangeStats(peakValues);
 
   return (
     <div className="translator-metrics comparison-summary-grid">
-      <div><strong>{datasets}</strong><span>Compared datasets</span></div>
-      <div><strong>{formatValue(propagationValues.reduce((sum, value) => sum + value, 0) / Math.max(propagationValues.length, 1), 2, " dB/cm")}</strong><span>Mean propagation loss</span></div>
-      <div><strong>{formatValue(insertionValues.reduce((sum, value) => sum + value, 0) / Math.max(insertionValues.length, 1), 2, " dB")}</strong><span>Mean insertion loss</span></div>
-      <div><strong>{formatValue(heaterValues.reduce((sum, value) => sum + value, 0) / Math.max(heaterValues.length, 1), 2, " mW/pi")}</strong><span>Mean heater efficiency</span></div>
+      <div><strong>{results.length}</strong><span>Compared datasets</span></div>
+      <div><strong>{formatValue(mean(measuredChips), 0)}</strong><span>Average measured chips</span></div>
+      <div><strong>{formatValue(yieldStats.range, 1, "%")}</strong><span>Yield spread</span></div>
+      <div><strong>{formatValue(propagationStats.range, 2, " dB/cm")}</strong><span>Propagation spread</span></div>
+      <div><strong>{formatValue(peakStats.range, 1, " nm")}</strong><span>Peak wavelength spread</span></div>
     </div>
   );
 }
 
-function ComparisonBars({ results, metric }) {
+function ComparisonAnalytics({ results, selectedMetric, onMetricChange, referenceDatasetId, onReferenceChange }) {
+  const config = metricConfig(selectedMetric);
   const values = results
     .map((result) => ({
       id: result.dataset.id,
       label: result.dataset.projectName || result.dataset.label,
-      value: metric === "propagation"
-        ? result.metrics.propagation.summaryStats.avgPropagationLossDbPerCm
-        : metric === "insertion"
-          ? result.metrics.propagation.summaryStats.avgInsertionLossDb
-          : result.metrics.heater.byChip.length
-            ? result.metrics.heater.byChip.reduce((sum, item) => sum + item.efficiencyMwPerPi, 0) / result.metrics.heater.byChip.length
-            : null
+      value: datasetMetricValue(result, selectedMetric)
     }))
-    .filter((item) => item.value !== null && item.value !== undefined);
+    .filter((item) => item.value !== null && item.value !== undefined && !Number.isNaN(item.value));
 
-  if (!values.length) return <div className="chart-empty compact">No comparison values available for {metricLabel(metric).toLowerCase()}.</div>;
-  const min = Math.min(...values.map((item) => item.value));
-  const max = Math.max(...values.map((item) => item.value));
+  const stats = rangeStats(values.map((item) => item.value));
+  const reference = values.find((item) => item.id === referenceDatasetId) || values[0] || null;
 
   return (
-    <div className="comparison-bar-list">
-      {values.map((item) => {
-        const ratio = max === min ? 0.72 : 0.2 + ((item.value - min) / Math.max(max - min, 0.0001)) * 0.8;
-        return (
-          <div key={`${metric}-${item.id}`} className="comparison-bar-item">
-            <div className="comparison-bar-copy">
-              <strong>{item.label}</strong>
-              <span>{formatValue(item.value, metric === "heater" ? 1 : 2)}</span>
-            </div>
-            <div className="comparison-bar-track">
-              <span style={{ width: `${ratio * 100}%` }} />
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <article className="analysis-card">
+      <div className="analysis-card-head">
+        <div>
+          <h2>Comparison Analytics</h2>
+          <p>Use the metric selector to inspect dataset-to-dataset spread, standard deviation, and delta against a chosen reference wafer.</p>
+        </div>
+      </div>
+      <div className="comparison-controls-grid settings-grid settings-grid-extended">
+        <label className="mapping-field">
+          <span>Analysis metric</span>
+          <select value={selectedMetric} onChange={(event) => onMetricChange(event.target.value)}>
+            <option value="yield">Yield</option>
+            <option value="measuredChips">Measured chips</option>
+            <option value="propagation">Average propagation loss</option>
+            <option value="insertion">Average insertion loss</option>
+            <option value="peak">Average peak wavelength</option>
+            <option value="bandwidth">Average 3 dB bandwidth</option>
+          </select>
+        </label>
+        <label className="mapping-field">
+          <span>Reference dataset</span>
+          <select value={reference?.id || ""} onChange={(event) => onReferenceChange(event.target.value)}>
+            {values.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="comparison-analytics-grid">
+        <div className="dashboard-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Statistic</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>{config.label} mean</td><td>{formatValue(stats.mean, config.digits, config.suffix)}</td></tr>
+              <tr><td>{config.label} std. dev.</td><td>{formatValue(stats.std, config.digits, config.suffix)}</td></tr>
+              <tr><td>{config.label} minimum</td><td>{formatValue(stats.min, config.digits, config.suffix)}</td></tr>
+              <tr><td>{config.label} maximum</td><td>{formatValue(stats.max, config.digits, config.suffix)}</td></tr>
+              <tr><td>{config.label} range</td><td>{formatValue(stats.range, config.digits, config.suffix)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="dashboard-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dataset</th>
+                <th>{config.label}</th>
+                <th>Delta vs reference</th>
+              </tr>
+            </thead>
+            <tbody>
+              {values.map((item) => (
+                <tr key={`delta-${item.id}`}>
+                  <td>{item.label}</td>
+                  <td>{formatValue(item.value, config.digits, config.suffix)}</td>
+                  <td>{reference ? formatValue(item.value - reference.value, config.digits, config.suffix) : "--"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -73,6 +171,7 @@ function MiniWaferMap({ cells, metricKey, template, sharedRange }) {
   const rowValues = Array.from(new Set(templateLayout.map((cell) => cell.dieY))).sort((a, b) => b - a);
   const hue = metricKey === "heater" ? 16 : metricKey === "insertion" ? 210 : 174;
   const lookup = new Map(cells.map((cell) => [cell.chipId, cell]));
+
   const colorFor = (value) => {
     if (!sharedRange || value === null || value === undefined) return "#eef2f4";
     const ratio = Math.min(Math.max((value - sharedRange.min) / Math.max(sharedRange.max - sharedRange.min, 0.0001), 0), 1);
@@ -141,6 +240,8 @@ export default function ComparisonLibraryPanel({
   const [statusMessage, setStatusMessage] = useState("Select two or more datasets from the GitHub library or your saved local snapshots, then click Compare.");
   const [isComparing, setIsComparing] = useState(false);
   const [waferMetric, setWaferMetric] = useState("propagation");
+  const [analysisMetric, setAnalysisMetric] = useState("propagation");
+  const [referenceDatasetId, setReferenceDatasetId] = useState("");
 
   const datasetOptions = useMemo(
     () => [
@@ -195,7 +296,8 @@ export default function ComparisonLibraryPanel({
         });
       }
       setResults(nextResults);
-      setStatusMessage(`Compared ${nextResults.length} dataset(s). Review the wafermaps and wafer-level metrics below to inspect process variation across slots, MPW runs, and waveguide types.`);
+      setReferenceDatasetId(nextResults[0]?.dataset.id || "");
+      setStatusMessage(`Compared ${nextResults.length} dataset(s). Review the wafermaps, range statistics, and deltas versus a reference wafer to inspect process variation across slots, MPW runs, and waveguide types.`);
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "Dataset comparison failed.");
     } finally {
@@ -321,31 +423,36 @@ export default function ComparisonLibraryPanel({
             </div>
           </article>
 
+          <ComparisonAnalytics
+            results={results}
+            selectedMetric={analysisMetric}
+            onMetricChange={setAnalysisMetric}
+            referenceDatasetId={referenceDatasetId}
+            onReferenceChange={setReferenceDatasetId}
+          />
+
           <article className="analysis-card comparison-grid-card">
-            <div className="comparison-grid-two">
-              <div>
-                <h2>Metric Comparison</h2>
-                <ComparisonBars results={results} metric={waferMetric} />
-              </div>
+            <div className="analysis-card-head">
               <div>
                 <h2>Wafermaps</h2>
-                <div className="comparison-wafer-grid-list">
-                  {results.map((result) => (
-                    <article key={`wafer-${result.dataset.id}`} className="comparison-wafer-card">
-                      <header>
-                        <strong>{result.dataset.projectName || result.dataset.label}</strong>
-                        <span>{result.dataset.waferName || "--"}</span>
-                      </header>
-                      <MiniWaferMap
-                        cells={result.metrics[waferMetric]?.waferMetric || []}
-                        metricKey={waferMetric}
-                        template={waferTemplate}
-                        sharedRange={sharedRange}
-                      />
-                    </article>
-                  ))}
-                </div>
+                <p>Shared colour scaling is applied to the selected wafer metric so you can inspect chip-level spatial variation across wafers more fairly.</p>
               </div>
+            </div>
+            <div className="comparison-wafer-grid-list comparison-wafer-grid-wide">
+              {results.map((result) => (
+                <article key={`wafer-${result.dataset.id}`} className="comparison-wafer-card">
+                  <header>
+                    <strong>{result.dataset.projectName || result.dataset.label}</strong>
+                    <span>{result.dataset.waferName || "--"}</span>
+                  </header>
+                  <MiniWaferMap
+                    cells={result.metrics[waferMetric]?.waferMetric || []}
+                    metricKey={waferMetric}
+                    template={waferTemplate}
+                    sharedRange={sharedRange}
+                  />
+                </article>
+              ))}
             </div>
           </article>
         </>

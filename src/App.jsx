@@ -66,6 +66,13 @@ const STORAGE_KEYS = {
   audit: "wps.audit.v1",
   github: "wps.github.v1"
 };
+const PERSISTENCE_DB_NAME = "wps-persistence.v1";
+const PERSISTENCE_DB_VERSION = 1;
+const PERSISTENCE_STORE = "collections";
+const PERSISTENCE_COLLECTION_KEYS = {
+  projects: "projects",
+  datasets: "datasets"
+};
 const DEFAULT_WAFER_TEMPLATE_DRAFT = {
   id: "",
   name: "Custom Wafer Template",
@@ -202,6 +209,68 @@ function persistStoredJson(key, value) {
   } catch {
     // Ignore storage failures in restricted browser contexts.
   }
+}
+
+function removeStoredJson(key) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures in restricted browser contexts.
+  }
+}
+
+function supportsIndexedDbPersistence() {
+  return typeof window !== "undefined" && typeof window.indexedDB !== "undefined";
+}
+
+function openPersistenceDb() {
+  if (!supportsIndexedDbPersistence()) {
+    return Promise.reject(new Error("IndexedDB is not available in this browser."));
+  }
+
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(PERSISTENCE_DB_NAME, PERSISTENCE_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PERSISTENCE_STORE)) {
+        db.createObjectStore(PERSISTENCE_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Unable to open persistence database."));
+  });
+}
+
+async function readPersistentCollection(key, fallback) {
+  if (!supportsIndexedDbPersistence()) return fallback;
+  const db = await openPersistenceDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(PERSISTENCE_STORE, "readonly");
+    const store = transaction.objectStore(PERSISTENCE_STORE);
+    const request = store.get(key);
+    request.onsuccess = () => resolve(request.result ?? fallback);
+    request.onerror = () => reject(request.error || new Error(`Unable to read ${key} from persistent storage.`));
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => reject(transaction.error || new Error(`Unable to finish reading ${key}.`));
+  });
+}
+
+async function writePersistentCollection(key, value) {
+  if (!supportsIndexedDbPersistence()) {
+    throw new Error("IndexedDB is not available in this browser.");
+  }
+  const db = await openPersistenceDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(PERSISTENCE_STORE, "readwrite");
+    const store = transaction.objectStore(PERSISTENCE_STORE);
+    store.put(value, key);
+    transaction.oncomplete = () => {
+      db.close();
+      resolve(true);
+    };
+    transaction.onerror = () => reject(transaction.error || new Error(`Unable to write ${key} to persistent storage.`));
+  });
 }
 
 function estimateSnapshotBytes(rows = [], columnMap = {}, sourceMeta = {}) {
@@ -1368,6 +1437,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState("");
   const [savedProjects, setSavedProjects] = useState(() => readStoredJson(STORAGE_KEYS.projects, []));
   const [savedDatasets, setSavedDatasets] = useState(() => normalizeStoredDatasets(readStoredJson(STORAGE_KEYS.datasets, [])));
+  const [persistentCollectionsReady, setPersistentCollectionsReady] = useState(() => !supportsIndexedDbPersistence());
   const [savedWaferTemplates, setSavedWaferTemplates] = useState(() => readStoredJson(STORAGE_KEYS.waferTemplates, []));
   const [auditLog, setAuditLog] = useState(() => readStoredJson(STORAGE_KEYS.audit, []));
   const [appSettings, setAppSettings] = useState(initialSettings);
@@ -1522,8 +1592,74 @@ export default function App() {
         { label: "Selectable die inspector", color: "#0f8a83" }
       ];
 
-  useEffect(() => persistStoredJson(STORAGE_KEYS.projects, savedProjects), [savedProjects]);
-  useEffect(() => persistStoredJson(STORAGE_KEYS.datasets, savedDatasets), [savedDatasets]);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydratePersistentCollections() {
+      if (!supportsIndexedDbPersistence()) {
+        if (!cancelled) setPersistentCollectionsReady(true);
+        return;
+      }
+
+      const legacyProjects = readStoredJson(STORAGE_KEYS.projects, []);
+      const legacyDatasets = normalizeStoredDatasets(readStoredJson(STORAGE_KEYS.datasets, []));
+
+      try {
+        const storedProjects = await readPersistentCollection(PERSISTENCE_COLLECTION_KEYS.projects, legacyProjects);
+        const storedDatasets = normalizeStoredDatasets(await readPersistentCollection(PERSISTENCE_COLLECTION_KEYS.datasets, legacyDatasets));
+
+        if (Array.isArray(legacyProjects) && legacyProjects.length && (!Array.isArray(storedProjects) || !storedProjects.length)) {
+          await writePersistentCollection(PERSISTENCE_COLLECTION_KEYS.projects, legacyProjects);
+        }
+        if (Array.isArray(legacyDatasets) && legacyDatasets.length && (!Array.isArray(storedDatasets) || !storedDatasets.length)) {
+          await writePersistentCollection(PERSISTENCE_COLLECTION_KEYS.datasets, legacyDatasets);
+        }
+
+        removeStoredJson(STORAGE_KEYS.projects);
+        removeStoredJson(STORAGE_KEYS.datasets);
+
+        if (!cancelled) {
+          setSavedProjects(Array.isArray(storedProjects) ? storedProjects : []);
+          setSavedDatasets(storedDatasets);
+        }
+      } catch {
+        if (!cancelled) {
+          setSavedProjects(Array.isArray(legacyProjects) ? legacyProjects : []);
+          setSavedDatasets(legacyDatasets);
+        }
+      } finally {
+        if (!cancelled) setPersistentCollectionsReady(true);
+      }
+    }
+
+    hydratePersistentCollections();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!persistentCollectionsReady) return;
+    if (supportsIndexedDbPersistence()) {
+      writePersistentCollection(PERSISTENCE_COLLECTION_KEYS.projects, savedProjects)
+        .then(() => removeStoredJson(STORAGE_KEYS.projects))
+        .catch(() => persistStoredJson(STORAGE_KEYS.projects, savedProjects));
+      return;
+    }
+    persistStoredJson(STORAGE_KEYS.projects, savedProjects);
+  }, [persistentCollectionsReady, savedProjects]);
+
+  useEffect(() => {
+    if (!persistentCollectionsReady) return;
+    if (supportsIndexedDbPersistence()) {
+      writePersistentCollection(PERSISTENCE_COLLECTION_KEYS.datasets, savedDatasets)
+        .then(() => removeStoredJson(STORAGE_KEYS.datasets))
+        .catch(() => persistStoredJson(STORAGE_KEYS.datasets, savedDatasets));
+      return;
+    }
+    persistStoredJson(STORAGE_KEYS.datasets, savedDatasets);
+  }, [persistentCollectionsReady, savedDatasets]);
+
   useEffect(() => persistStoredJson(STORAGE_KEYS.audit, auditLog), [auditLog]);
   useEffect(() => persistStoredJson(STORAGE_KEYS.settings, appSettings), [appSettings]);
   useEffect(() => setSettingsDraft(appSettings), [appSettings]);
@@ -1729,10 +1865,10 @@ export default function App() {
     downloadBlob(buildHtmlReport(reportState, reportTitle), `${safeWafer}-report-summary.html`, "text/html;charset=utf-8");
     appendAudit("export", "Report summary exported", `Exported HTML and JSON reports for ${waferName}.`);
   }
-  function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const projectRecord = { id: createId("project"), projectName, waferName, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${projectName} for wafer ${waferName}.`); setStatusMessage(`Saved project ${projectName}. You can reopen it later from the Projects section.`); }
+  function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const projectRecord = { id: createId("project"), projectName, waferName, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${projectName} for wafer ${waferName}.`); setStatusMessage(`Saved project ${projectName}. You can reopen it later from the Projects section.`); }
   function loadProject(project) { setProjectName(project.projectName); setWaferName(project.waferName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${project.projectName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${project.projectName} for wafer ${project.waferName}.`); }
   function deleteProject(projectId) { const target = savedProjects.find((project) => project.id === projectId); setSavedProjects((previous) => previous.filter((project) => project.id !== projectId)); appendAudit("project", "Project deleted", `Deleted saved project ${target?.projectName || projectId}.`); }
-  function saveCurrentDataset(autoSaved = false) { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!snapshotCapacity.ok) { const detail = `Dataset save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("dataset", autoSaved ? "Dataset auto-save skipped" : "Dataset save skipped", detail); pushToast(autoSaved ? "Auto-save skipped" : "Dataset save skipped", "This dataset is too large for reliable browser storage.", "progress"); return; } const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
+  function saveCurrentDataset(autoSaved = false) { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Dataset save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("dataset", autoSaved ? "Dataset auto-save skipped" : "Dataset save skipped", detail); pushToast(autoSaved ? "Auto-save skipped" : "Dataset save skipped", "This dataset is too large for reliable browser storage.", "progress"); return; } const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
   function loadDataset(dataset) { setProjectName(dataset.projectName || projectName); setWaferName(dataset.waferName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(dataset.rawRows || []); setColumnMap(dataset.columnMap || {}); setSourceMeta(dataset.sourceMeta || buildDefaultSourceMeta(appSettings)); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${dataset.projectName}.`); }
   function deleteDataset(datasetId) { const target = savedDatasets.find((dataset) => dataset.id === datasetId); setSavedDatasets((previous) => previous.filter((dataset) => dataset.id !== datasetId)); appendAudit("dataset", "Dataset deleted", `Deleted dataset snapshot ${target?.label || datasetId}.`); }
   function updateGithubConfig(field, value) { setGithubConfig((previous) => ({ ...previous, [field]: value })); }

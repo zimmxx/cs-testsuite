@@ -384,6 +384,24 @@ function arrayMax(values, fallback = 0) {
   return values.reduce((max, value) => (value > max ? value : max), values[0]);
 }
 
+function formatGithubPublishError(error, githubConfig) {
+  const detail = error instanceof Error ? error.message : "Unknown error";
+  const status = error?.githubStatus;
+  const payloadMessage = typeof error?.githubPayload?.message === "string" ? error.githubPayload.message : "";
+  const combined = `${detail} ${payloadMessage}`.toLowerCase();
+  const repoLabel = `${githubConfig?.owner || "owner"}/${githubConfig?.repo || "repo"}`;
+
+  if (status === 403 || combined.includes("resource not accessible by personal access token")) {
+    return `GitHub rejected the token for ${repoLabel}. Use a fine-grained PAT that includes this repository and grants Contents: Read and Write access, then save the token again.`;
+  }
+
+  if (status === 401 || combined.includes("bad credentials")) {
+    return `GitHub did not accept the token for ${repoLabel}. Check that the token is still valid, then save the updated token and try again.`;
+  }
+
+  return detail;
+}
+
 function buildGeneratedWaveguideLengthMap(count = DEFAULT_WAVEGUIDE_COUNT, start = DEFAULT_WAVEGUIDE_START_MM, interval = DEFAULT_WAVEGUIDE_INTERVAL_MM) {
   const safeCount = Math.max(Math.round(Number(count) || DEFAULT_WAVEGUIDE_COUNT), 1);
   const safeStart = Number.isFinite(Number(start)) ? Number(start) : DEFAULT_WAVEGUIDE_START_MM;
@@ -1929,7 +1947,7 @@ export default function App() {
       appendAudit("github", "Dataset published to GitHub", `Published ${packageData.identity.label} into ${githubConfig.owner}/${githubConfig.repo}.`);
       pushToast("GitHub publish successful", `${packageData.identity.label} was committed to the repository.`, "success");
     } catch (error) {
-      const detail = error instanceof Error ? error.message : "Unknown error";
+      const detail = formatGithubPublishError(error, githubConfig);
       setSavedDatasets((previous) => previous.map((item) => item.id === dataset.id ? { ...item, githubSync: { status: "failed", detail } } : item));
       setStatusMessage(`GitHub publish failed: ${detail}`);
       setRemoteLibraryStatus(`GitHub publish failed. ${detail}`);

@@ -225,8 +225,16 @@ async function githubRequest(url, options = {}) {
   const response = await fetch(url, options);
   if (response.status === 404) return null;
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `GitHub request failed with status ${response.status}.`);
+    const contentType = response.headers.get("content-type") || "";
+    const payload = contentType.includes("application/json") ? await response.json() : await response.text();
+    const message = typeof payload === "string"
+      ? payload
+      : payload?.message || `GitHub request failed with status ${response.status}.`;
+    const error = new Error(message || `GitHub request failed with status ${response.status}.`);
+    error.name = "GitHubRequestError";
+    error.githubStatus = response.status;
+    error.githubPayload = payload;
+    throw error;
   }
   return response.json();
 }

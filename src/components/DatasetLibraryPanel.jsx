@@ -104,12 +104,12 @@ export default function DatasetLibraryPanel({
           </label>
           <label className="mapping-field">
             <span>GitHub token</span>
-            <input type="password" value={safeGithubConfig.token} placeholder="Fine-grained PAT with Contents: write" onChange={(event) => onGithubConfigChange("token", event.target.value)} />
+            <input type="password" value={safeGithubConfig.token} placeholder="Fine-grained PAT with repo access + Contents read/write" onChange={(event) => onGithubConfigChange("token", event.target.value)} />
           </label>
         </div>
         <div className="github-sync-actions">
           <button type="button" onClick={onSaveGithubConfig}>Save GitHub Settings</button>
-          <p>The token is stored only in this browser. Use a fine-grained PAT with repository <strong>Contents</strong> write access if you want the app to commit datasets directly to GitHub.</p>
+          <p>The token is stored only in this browser. Use a fine-grained PAT that includes this repository and grants <strong>Contents: Read and Write</strong> access if you want the app to commit datasets directly to GitHub.</p>
         </div>
       </article>
 

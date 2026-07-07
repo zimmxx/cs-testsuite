@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { buildNormalizedRows, inferColumnMap, readNamedTextRows } from "../lib/parsers";
 import { calculateAllMetrics, getMetricRange, summarizeDataset } from "../lib/analysis";
 import { getWaferTemplateLayout, shortChipLabel } from "../lib/waferTemplates";
+import { getDatasetPresentation } from "../lib/datasetPresentation";
 
 function bundledAssetUrl(relativePath) {
   const base = (import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
@@ -85,7 +86,7 @@ function ComparisonAnalytics({ results, selectedMetric, onMetricChange, referenc
   const values = results
     .map((result) => ({
       id: result.dataset.id,
-      label: result.dataset.projectName || result.dataset.label,
+      label: getDatasetPresentation(result.dataset).projectDisplayName || result.dataset.projectName || result.dataset.label,
       value: datasetMetricValue(result, selectedMetric)
     }))
     .filter((item) => item.value !== null && item.value !== undefined && !Number.isNaN(item.value));
@@ -277,7 +278,7 @@ async function loadRemoteDatasetRows(dataset, sourceMeta) {
 function buildComparisonSourceMeta(dataset, sourceMeta) {
   return {
     ...sourceMeta,
-    name: dataset.label || dataset.projectName || "Measurement dataset",
+    name: dataset.label || getDatasetPresentation(dataset).projectDisplayName || dataset.projectName || "Measurement dataset",
     type: dataset.measurementMode || dataset.sourceType || "Measurement"
   };
 }
@@ -399,7 +400,7 @@ export default function ComparisonLibraryPanel({
                 <th>Dataset</th>
                 <th>Mode</th>
                 <th>Project</th>
-                <th>Wafer</th>
+                <th>Wafer Run</th>
                 <th>Files</th>
               </tr>
             </thead>
@@ -418,8 +419,8 @@ export default function ComparisonLibraryPanel({
                     <div className="dataset-subcopy">{dataset.scope === "remote" ? "GitHub library" : "Local snapshot"}</div>
                   </td>
                   <td>{dataset.measurementMode || dataset.sourceType || dataset.sourceMeta?.type || "--"}</td>
-                  <td>{dataset.projectName || "--"}</td>
-                  <td>{dataset.waferName || "--"}</td>
+                  <td>{getDatasetPresentation(dataset).projectDisplayName || dataset.projectName || "--"}</td>
+                  <td>{getDatasetPresentation(dataset).waferDisplayName || dataset.waferName || "--"}</td>
                   <td>{dataset.traceCount ?? dataset.files?.length ?? dataset.display?.sourceLabel ?? "--"}</td>
                 </tr>
               )) : (
@@ -468,8 +469,8 @@ export default function ComparisonLibraryPanel({
                   {results.map((result) => (
                     <tr key={`summary-${result.dataset.id}`}>
                       <td>
-                        <strong>{result.dataset.projectName || result.dataset.label}</strong>
-                        <div className="dataset-subcopy">{result.dataset.waferName || "--"}</div>
+                        <strong>{getDatasetPresentation(result.dataset).projectDisplayName || result.dataset.projectName || result.dataset.label}</strong>
+                        <div className="dataset-subcopy">{getDatasetPresentation(result.dataset).waferDisplayName || result.dataset.waferName || "--"}</div>
                       </td>
                       <td>{result.metrics.propagation.summaryStats.measuredChips}</td>
                       <td>{formatValue(result.metrics.propagation.passRate, 1, "%")}</td>
@@ -503,8 +504,8 @@ export default function ComparisonLibraryPanel({
               {results.map((result) => (
                 <article key={`wafer-${result.dataset.id}`} className="comparison-wafer-card">
                   <header>
-                    <strong>{result.dataset.projectName || result.dataset.label}</strong>
-                    <span>{result.dataset.waferName || "--"}</span>
+                    <strong>{getDatasetPresentation(result.dataset).projectDisplayName || result.dataset.projectName || result.dataset.label}</strong>
+                    <span>{getDatasetPresentation(result.dataset).waferDisplayName || result.dataset.waferName || "--"}</span>
                   </header>
                   <MiniWaferMap
                     cells={result.metrics[waferMetric]?.waferMetric || []}

@@ -18,6 +18,7 @@ import {
 } from "./lib/parsers";
 import { createCenterFilledWaferTemplate, defaultWaferTemplateId, getBuiltInWaferTemplates, getWaferTemplateLayout, shortChipLabel } from "./lib/waferTemplates";
 import { buildDatasetSnapshotMetadata, buildGithubDatasetPackage, publishDatasetPackageToGithub } from "./lib/githubLibrary";
+import { getDatasetPresentation } from "./lib/datasetPresentation";
 import {
   InteractivePropagationPlot,
   InteractivePropagationSpectrumPlot,
@@ -164,9 +165,12 @@ function bundledAssetUrl(relativePath) {
 }
 
 function normalizeLibraryDataset(definition) {
+  const files = definition.files?.length ? definition.files : bundledTraceNames(definition);
+  const display = getDatasetPresentation({ ...definition, files });
   return {
     ...definition,
-    files: definition.files?.length ? definition.files : bundledTraceNames(definition),
+    ...display,
+    files,
     source: definition.source || "github-library"
   };
 }
@@ -561,6 +565,13 @@ function formatWaveguideLengthPreview(map = {}) {
 
 function normalizeStoredDatasets(value) {
   return Array.isArray(value) ? value.filter((item) => item && typeof item === "object") : [];
+}
+
+function presentDataset(dataset) {
+  return {
+    ...dataset,
+    ...getDatasetPresentation(dataset)
+  };
 }
 
 function mergeWaferTemplates(...groups) {
@@ -1747,6 +1758,9 @@ export default function App() {
         : "Mixed measurement upload";
       const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
       const nextSourceMeta = { ...sourceMeta, name: files.length === 1 ? files[0].name : `${files.length} measurement files`, type: sharedType };
+      const nextPresentation = getDatasetPresentation({ projectName: "", waferName: "", sourceMeta: nextSourceMeta, rawRows: rows, files: files.map((file) => file.name) });
+      setProjectName(nextPresentation.projectDisplayName);
+      setWaferName(nextPresentation.waferDisplayName);
       setRawRows(rows);
       setColumnMap(inferredMap);
       setSourceMeta(nextSourceMeta);
@@ -1796,8 +1810,8 @@ export default function App() {
         type: definition.sourceType
       };
       const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
-      setProjectName(definition.projectName);
-      setWaferName(definition.waferName);
+      setProjectName(definition.projectDisplayName || definition.projectName);
+      setWaferName(definition.waferDisplayName || definition.waferName);
       setSelectedDate(definition.selectedDate);
       setRawRows(rows);
       setColumnMap(inferredMap);
@@ -1888,11 +1902,11 @@ export default function App() {
     downloadBlob(buildHtmlReport(reportState, reportTitle), `${safeWafer}-report-summary.html`, "text/html;charset=utf-8");
     appendAudit("export", "Report summary exported", `Exported HTML and JSON reports for ${waferName}.`);
   }
-  function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const projectRecord = { id: createId("project"), projectName, waferName, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${projectName} for wafer ${waferName}.`); setStatusMessage(`Saved project ${projectName}. You can reopen it later from the Projects section.`); }
-  function loadProject(project) { setProjectName(project.projectName); setWaferName(project.waferName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${project.projectName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${project.projectName} for wafer ${project.waferName}.`); }
+  function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const currentPresentation = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }); const projectRecord = { id: createId("project"), projectName: currentPresentation.projectDisplayName, waferName: currentPresentation.waferDisplayName, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${currentPresentation.projectDisplayName} for wafer run ${currentPresentation.waferDisplayName}.`); setStatusMessage(`Saved project ${currentPresentation.projectDisplayName}. You can reopen it later from the Projects section.`); }
+  function loadProject(project) { const presented = presentDataset(project); setProjectName(presented.projectDisplayName); setWaferName(presented.waferDisplayName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${presented.projectDisplayName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${presented.projectDisplayName} for wafer run ${presented.waferDisplayName}.`); }
   function deleteProject(projectId) { const target = savedProjects.find((project) => project.id === projectId); setSavedProjects((previous) => previous.filter((project) => project.id !== projectId)); appendAudit("project", "Project deleted", `Deleted saved project ${target?.projectName || projectId}.`); }
   function saveCurrentDataset(autoSaved = false) { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Dataset save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("dataset", autoSaved ? "Dataset auto-save skipped" : "Dataset save skipped", detail); pushToast(autoSaved ? "Auto-save skipped" : "Dataset save skipped", "This dataset is too large for reliable browser storage.", "progress"); return; } const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
-  function loadDataset(dataset) { setProjectName(dataset.projectName || projectName); setWaferName(dataset.waferName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(dataset.rawRows || []); setColumnMap(dataset.columnMap || {}); setSourceMeta(dataset.sourceMeta || buildDefaultSourceMeta(appSettings)); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${dataset.projectName}.`); }
+  function loadDataset(dataset) { const presented = presentDataset(dataset); setProjectName(presented.projectDisplayName || projectName); setWaferName(presented.waferDisplayName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(dataset.rawRows || []); setColumnMap(dataset.columnMap || {}); setSourceMeta(dataset.sourceMeta || buildDefaultSourceMeta(appSettings)); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${presented.projectDisplayName}.`); }
   function deleteDataset(datasetId) { const target = savedDatasets.find((dataset) => dataset.id === datasetId); setSavedDatasets((previous) => previous.filter((dataset) => dataset.id !== datasetId)); appendAudit("dataset", "Dataset deleted", `Deleted dataset snapshot ${target?.label || datasetId}.`); }
   function updateGithubConfig(field, value) { setGithubConfig((previous) => ({ ...previous, [field]: value })); }
   function saveGithubConfig() { persistStoredJson(STORAGE_KEYS.github, githubConfig); setStatusMessage(`Saved GitHub sync settings for ${githubConfig.owner}/${githubConfig.repo} on ${githubConfig.branch}.`); appendAudit("github", "GitHub settings saved", `Saved GitHub dataset sync settings for ${githubConfig.owner}/${githubConfig.repo}.`); pushToast("GitHub settings saved", `${githubConfig.owner}/${githubConfig.repo} stored in this browser.`, "success"); }
@@ -1985,23 +1999,38 @@ export default function App() {
   function resetSettings() { const reset = hydrateSettings(DEFAULT_SETTINGS); setSettingsDraft(reset); setAppSettings(reset); setSourceMeta(buildDefaultSourceMeta(reset)); appendAudit("settings", "Settings reset", "Restored the default application settings for operator, metric family, propagation window, and launch power."); setStatusMessage("Application settings were reset to the default values."); }
   function clearAuditLog() { setAuditLog([]); setStatusMessage("Audit log cleared from local browser storage."); }
 
-  const projectOptions = uniqueOptions([projectName, ...savedProjects.map((project) => project.projectName)].filter(Boolean));
-  const waferOptions = uniqueOptions([waferName, ...savedProjects.map((project) => project.waferName)].filter(Boolean));
-  const dateOptions = uniqueOptions([selectedDate, ...savedProjects.map((project) => project.selectedDate)].filter(Boolean));
-  const bundledProjectRows = remoteLibraryDatasets.map((definition) => (
-    <tr key={`bundled-project-${definition.id}`}><td>{definition.projectName}</td><td>{definition.waferName}</td><td>{definition.label}</td><td>{`${definition.traceCount} raw traces`}</td><td>Bundled with app</td><td className="library-table-actions"><button type="button" onClick={() => loadBundledDataset(definition, "project")} disabled={loadingBundledId === definition.id}>{loadingBundledId === definition.id ? "Loading..." : "Load"}</button></td></tr>
-  ));
-  const currentProjectRows = savedProjects.map((project) => (
-    <tr key={project.id}><td>{project.projectName}</td><td>{project.waferName}</td><td>{project.sourceMeta.name}</td><td>{project.summary.rows}</td><td>{formatSavedTime(project.savedAt)}</td><td className="library-table-actions"><button type="button" onClick={() => loadProject(project)}>Load</button><button type="button" className="danger-action" onClick={() => deleteProject(project.id)}>Delete</button></td></tr>
-  ));
-  const bundledDatasetRows = remoteLibraryDatasets.map((definition) => (
-    <tr key={`bundled-dataset-${definition.id}`}><td>{definition.label}</td><td>{definition.projectName}</td><td>{definition.waferName}</td><td>{`${definition.traceCount} raw traces`}</td><td>Bundled with app</td><td className="library-table-actions"><button type="button" onClick={() => loadBundledDataset(definition, "dataset")} disabled={loadingBundledId === definition.id}>{loadingBundledId === definition.id ? "Loading..." : "Load"}</button></td></tr>
-  ));
   const currentDatasetRows = normalizeStoredDatasets(savedDatasets).map((dataset) => ({
     ...dataset,
     display: dataset.display || buildDatasetSnapshotMetadata(dataset),
     savedDisplay: formatSavedTime(dataset.savedAt)
+  })).map((dataset) => ({
+    ...dataset,
+    ...getDatasetPresentation(dataset)
   }));
+  const knownDatasetContexts = [
+    ...remoteLibraryDatasets.map((dataset) => presentDataset(dataset)),
+    ...savedProjects.map((project) => presentDataset(project)),
+    ...currentDatasetRows.map((dataset) => presentDataset(dataset)),
+    ...(projectName || waferName ? [{ projectName, waferName, projectDisplayName: projectName, waferDisplayName: waferName }] : [])
+  ];
+  const projectOptions = uniqueOptions([projectName, ...knownDatasetContexts.map((item) => item.projectDisplayName || item.projectName)].filter(Boolean));
+  const waferOptions = uniqueOptions([
+    waferName,
+    ...knownDatasetContexts
+      .filter((item) => !projectName || (item.projectDisplayName || item.projectName) === projectName)
+      .map((item) => item.waferDisplayName || item.waferName)
+  ].filter(Boolean));
+  const dateOptions = uniqueOptions([selectedDate, ...savedProjects.map((project) => project.selectedDate), ...remoteLibraryDatasets.map((dataset) => dataset.selectedDate)].filter(Boolean));
+  const bundledProjectRows = remoteLibraryDatasets.map((definition) => (
+    <tr key={`bundled-project-${definition.id}`}><td>{definition.projectDisplayName || definition.projectName}</td><td>{definition.waferDisplayName || definition.waferName}</td><td>{definition.label}</td><td>{`${definition.traceCount} raw traces`}</td><td>Bundled with app</td><td className="library-table-actions"><button type="button" onClick={() => loadBundledDataset(definition, "project")} disabled={loadingBundledId === definition.id}>{loadingBundledId === definition.id ? "Loading..." : "Load"}</button></td></tr>
+  ));
+  const currentProjectRows = savedProjects.map((project) => {
+    const presented = presentDataset(project);
+    return <tr key={project.id}><td>{presented.projectDisplayName}</td><td>{presented.waferDisplayName}</td><td>{project.sourceMeta.name}</td><td>{project.summary.rows}</td><td>{formatSavedTime(project.savedAt)}</td><td className="library-table-actions"><button type="button" onClick={() => loadProject(project)}>Load</button><button type="button" className="danger-action" onClick={() => deleteProject(project.id)}>Delete</button></td></tr>;
+  });
+  const bundledDatasetRows = remoteLibraryDatasets.map((definition) => (
+    <tr key={`bundled-dataset-${definition.id}`}><td>{definition.label}</td><td>{definition.projectDisplayName || definition.projectName}</td><td>{definition.waferDisplayName || definition.waferName}</td><td>{`${definition.traceCount} raw traces`}</td><td>Bundled with app</td><td className="library-table-actions"><button type="button" onClick={() => loadBundledDataset(definition, "dataset")} disabled={loadingBundledId === definition.id}>{loadingBundledId === definition.id ? "Loading..." : "Load"}</button></td></tr>
+  ));
   const auditRows = auditLog.map((entry) => (
     <tr key={entry.id}><td>{entry.title}</td><td>{entry.kind}</td><td>{entry.detail}</td><td>{formatSavedTime(entry.timestamp)}</td></tr>
   ));
@@ -2024,7 +2053,7 @@ export default function App() {
             </div>
             <div className="dashboard-header-filters">
               <FilterField label="Project" value={projectName} onChange={setProjectName} options={projectOptions} />
-              <FilterField label="Wafer" value={waferName} onChange={setWaferName} options={waferOptions} />
+              <FilterField label="Wafer Run" value={waferName} onChange={setWaferName} options={waferOptions} />
               <FilterField label="Date" value={selectedDate} onChange={setSelectedDate} options={dateOptions} icon="Cal" />
               <label className="upload-measurement-button"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleFileUpload} disabled={isUploadingFiles} /><span>{isUploadingFiles ? "Processing Files..." : "Upload Measurement Files"}</span></label>
             </div>
@@ -2118,8 +2147,8 @@ export default function App() {
             </section>
 </> : null}
 
-          {activeTab === "projects" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Projects Workspace</h2><p>Save the current wafer analysis context so you can reopen the same project state later.</p></div><div className="library-action-row"><button type="button" onClick={saveCurrentProject}>Save Current Project</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Back To Analysis</button></div></div><div className="translator-metrics"><div><strong>{projectName}</strong><span>Project</span></div><div><strong>{waferName}</strong><span>Wafer</span></div><div><strong>{datasetSummary.rows}</strong><span>Rows</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Projects</h2><p>Stored locally in this browser.</p></div></div><LibraryTable columns={["Project", "Wafer", "Dataset", "Rows", "Saved", "Actions"]} rows={[...bundledProjectRows, ...currentProjectRows]} emptyMessage="No bundled or saved projects are available yet." /></article></section> : null}
-          {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} appSettings={appSettings} currentDatasetMeta={currentRows.length ? buildDatasetSnapshotMetadata({ projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta }) : null} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={refreshRemoteLibrary} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
+          {activeTab === "projects" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Projects Workspace</h2><p>Save the current wafer analysis context so you can reopen the same project state later.</p></div><div className="library-action-row"><button type="button" onClick={saveCurrentProject}>Save Current Project</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Back To Analysis</button></div></div><div className="translator-metrics"><div><strong>{projectName}</strong><span>Project</span></div><div><strong>{waferName}</strong><span>Wafer run</span></div><div><strong>{datasetSummary.rows}</strong><span>Rows</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Projects</h2><p>Stored locally in this browser.</p></div></div><LibraryTable columns={["Project", "Wafer Run", "Dataset", "Rows", "Saved", "Actions"]} rows={[...bundledProjectRows, ...currentProjectRows]} emptyMessage="No bundled or saved projects are available yet." /></article></section> : null}
+          {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} appSettings={appSettings} currentDatasetMeta={currentRows.length ? { ...buildDatasetSnapshotMetadata({ projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta }), ...getDatasetPresentation({ projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta }) } : null} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={refreshRemoteLibrary} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}
           {activeTab === "filename-conversion" ? <FilenameConversionPanel /> : null}
@@ -2132,6 +2161,7 @@ export default function App() {
     </div>
   );
 }
+
 
 
 

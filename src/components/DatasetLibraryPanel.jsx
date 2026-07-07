@@ -1,3 +1,5 @@
+import { getDatasetPresentation } from "../lib/datasetPresentation";
+
 function GitHubStatusBadge({ status }) {
   if (!status) return <span className="dataset-status-chip">Local only</span>;
   const tone = status === "published" ? "success" : status === "publishing" ? "progress" : status === "failed" ? "danger" : "muted";
@@ -13,11 +15,14 @@ function safeDatasetDisplay(dataset = {}) {
     ? new Set(dataset.rawRows.map((row) => row?.source_name).filter(Boolean)).size
     : 0;
 
+  const presented = getDatasetPresentation(dataset);
+
   return {
     shortLabel: display.shortLabel || dataset.label || "Dataset snapshot",
     fullLabel: dataset.label || display.label || display.shortLabel || "Dataset snapshot",
-    measurementMode: display.measurementMode || dataset.sourceMeta?.type || "Measurement",
-    waferName: dataset.waferName || display.waferName || "--",
+    measurementMode: presented.measurementMode || display.measurementMode || dataset.sourceMeta?.type || "Measurement",
+    projectName: presented.projectDisplayName || dataset.projectName || display.projectName || "--",
+    waferName: presented.waferDisplayName || dataset.waferName || display.waferName || "--",
     sourceLabel: display.sourceLabel || `${rawSourceCount} file${rawSourceCount === 1 ? "" : "s"}`,
     rowText: Number.isFinite(summaryRows)
       ? summaryRows.toLocaleString()
@@ -127,7 +132,7 @@ export default function DatasetLibraryPanel({
                 <th>Dataset</th>
                 <th>Mode</th>
                 <th>Project</th>
-                <th>Wafer</th>
+                <th>Wafer Run</th>
                 <th>Files</th>
                 <th>Rows</th>
                 <th>Actions</th>
@@ -141,8 +146,8 @@ export default function DatasetLibraryPanel({
                     <div className="dataset-subcopy">{dataset.mpw || "--"} - {dataset.slot || "--"} - {dataset.waveguideType || "--"}</div>
                   </td>
                   <td>{dataset.measurementMode || dataset.sourceType || "--"}</td>
-                  <td>{dataset.projectName || "--"}</td>
-                  <td>{dataset.waferName || "--"}</td>
+                  <td>{dataset.projectDisplayName || dataset.projectName || "--"}</td>
+                  <td>{dataset.waferDisplayName || dataset.waferName || "--"}</td>
                   <td>{dataset.traceCount ?? dataset.files?.length ?? "--"}</td>
                   <td>{dataset.rowCount ? Number(dataset.rowCount).toLocaleString() : `${dataset.traceCount ?? 0} raw traces`}</td>
                   <td className="library-table-actions">
@@ -172,7 +177,7 @@ export default function DatasetLibraryPanel({
               <tr>
                 <th>Dataset</th>
                 <th>Mode</th>
-                <th>Wafer</th>
+                <th>Wafer Run</th>
                 <th>Files</th>
                 <th>Rows</th>
                 <th>Saved</th>

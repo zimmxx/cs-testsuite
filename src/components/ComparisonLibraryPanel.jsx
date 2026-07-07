@@ -396,11 +396,13 @@ export default function ComparisonLibraryPanel({
           <table>
             <thead>
               <tr>
-                <th>Select</th>
+                                <th>Select</th>
                 <th>Dataset</th>
-                <th>Mode</th>
                 <th>Project</th>
-                <th>Wafer Run</th>
+                <th>Slot</th>
+                <th>Waveguide Type</th>
+                <th>Measurement Mode</th>
+                <th>Measurement Type</th>
                 <th>Files</th>
               </tr>
             </thead>
@@ -418,14 +420,16 @@ export default function ComparisonLibraryPanel({
                     <strong>{dataset.label || dataset.projectName || "Measurement dataset"}</strong>
                     <div className="dataset-subcopy">{dataset.scope === "remote" ? "GitHub library" : "Local snapshot"}</div>
                   </td>
-                  <td>{dataset.measurementMode || dataset.sourceType || dataset.sourceMeta?.type || "--"}</td>
-                  <td>{getDatasetPresentation(dataset).projectDisplayName || dataset.projectName || "--"}</td>
-                  <td>{getDatasetPresentation(dataset).waferDisplayName || dataset.waferName || "--"}</td>
+                                    <td>{getDatasetPresentation(dataset).projectDisplayName || dataset.projectName || "--"}</td>
+                  <td>{getDatasetPresentation(dataset).slot || "SlotUndefined"}</td>
+                  <td>{getDatasetPresentation(dataset).waveguideType || "WaveguideUndefined"}</td>
+                  <td>{getDatasetPresentation(dataset).measurementMode || dataset.sourceType || dataset.sourceMeta?.type || "--"}</td>
+                  <td>{getDatasetPresentation(dataset).measurementType || "MeasurementTypeUndefined"}</td>
                   <td>{dataset.traceCount ?? dataset.files?.length ?? dataset.display?.sourceLabel ?? "--"}</td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="6"><div className="chart-empty compact">No datasets are available for comparison yet.</div></td>
+                  <td colSpan="8"><div className="chart-empty compact">No datasets are available for comparison yet.</div></td>
                 </tr>
               )}
             </tbody>

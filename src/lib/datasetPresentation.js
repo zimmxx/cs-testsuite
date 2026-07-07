@@ -5,6 +5,10 @@ export function prettifyIdentifier(value) {
     .trim();
 }
 
+function compactIdentifier(value) {
+  return String(value || "").replace(/\s+/g, "");
+}
+
 function joinedDatasetText(dataset = {}) {
   const files = Array.isArray(dataset.files) ? dataset.files : [];
   const rows = Array.isArray(dataset.rawRows) ? dataset.rawRows : Array.isArray(dataset.rows) ? dataset.rows : [];
@@ -17,6 +21,7 @@ function joinedDatasetText(dataset = {}) {
     dataset.slot,
     dataset.waveguideType,
     dataset.measurementMode,
+    dataset.measurementType,
     dataset.sourceType,
     dataset.sourceMeta?.name,
     dataset.sourceMeta?.type,
@@ -27,46 +32,60 @@ function joinedDatasetText(dataset = {}) {
     display.slot,
     display.waveguideType,
     display.measurementMode,
+    display.measurementType,
     ...files,
     ...rows.slice(0, 24).map((row) => row?.source_name || "")
   ].filter(Boolean).join(" ");
 }
 
-function detectMpw(dataset = {}) {
+function detectProjectCode(dataset = {}) {
+  const existing = compactIdentifier(dataset.mpw || dataset.display?.mpw || dataset.projectName || "");
+  if (/^(MPW|BSPK|DEV)[0-9]+$/i.test(existing)) return existing.toUpperCase();
   const joined = joinedDatasetText(dataset);
-  const match = joined.match(/MPW\s*([0-9]+)/i);
-  return dataset.mpw || dataset.display?.mpw || (match ? `MPW${match[1]}` : "MPWUndefined");
+  const match = joined.match(/\b(MPW|BSPK|DEV)\s*([0-9]+)\b/i);
+  return match ? `${match[1].toUpperCase()}${match[2]}` : "MPWUNDEFINED";
 }
 
 function detectSlot(dataset = {}) {
+  const existing = compactIdentifier(dataset.slot || dataset.display?.slot || "");
+  if (/^Slot[0-9]+$/i.test(existing)) return existing.replace(/^slot/i, "Slot");
   const joined = joinedDatasetText(dataset);
-  const match = joined.match(/Slot\s*([0-9]+)/i);
-  return dataset.slot || dataset.display?.slot || (match ? `Slot${match[1]}` : "SlotUndefined");
+  const match = joined.match(/\bSlot\s*([0-9]+)\b/i);
+  return match ? `Slot${match[1]}` : "SlotUndefined";
 }
 
 function detectWaveguideType(dataset = {}) {
-  const value = String(dataset.waveguideType || dataset.display?.waveguideType || "");
-  if (value) {
-    if (/rib/i.test(value)) return "Rib";
-    if (/strip/i.test(value)) return "Strip";
-    if (/slot/i.test(value)) return "Slot";
-    return prettifyIdentifier(value);
-  }
+  const existing = compactIdentifier(dataset.waveguideType || dataset.display?.waveguideType || "");
+  if (/^StripWaveguide$/i.test(existing)) return "StripWaveguide";
+  if (/^RibWaveguide$/i.test(existing)) return "RibWaveguide";
+  if (/strip/i.test(existing)) return "StripWaveguide";
+  if (/rib/i.test(existing)) return "RibWaveguide";
   const joined = joinedDatasetText(dataset);
-  if (/\brib\b/i.test(joined)) return "Rib";
-  if (/\bstrip\b/i.test(joined)) return "Strip";
-  if (/\bslot\b/i.test(joined)) return "Slot";
-  return "Waveguide";
+  if (/stripwaveguide|\bstrip\b/i.test(joined)) return "StripWaveguide";
+  if (/ribwaveguide|\brib\b/i.test(joined)) return "RibWaveguide";
+  return "WaveguideUndefined";
 }
 
 function detectMeasurementMode(dataset = {}) {
-  const value = String(dataset.measurementMode || dataset.display?.measurementMode || dataset.sourceType || dataset.sourceMeta?.type || "");
-  if (/manual/i.test(value)) return "Manual";
-  if (/wst|automated/i.test(value)) return "WST";
+  const existing = String(dataset.measurementMode || dataset.display?.measurementMode || dataset.sourceType || dataset.sourceMeta?.type || "");
+  if (/manual/i.test(existing)) return "Manual";
+  if (/wst|automated/i.test(existing)) return "WST";
   const joined = joinedDatasetText(dataset);
   if (/manual/i.test(joined)) return "Manual";
   if (/wst|automated/i.test(joined)) return "WST";
-  return "Measurement";
+  return "ModeUndefined";
+}
+
+function detectMeasurementType(dataset = {}) {
+  const existing = compactIdentifier(dataset.measurementType || dataset.display?.measurementType || dataset.metricFamily || "");
+  if (/^PropagationLoss$/i.test(existing)) return "PropagationLoss";
+  if (/^InsertionLoss$/i.test(existing)) return "InsertionLoss";
+  if (/^HeaterEfficiency$/i.test(existing)) return "HeaterEfficiency";
+  const joined = joinedDatasetText(dataset);
+  if (/PropagationLoss|Propagation Loss/i.test(joined)) return "PropagationLoss";
+  if (/InsertionLoss|Insertion Loss/i.test(joined)) return "InsertionLoss";
+  if (/HeaterEfficiency|Heater Efficiency/i.test(joined)) return "HeaterEfficiency";
+  return "MeasurementTypeUndefined";
 }
 
 function detectPlatform(dataset = {}) {
@@ -81,33 +100,22 @@ function detectPlatform(dataset = {}) {
 }
 
 export function getDatasetPresentation(dataset = {}) {
-  const mpw = detectMpw(dataset);
+  const projectCode = detectProjectCode(dataset);
   const slot = detectSlot(dataset);
   const waveguideType = detectWaveguideType(dataset);
   const measurementMode = detectMeasurementMode(dataset);
+  const measurementType = detectMeasurementType(dataset);
   const platform = detectPlatform(dataset);
 
-  const projectDisplayName = mpw !== "MPWUndefined"
-    ? mpw
-    : prettifyIdentifier(dataset.projectName) || "MPW Undefined";
-
-  const waferPieces = [
-    slot !== "SlotUndefined" ? slot : "",
-    waveguideType !== "Waveguide" ? waveguideType : "",
-    measurementMode !== "Measurement" ? measurementMode : ""
-  ].filter(Boolean);
-
-  const waferDisplayName = waferPieces.length
-    ? waferPieces.join(" · ")
-    : prettifyIdentifier(dataset.waferName) || "Wafer run";
-
   return {
-    projectDisplayName,
-    waferDisplayName,
+    projectDisplayName: projectCode,
+    waferDisplayName: slot,
     platformDisplayName: platform,
-    mpw,
+    projectCode,
+    mpw: projectCode,
     slot,
     waveguideType,
-    measurementMode
+    measurementMode,
+    measurementType
   };
 }

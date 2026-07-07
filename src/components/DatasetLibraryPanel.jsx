@@ -20,8 +20,11 @@ function safeDatasetDisplay(dataset = {}) {
   return {
     shortLabel: display.shortLabel || dataset.label || "Dataset snapshot",
     fullLabel: dataset.label || display.label || display.shortLabel || "Dataset snapshot",
-    measurementMode: presented.measurementMode || display.measurementMode || dataset.sourceMeta?.type || "Measurement",
+        measurementMode: presented.measurementMode || display.measurementMode || dataset.sourceMeta?.type || "Measurement",
+    measurementType: presented.measurementType || display.measurementType || "MeasurementTypeUndefined",
     projectName: presented.projectDisplayName || dataset.projectName || display.projectName || "--",
+    slot: presented.slot || "SlotUndefined",
+    waveguideType: presented.waveguideType || "WaveguideUndefined",
     waferName: presented.waferDisplayName || dataset.waferName || display.waferName || "--",
     sourceLabel: display.sourceLabel || `${rawSourceCount} file${rawSourceCount === 1 ? "" : "s"}`,
     rowText: Number.isFinite(summaryRows)
@@ -129,10 +132,12 @@ export default function DatasetLibraryPanel({
           <table>
             <thead>
               <tr>
-                <th>Dataset</th>
-                <th>Mode</th>
+                                <th>Dataset</th>
                 <th>Project</th>
-                <th>Wafer Run</th>
+                <th>Slot</th>
+                <th>Waveguide Type</th>
+                <th>Measurement Mode</th>
+                <th>Measurement Type</th>
                 <th>Files</th>
                 <th>Rows</th>
                 <th>Actions</th>
@@ -145,9 +150,11 @@ export default function DatasetLibraryPanel({
                     <strong>{dataset.label || "Measurement dataset"}</strong>
                     <div className="dataset-subcopy">{dataset.mpw || "--"} - {dataset.slot || "--"} - {dataset.waveguideType || "--"}</div>
                   </td>
+                                    <td>{dataset.projectDisplayName || dataset.projectName || "--"}</td>
+                  <td>{dataset.slot || "SlotUndefined"}</td>
+                  <td>{dataset.waveguideType || "WaveguideUndefined"}</td>
                   <td>{dataset.measurementMode || dataset.sourceType || "--"}</td>
-                  <td>{dataset.projectDisplayName || dataset.projectName || "--"}</td>
-                  <td>{dataset.waferDisplayName || dataset.waferName || "--"}</td>
+                  <td>{dataset.measurementType || "MeasurementTypeUndefined"}</td>
                   <td>{dataset.traceCount ?? dataset.files?.length ?? "--"}</td>
                   <td>{dataset.rowCount ? Number(dataset.rowCount).toLocaleString() : `${dataset.traceCount ?? 0} raw traces`}</td>
                   <td className="library-table-actions">
@@ -156,7 +163,7 @@ export default function DatasetLibraryPanel({
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="7"><div className="chart-empty compact">No GitHub library datasets found yet.</div></td>
+                  <td colSpan="9"><div className="chart-empty compact">No GitHub library datasets found yet.</div></td>
                 </tr>
               )}
             </tbody>
@@ -175,9 +182,12 @@ export default function DatasetLibraryPanel({
           <table>
             <thead>
               <tr>
-                <th>Dataset</th>
-                <th>Mode</th>
-                <th>Wafer Run</th>
+                                <th>Dataset</th>
+                <th>Project</th>
+                <th>Slot</th>
+                <th>Waveguide Type</th>
+                <th>Measurement Mode</th>
+                <th>Measurement Type</th>
                 <th>Files</th>
                 <th>Rows</th>
                 <th>Saved</th>
@@ -194,8 +204,11 @@ export default function DatasetLibraryPanel({
                       <strong>{info.shortLabel}</strong>
                       <div className="dataset-subcopy">{info.fullLabel}</div>
                     </td>
+                                        <td>{info.projectName}</td>
+                    <td>{info.slot}</td>
+                    <td>{info.waveguideType}</td>
                     <td>{info.measurementMode}</td>
-                    <td>{info.waferName}</td>
+                    <td>{info.measurementType}</td>
                     <td>{info.sourceLabel}</td>
                     <td>{info.rowText}</td>
                     <td>{info.savedDisplay}</td>
@@ -209,7 +222,7 @@ export default function DatasetLibraryPanel({
                 );
               }) : (
                 <tr>
-                  <td colSpan="8"><div className="chart-empty compact">No local dataset snapshots are available yet.</div></td>
+                  <td colSpan="11"><div className="chart-empty compact">No local dataset snapshots are available yet.</div></td>
                 </tr>
               )}
             </tbody>

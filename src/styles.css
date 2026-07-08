@@ -15,6 +15,13 @@
   --rose: #ef735b;
   --yield: #24a58a;
   --shadow: 0 22px 54px rgba(32, 64, 76, 0.1);
+  --body-start: #f6fbfc;
+  --shell-surface: rgba(255, 255, 255, 0.92);
+  --shell-border: rgba(224, 233, 236, 0.9);
+  --input-bg: #ffffff;
+  --soft-card: #fbfcfc;
+  --elevated-card: #ffffff;
+  --toast-surface: rgba(255, 255, 255, 0.96);
   --radius-xl: 28px;
   --radius-lg: 20px;
   --radius-md: 14px;
@@ -411,7 +418,7 @@ label.upload-measurement-button {
   min-height: 38px;
   border-radius: 10px;
   border: 1px solid var(--line-strong);
-  background: #fff;
+  background: var(--input-bg);
   padding: 0 12px;
 }
 
@@ -959,7 +966,7 @@ tbody tr:last-child td {
   min-height: 40px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: white;
+  background: var(--input-bg);
   padding: 0 12px;
 }
 
@@ -2129,3 +2136,64 @@ tbody tr:last-child td {
   }
 }
 
+
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page-bg: #0d1418;
+  --panel: #131d22;
+  --panel-soft: #172329;
+  --line: #23353d;
+  --line-strong: #37515b;
+  --text: #edf5f7;
+  --muted: #9bb0b8;
+  --teal: #1ea39b;
+  --teal-strong: #167e79;
+  --blue: #7aa8ff;
+  --orange: #ffab72;
+  --copper: #d89055;
+  --rose: #ff8b77;
+  --yield: #48c6a8;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --body-start: #10191e;
+  --shell-surface: rgba(19, 29, 34, 0.94);
+  --shell-border: rgba(44, 62, 70, 0.92);
+  --input-bg: #152126;
+  --soft-card: #162328;
+  --elevated-card: #18262c;
+  --toast-surface: rgba(20, 31, 36, 0.96);
+}
+
+body {
+  background:
+    radial-gradient(circle at left bottom, rgba(79, 141, 243, 0.08), transparent 26%),
+    radial-gradient(circle at right top, rgba(15, 138, 131, 0.08), transparent 30%),
+    linear-gradient(180deg, var(--body-start) 0%, var(--page-bg) 100%);
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.dashboard-rail,
+.dashboard-main {
+  background: var(--shell-surface);
+  border: 1px solid var(--shell-border);
+}
+
+.mapping-field select,
+.settings-grid input,
+.settings-grid select {
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.help-card {
+  background: var(--elevated-card);
+}
+
+.doc-link-item {
+  background: var(--soft-card);
+}
+
+.toast-card {
+  border: 1px solid var(--line-strong);
+  background: var(--toast-surface);
+}

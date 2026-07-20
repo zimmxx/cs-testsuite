@@ -70,7 +70,7 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10 }) {
   }
 
   return (
-    <section className="library-stack">
+    <section className="library-stack workspace-fit-view">
       <article className="analysis-card manual-conversion-card">
         <div className="analysis-card-head">
           <div>

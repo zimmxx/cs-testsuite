@@ -68,7 +68,7 @@ export default function DatasetLibraryPanel({
   };
 
   return (
-    <section className="library-stack">
+    <section className="library-stack workspace-fit-view">
       <article className="analysis-card">
         <div className="analysis-card-head">
           <div>

@@ -180,6 +180,7 @@ label.upload-measurement-button {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .dashboard-header {
@@ -1039,6 +1040,57 @@ tbody tr:last-child td {
 .library-stack {
   display: grid;
   gap: 14px;
+  min-width: 0;
+}
+
+.library-stack > .analysis-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace-fit-view .analysis-card-head > div,
+.workspace-fit-view .translator-metrics > div,
+.workspace-fit-view .manual-conversion-grid > *,
+.workspace-fit-view .manual-conversion-pane {
+  min-width: 0;
+}
+
+.workspace-fit-view .analysis-card p,
+.workspace-fit-view .analysis-card code,
+.workspace-fit-view .analysis-card li,
+.workspace-fit-view .translator-metrics strong,
+.workspace-fit-view .dataset-subcopy {
+  overflow-wrap: anywhere;
+}
+
+.workspace-fit-view .dashboard-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.workspace-fit-view .dashboard-table-wrap table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.workspace-fit-view .dashboard-table-wrap th,
+.workspace-fit-view .dashboard-table-wrap td {
+  padding-inline: 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.workspace-fit-view .library-table-actions {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.workspace-fit-view .library-table-actions button {
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
 }
 
 .library-action-row {

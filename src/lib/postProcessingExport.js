@@ -486,21 +486,33 @@ function escapeXml(value) {
     .replace(/'/g, "&apos;");
 }
 
-function metricHue(metricKey) {
-  if (metricKey === "heater") return 16;
-  if (metricKey === "insertion") return 210;
-  return 174;
+const WAFER_SCALE_COLORS = {
+  low: "#2fa66d",
+  medium: "#f2c94c",
+  high: "#d94b4b",
+  empty: "#eef2f4"
+};
+
+function mixHexColors(startColor, endColor, ratio) {
+  const clampedRatio = Math.min(Math.max(ratio, 0), 1);
+  const channels = [1, 3, 5].map((offset) => {
+    const start = Number.parseInt(startColor.slice(offset, offset + 2), 16);
+    const end = Number.parseInt(endColor.slice(offset, offset + 2), 16);
+    return Math.round(start + (end - start) * clampedRatio).toString(16).padStart(2, "0");
+  });
+  return `#${channels.join("")}`;
 }
 
-function colorForValue(metricKey, value, range) {
-  if (!range || value === null || value === undefined) return "#eef2f4";
-  const rawRatio = (value - range.min) / Math.max(range.max - range.min, 0.0001);
-  const ratio = Math.min(Math.max(rawRatio, 0), 1);
-  const lightness = 82 - ratio * 34;
-  return `hsl(${metricHue(metricKey)} 72% ${lightness}%)`;
+function colorForValue(value, range) {
+  if (!range || value === null || value === undefined) return WAFER_SCALE_COLORS.empty;
+  if (value <= range.mid) {
+    const ratio = (value - range.min) / Math.max(range.mid - range.min, 0.0001);
+    return mixHexColors(WAFER_SCALE_COLORS.low, WAFER_SCALE_COLORS.medium, ratio);
+  }
+  const ratio = (value - range.mid) / Math.max(range.max - range.mid, 0.0001);
+  return mixHexColors(WAFER_SCALE_COLORS.medium, WAFER_SCALE_COLORS.high, ratio);
 }
-
-function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMax }) {
+function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax }) {
   const validCells = Array.isArray(cells) ? cells : [];
   const rowValues = Array.from(new Set(validCells.map((cell) => cell.dieY).filter((value) => value !== null && value !== undefined))).sort((a, b) => b - a);
   const cols = Math.max(arrayMax(validCells.map((cell) => cell.dieX || 0), 0), 1);
@@ -513,9 +525,20 @@ function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, tit
   const scaleWidth = 140;
   const width = waferPadding * 2 + gridWidth + scaleWidth;
   const height = titleBlockHeight + waferPadding + gridHeight + 80;
-  const range = Number.isFinite(Number(colorScaleMin)) && Number.isFinite(Number(colorScaleMax)) && Number(colorScaleMax) > Number(colorScaleMin)
-    ? { min: Number(colorScaleMin), max: Number(colorScaleMax) }
-    : getMetricRange(validCells.filter((cell) => cell.hasMeasurement));
+  const automaticRange = getMetricRange(validCells.filter((cell) => cell.hasMeasurement && cell.isVisible !== false));
+  const requestedMin = colorScaleMin === null || colorScaleMin === "" ? null : Number(colorScaleMin);
+  const requestedMid = colorScaleMid === null || colorScaleMid === "" ? null : Number(colorScaleMid);
+  const requestedMax = colorScaleMax === null || colorScaleMax === "" ? null : Number(colorScaleMax);
+  const hasManualEndpoints = Number.isFinite(requestedMin) && Number.isFinite(requestedMax) && requestedMax > requestedMin;
+  const rangeMin = hasManualEndpoints ? requestedMin : automaticRange?.min;
+  const rangeMax = hasManualEndpoints ? requestedMax : automaticRange?.max;
+  const range = Number.isFinite(rangeMin) && Number.isFinite(rangeMax)
+    ? {
+      min: rangeMin,
+      mid: Number.isFinite(requestedMid) && requestedMid > rangeMin && requestedMid < rangeMax ? requestedMid : (rangeMin + rangeMax) / 2,
+      max: rangeMax
+    }
+    : null;
   const cellLookup = new Map(validCells.map((cell) => [`${cell.dieX}-${cell.dieY}`, cell]));
   const waferRadius = Math.max(gridWidth, gridHeight) / 2 + 48;
   const waferCenterX = waferPadding + gridWidth / 2;
@@ -538,15 +561,16 @@ function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, tit
       const cell = cellLookup.get(`${x}-${y}`) || null;
       const cellX = waferPadding + colIndex * cellSize;
       const cellY = titleBlockHeight + 48 + rowIndex * cellSize;
-      const label = cell
+      const visible = cell?.isVisible !== false;
+      const label = visible && cell
         ? overlayMode === "value" && cell.value !== null && cell.value !== undefined
           ? formatNumber(cell.value, metricKey === "heater" ? 1 : 2)
-          : cell.chipId
+          : overlayMode === "chip" ? cell.chipId : ""
         : "";
-      const fill = cell ? colorForValue(metricKey, cell.value, range) : "#f4f7f8";
+      const fill = cell ? colorForValue(visible ? cell.value : null, range) : "#f4f7f8";
       gridCells.push(`
         <rect x="${cellX + 4}" y="${cellY + 4}" width="${cellSize - 8}" height="${cellSize - 8}" rx="12" fill="${fill}" stroke="#d7e2e6" stroke-width="1.5" />
-        ${cell ? `<text x="${cellX + cellSize / 2}" y="${cellY + cellSize / 2 + 6}" text-anchor="middle" font-family="${PLOT_FONT}" font-size="${overlayMode === "value" ? 16 : 15}" font-weight="600" fill="#16323b">${escapeXml(label)}</text>` : ""}
+        ${label ? `<text x="${cellX + cellSize / 2}" y="${cellY + cellSize / 2 + 6}" text-anchor="middle" font-family="${PLOT_FONT}" font-size="${overlayMode === "value" ? 16 : 15}" font-weight="600" fill="#16323b">${escapeXml(label)}</text>` : ""}
       `);
     }
   }
@@ -562,13 +586,13 @@ function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, tit
     <text x="${waferPadding + gridWidth + 40}" y="${titleBlockHeight + 54}" font-family="${PLOT_FONT}" font-size="21" font-weight="700" fill="#16323b">${escapeXml(metricLabel(metricKey) || metricKey)}</text>
     <rect x="${waferPadding + gridWidth + 64}" y="${titleBlockHeight + 82}" width="28" height="${gridHeight - 24}" rx="14" fill="url(#scaleGradient)" />
     <text x="${waferPadding + gridWidth + 104}" y="${titleBlockHeight + 96}" font-family="${PLOT_FONT}" font-size="18" fill="#16323b">${range ? formatNumber(range.max, 2) : "--"}</text>
-    <text x="${waferPadding + gridWidth + 104}" y="${titleBlockHeight + 82 + (gridHeight - 24) / 2}" font-family="${PLOT_FONT}" font-size="18" fill="#16323b">${range ? formatNumber((range.max + range.min) / 2, 2) : "--"}</text>
+    <text x="${waferPadding + gridWidth + 104}" y="${titleBlockHeight + 82 + (gridHeight - 24) / 2}" font-family="${PLOT_FONT}" font-size="18" fill="#16323b">${range ? formatNumber(range.mid, 2) : "--"}</text>
     <text x="${waferPadding + gridWidth + 104}" y="${titleBlockHeight + gridHeight + 46}" font-family="${PLOT_FONT}" font-size="18" fill="#16323b">${range ? formatNumber(range.min, 2) : "--"}</text>
     <defs>
       <linearGradient id="scaleGradient" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0%" stop-color="${colorForValue(metricKey, range?.max ?? null, range)}" />
-        <stop offset="50%" stop-color="${colorForValue(metricKey, range ? (range.max + range.min) / 2 : null, range)}" />
-        <stop offset="100%" stop-color="${colorForValue(metricKey, range?.min ?? null, range)}" />
+        <stop offset="0%" stop-color="${WAFER_SCALE_COLORS.high}" />
+        <stop offset="50%" stop-color="${WAFER_SCALE_COLORS.medium}" />
+        <stop offset="100%" stop-color="${WAFER_SCALE_COLORS.low}" />
       </linearGradient>
     </defs>
   </svg>`;
@@ -597,8 +621,8 @@ async function svgToPngBlob(svgText, width, height) {
   }
 }
 
-async function buildWaferMapPng({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMax }) {
-  const svg = buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMax });
+async function buildWaferMapPng({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax }) {
+  const svg = buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax });
   return svgToPngBlob(svg, 1600, 1200);
 }
 
@@ -652,26 +676,29 @@ function workbookBytes({ projectCode, slotLabel, selectedDate, summaryRows, prop
   return new Uint8Array(XLSX.write(workbook, { type: "array", bookType: "xlsx" }));
 }
 
-function chipSummaryRows(chips) {
-  return chips.map((chip) => ({
-    chipId: chip.chipId,
-    dieX: chip.dieX,
-    dieY: chip.dieY,
-    lossDbPerCm: chip.lossDbPerCm,
-    interceptDb: chip.interceptDb,
-    rSquared: chip.mse !== null && chip.mse !== undefined ? 1 - chip.mse : null,
-    rmseDb: chip.mse !== null && chip.mse !== undefined ? Math.sqrt(chip.mse) : null,
-    fitPoints: chip.samples?.length || 0,
-    peakWavelengthNm: chip.transmissionSummary?.peakWavelengthNm ?? null,
-    peakTransmissionDb: chip.transmissionSummary?.peakTransmissionDb ?? null,
-    insertionLossDb: chip.transmissionSummary?.insertionLossDb ?? null,
-    bandwidth3dBNm: chip.transmissionSummary?.bandwidth3dBNm ?? null,
-    measurementCount: chip.measurementCount,
-    spectralPointCount: chip.spectralSeries?.length || 0,
-    fitPass: chip.passMse ? "PASS" : "CHECK"
-  }));
+function chipSummaryRows(chips, waferCells = []) {
+  const coordinateLookup = new Map(waferCells.map((cell) => [cell.chipId, cell]));
+  return chips.map((chip) => {
+    const coordinate = coordinateLookup.get(chip.chipId);
+    return {
+      chipId: chip.chipId,
+      dieX: coordinate?.dieX ?? chip.dieX,
+      dieY: coordinate?.dieY ?? chip.dieY,
+      lossDbPerCm: chip.lossDbPerCm,
+      interceptDb: chip.interceptDb,
+      rSquared: chip.mse !== null && chip.mse !== undefined ? 1 - chip.mse : null,
+      rmseDb: chip.mse !== null && chip.mse !== undefined ? Math.sqrt(chip.mse) : null,
+      fitPoints: chip.samples?.length || 0,
+      peakWavelengthNm: chip.transmissionSummary?.peakWavelengthNm ?? null,
+      peakTransmissionDb: chip.transmissionSummary?.peakTransmissionDb ?? null,
+      insertionLossDb: chip.transmissionSummary?.insertionLossDb ?? null,
+      bandwidth3dBNm: chip.transmissionSummary?.bandwidth3dBNm ?? null,
+      measurementCount: chip.measurementCount,
+      spectralPointCount: chip.spectralSeries?.length || 0,
+      fitPass: chip.passMse ? "PASS" : "CHECK"
+    };
+  });
 }
-
 function archiveBaseName(projectCode, slotLabel, now) {
   const { dateStamp, timeStamp } = formatDateParts(now);
   return `post_processed_${sanitizeSegment(projectCode, "MPWUNDEFINED")}_${sanitizeSegment(slotLabel.toUpperCase(), "SLOTUNDEFINED")}_${dateStamp}_${timeStamp}`;
@@ -691,7 +718,7 @@ export async function generatePostProcessedArchive({
   const baseName = archiveBaseName(projectCode, slotLabel, new Date());
   const zipEntries = [];
   const propagationChips = metrics?.propagation?.byChip || [];
-  const summaryRows = chipSummaryRows(propagationChips);
+  const summaryRows = chipSummaryRows(propagationChips, currentWaferCells);
 
   onProgress?.(`Preparing ${propagationChips.length} chip exports...`);
 
@@ -791,6 +818,7 @@ export async function generatePostProcessedArchive({
       title: view.title,
       subtitle: waferSubtitle,
       colorScaleMin: sourceMeta.waferColorScaleMin,
+      colorScaleMid: sourceMeta.waferColorScaleMid,
       colorScaleMax: sourceMeta.waferColorScaleMax
     });
     zipEntries.push({ outputFileName: view.fileName, contentBytes: await blobToUint8Array(png) });

@@ -533,6 +533,7 @@ function buildDefaultSourceMeta(settings) {
     waferTemplateName: "",
     waferTemplateNotchOrientation: "south",
     waferColorScaleMin: null,
+    waferColorScaleMid: null,
     waferColorScaleMax: null
   };
 }
@@ -921,6 +922,52 @@ function metricDescriptorForComparison(metricKey, item) {
   return `${item.samples ?? 0} heater rows`;
 }
 
+const WAFER_SCALE_COLORS = {
+  low: "#2fa66d",
+  medium: "#f2c94c",
+  high: "#d94b4b",
+  empty: "#eef2f4"
+};
+
+function mixHexColors(startColor, endColor, ratio) {
+  const clampedRatio = Math.min(Math.max(ratio, 0), 1);
+  const channels = [1, 3, 5].map((offset) => {
+    const start = Number.parseInt(startColor.slice(offset, offset + 2), 16);
+    const end = Number.parseInt(endColor.slice(offset, offset + 2), 16);
+    return Math.round(start + (end - start) * clampedRatio).toString(16).padStart(2, "0");
+  });
+  return `#${channels.join("")}`;
+}
+
+function resolveWaferColorRange(cells, colorScaleMin, colorScaleMid, colorScaleMax) {
+  const automaticRange = getMetricRange(cells.filter((cell) => cell.hasMeasurement && cell.isVisible !== false));
+  const parseThreshold = (value) => value === null || value === undefined || value === "" ? null : Number(value);
+  const requestedMin = parseThreshold(colorScaleMin);
+  const requestedMid = parseThreshold(colorScaleMid);
+  const requestedMax = parseThreshold(colorScaleMax);
+  const hasManualEndpoints = Number.isFinite(requestedMin) && Number.isFinite(requestedMax) && requestedMax > requestedMin;
+  const min = hasManualEndpoints ? requestedMin : automaticRange?.min;
+  const max = hasManualEndpoints ? requestedMax : automaticRange?.max;
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+
+  const midpoint = (min + max) / 2;
+  return {
+    min,
+    mid: Number.isFinite(requestedMid) && requestedMid > min && requestedMid < max ? requestedMid : midpoint,
+    max
+  };
+}
+
+function waferColorForValue(value, range) {
+  if (!range || value === null || value === undefined) return WAFER_SCALE_COLORS.empty;
+  if (value <= range.mid) {
+    const ratio = (value - range.min) / Math.max(range.mid - range.min, 0.0001);
+    return mixHexColors(WAFER_SCALE_COLORS.low, WAFER_SCALE_COLORS.medium, ratio);
+  }
+  const ratio = (value - range.mid) / Math.max(range.max - range.mid, 0.0001);
+  return mixHexColors(WAFER_SCALE_COLORS.medium, WAFER_SCALE_COLORS.high, ratio);
+}
+
 function WaferMapPanel({
   cells,
   metricKey,
@@ -930,36 +977,28 @@ function WaferMapPanel({
   templateName = "",
   notchOrientation = "south",
   colorScaleMin = null,
+  colorScaleMid = null,
   colorScaleMax = null
 }) {
   if (!cells.length) {
     return <div className="chart-empty">No wafermap values available for this metric.</div>;
   }
 
-  const automaticRange = getMetricRange(cells);
-  const hasManualRange = Number.isFinite(Number(colorScaleMin)) && Number.isFinite(Number(colorScaleMax)) && Number(colorScaleMax) > Number(colorScaleMin);
-  const range = hasManualRange
-    ? { min: Number(colorScaleMin), max: Number(colorScaleMax) }
-    : automaticRange;
+  const range = resolveWaferColorRange(cells, colorScaleMin, colorScaleMid, colorScaleMax);
   const cols = Math.max(arrayMax(cells.map((cell) => cell.dieX || 0), 0), 1);
   const rowValues = Array.from(new Set(cells.map((cell) => cell.dieY).filter((value) => value !== null && value !== undefined)))
     .sort((a, b) => b - a);
   const rows = rowValues.length;
-  const hue = metricKey === "heater" ? 16 : metricKey === "insertion" ? 210 : 174;
-
-  const colorFor = (value) => {
-    if (!range || value === null || value === undefined) return "#eef2f4";
-    const rawRatio = (value - range.min) / Math.max(range.max - range.min, 0.0001);
-    const ratio = Math.min(Math.max(rawRatio, 0), 1);
-    const lightness = 82 - ratio * 34;
-    return `hsl(${hue} 72% ${lightness}%)`;
-  };
+  const cellLookup = new Map(cells.map((cell) => [`${cell.dieX}-${cell.dieY}`, cell]));
 
   const labelFor = (cell) => {
-    if (overlayMode === "value" && cell.value !== null && cell.value !== undefined) {
-      return formatMetricNumber(cell.value, metricKey === "heater" ? 1 : 2);
+    if (!cell.isVisible || overlayMode === "none") return "";
+    if (overlayMode === "value") {
+      return cell.value !== null && cell.value !== undefined
+        ? formatMetricNumber(cell.value, metricKey === "heater" ? 1 : 2)
+        : "";
     }
-    return shortChipLabel(cell.chipId);
+    return overlayMode === "chip" ? shortChipLabel(cell.chipId) : "";
   };
 
   return (
@@ -973,20 +1012,21 @@ function WaferMapPanel({
               const x = (index % cols) + 1;
               const rowIndex = Math.floor(index / cols);
               const y = rowValues[rowIndex];
-              const cell = cells.find((item) => item.dieX === x && item.dieY === y);
-              const selected = selectedChip === cell?.chipId;
+              const cell = cellLookup.get(`${x}-${y}`);
+              const selected = Boolean(cell?.isVisible && selectedChip === cell?.chipId);
               const cellLabel = cell ? labelFor(cell) : "";
-              const interactive = cell?.hasMeasurement;
+              const interactive = Boolean(cell?.isVisible && cell?.hasMeasurement);
+              const visibleValue = interactive ? cell.value : null;
               return (
                 <button
                   key={`${x}-${y ?? rowIndex}`}
                   type="button"
                   className={selected ? "wafer-grid-cell selected" : "wafer-grid-cell"}
-                  style={cell ? { background: colorFor(cell.value) } : undefined}
+                  style={cell ? { background: waferColorForValue(visibleValue, range) } : undefined}
                   onClick={() => interactive && onSelect(cell.chipId)}
-                  title={cell ? `${cell.chipId}: ${cell.detail || (cell.value !== null && cell.value !== undefined ? formatMetric(metricKey, cell.value) : "No measurement loaded")}` : `Empty die (${x}, ${y ?? "NA"})`}
+                  title={cell?.isVisible ? `${cell.chipId}: ${cell.detail || (cell.value !== null && cell.value !== undefined ? formatMetric(metricKey, cell.value) : "No measurement loaded")}` : `Hidden chip (${x}, ${y ?? "NA"})`}
                 >
-                  {cell ? <span className={interactive ? "wafer-cell-label" : "wafer-cell-label muted"}>{cellLabel}</span> : null}
+                  {cellLabel ? <span className={interactive ? "wafer-cell-label" : "wafer-cell-label muted"}>{cellLabel}</span> : null}
                 </button>
               );
             })}
@@ -994,17 +1034,18 @@ function WaferMapPanel({
         </div>
       </div>
       <div className="wafer-side-scale">
+        <span className="wafer-scale-caption high">High</span>
         <div className="wafer-scale-bar" />
         <div className="wafer-scale-labels">
           <span>{range ? range.max.toFixed(2) : "--"}</span>
-          <span>{range ? ((range.max + range.min) / 2).toFixed(2) : "--"}</span>
+          <span>{range ? range.mid.toFixed(2) : "--"}</span>
           <span>{range ? range.min.toFixed(2) : "--"}</span>
         </div>
+        <span className="wafer-scale-caption low">Low</span>
       </div>
     </div>
   );
 }
-
 function MetricComparisonPlot({ metricKey, items, selectedKey, onSelect, emptyMessage }) {
   if (!items.length) {
     return <div className="chart-empty">{emptyMessage}</div>;
@@ -1534,19 +1575,31 @@ function PropagationSettingsPanel({
   draft,
   hasChanges,
   isApplying,
+  isExpanded,
   onNumberChange,
   onLengthChange,
   onApply,
-  onReset
+  onReset,
+  onToggleExpanded
 }) {
   return (
-    <form className="analysis-card propagation-settings-card" onSubmit={(event) => { event.preventDefault(); onApply(); }}>
-      <div className="analysis-card-head">
+    <form className={isExpanded ? "analysis-card propagation-settings-card" : "analysis-card propagation-settings-card collapsed"} onSubmit={(event) => { event.preventDefault(); onApply(); }}>
+      <div className="analysis-card-head propagation-settings-head">
         <div>
           <h2>Propagation Processing Settings</h2>
-          <p>Edit values freely, then apply them once to update the analysis and plots.</p>
+          <p>{isExpanded ? "Edit values freely, then apply them once to update the analysis and plots." : "Settings are collapsed to keep the analysis workspace in view."}</p>
         </div>
         <div className="analysis-card-controls propagation-settings-actions">
+          <button
+            type="button"
+            className="settings-collapse-action"
+            aria-expanded={isExpanded}
+            aria-controls="propagation-settings-fields"
+            onClick={onToggleExpanded}
+          >
+            <span aria-hidden="true" className={isExpanded ? "collapse-chevron expanded" : "collapse-chevron"}>v</span>
+            {isExpanded ? "Collapse" : "Expand"}
+          </button>
           <span className={isApplying ? "dataset-status-chip progress" : hasChanges ? "dataset-status-chip progress" : "dataset-status-chip success"}>
             {isApplying ? "Updating analysis..." : hasChanges ? "Changes not applied" : "Analysis current"}
           </span>
@@ -1556,42 +1609,45 @@ function PropagationSettingsPanel({
           </button>
         </div>
       </div>
-      <div className="propagation-settings-grid">
-        <label className="mapping-field">
-          <span>Laser output power (dBm)</span>
-          <input type="number" value={draft.launchPowerDbm} onChange={(event) => onNumberChange("launchPowerDbm", event.target.value)} />
-        </label>
-        <label className="mapping-field">
-          <span>Target wavelength (nm)</span>
-          <input type="number" value={draft.propagationTargetWavelengthNm} onChange={(event) => onNumberChange("propagationTargetWavelengthNm", event.target.value)} />
-        </label>
-        <label className="mapping-field">
-          <span>Window (+/- nm)</span>
-          <input type="number" min="0" value={draft.propagationWindowNm} onChange={(event) => onNumberChange("propagationWindowNm", event.target.value)} />
-        </label>
-        <label className="mapping-field">
-          <span>Spectral interval (nm)</span>
-          <input type="number" min="1" value={draft.propagationSpectralStepNm} onChange={(event) => onNumberChange("propagationSpectralStepNm", event.target.value)} />
-        </label>
-        <label className="mapping-field">
-          <span>Fit MSE threshold</span>
-          <input type="number" min="0" step="0.01" value={draft.propagationMseThreshold} onChange={(event) => onNumberChange("propagationMseThreshold", event.target.value)} />
-        </label>
-      </div>
-      <WaveguideLengthConfigurator
-        count={draft.propagationWaveguideCount}
-        start={draft.propagationWaveguideStartMm}
-        interval={draft.propagationWaveguideIntervalMm}
-        manualMode={draft.propagationWaveguideManualMode}
-        lengths={draft.waveguideLengthByIndex}
-        onNumberChange={onNumberChange}
-        onLengthChange={onLengthChange}
-        onManualModeChange={(checked) => onNumberChange("propagationWaveguideManualMode", checked)}
-      />
+      {isExpanded ? (
+        <div id="propagation-settings-fields" className="propagation-settings-fields">
+          <div className="propagation-settings-grid">
+            <label className="mapping-field">
+              <span>Laser output power (dBm)</span>
+              <input type="number" value={draft.launchPowerDbm} onChange={(event) => onNumberChange("launchPowerDbm", event.target.value)} />
+            </label>
+            <label className="mapping-field">
+              <span>Target wavelength (nm)</span>
+              <input type="number" value={draft.propagationTargetWavelengthNm} onChange={(event) => onNumberChange("propagationTargetWavelengthNm", event.target.value)} />
+            </label>
+            <label className="mapping-field">
+              <span>Window (+/- nm)</span>
+              <input type="number" min="0" value={draft.propagationWindowNm} onChange={(event) => onNumberChange("propagationWindowNm", event.target.value)} />
+            </label>
+            <label className="mapping-field">
+              <span>Spectral interval (nm)</span>
+              <input type="number" min="1" value={draft.propagationSpectralStepNm} onChange={(event) => onNumberChange("propagationSpectralStepNm", event.target.value)} />
+            </label>
+            <label className="mapping-field">
+              <span>Fit MSE threshold</span>
+              <input type="number" min="0" step="0.01" value={draft.propagationMseThreshold} onChange={(event) => onNumberChange("propagationMseThreshold", event.target.value)} />
+            </label>
+          </div>
+          <WaveguideLengthConfigurator
+            count={draft.propagationWaveguideCount}
+            start={draft.propagationWaveguideStartMm}
+            interval={draft.propagationWaveguideIntervalMm}
+            manualMode={draft.propagationWaveguideManualMode}
+            lengths={draft.waveguideLengthByIndex}
+            onNumberChange={onNumberChange}
+            onLengthChange={onLengthChange}
+            onManualModeChange={(checked) => onNumberChange("propagationWaveguideManualMode", checked)}
+          />
+        </div>
+      ) : null}
     </form>
   );
 }
-
 export default function App() {
   const initialSettings = useMemo(() => hydrateSettings(readStoredJson(STORAGE_KEYS.settings, {})), []);
 
@@ -1626,6 +1682,7 @@ export default function App() {
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [waferMapDisplayMode, setWaferMapDisplayMode] = useState("all");
   const [waferMapOverlayMode, setWaferMapOverlayMode] = useState("none");
+  const [isPropagationSettingsExpanded, setIsPropagationSettingsExpanded] = useState(true);
   const [isGeneratingPostProcessed, setIsGeneratingPostProcessed] = useState(false);
 
   const deferredSearch = useDeferredValue(search);
@@ -1653,18 +1710,21 @@ export default function App() {
     [columnMap, currentRows]
   );
   const normalizationSourceMeta = useMemo(
-    () => ({ ...sourceMeta }),
+    () => ({
+      name: sourceMeta.name,
+      type: sourceMeta.type,
+      defaultMetricFamily: sourceMeta.defaultMetricFamily,
+      defaultWavelengthNm: sourceMeta.defaultWavelengthNm,
+      launchPowerDbm: sourceMeta.launchPowerDbm,
+      waveguideLengthByIndex: sourceMeta.waveguideLengthByIndex
+    }),
     [
       sourceMeta.name,
       sourceMeta.type,
       sourceMeta.defaultMetricFamily,
       sourceMeta.defaultWavelengthNm,
       sourceMeta.launchPowerDbm,
-      sourceMeta.waveguideLengthByIndex,
-      sourceMeta.waferTemplateId,
-      sourceMeta.waferTemplateLayout,
-      sourceMeta.waferTemplateName,
-      sourceMeta.waferTemplateNotchOrientation
+      sourceMeta.waveguideLengthByIndex
     ]
   );
   const normalizedRows = useMemo(
@@ -1723,6 +1783,7 @@ export default function App() {
         dieX: item.dieX,
         dieY: item.dieY,
         value: item.lossDbPerCm,
+        passMse: item.passMse,
         detail: item.passMse
           ? `${item.lossDbPerCm.toFixed(2)} dB/cm @ ${sourceMeta.propagationTargetWavelengthNm} +/- ${sourceMeta.propagationWindowNm} nm`
           : `${item.lossDbPerCm.toFixed(2)} dB/cm (fit above MSE threshold)`
@@ -1745,19 +1806,30 @@ export default function App() {
   );
   const currentWaferCells = useMemo(() => {
     const metricCells = selectedWaferMetric === "propagation"
-      ? (waferMapDisplayMode === "passing" ? metrics.propagation.waferMetric : propagationAllWaferCells)
+      ? propagationAllWaferCells
       : metrics[selectedWaferMetric].waferMetric;
     const metricLookup = new Map(metricCells.map((cell) => [cell.chipId, cell]));
+    const propagationStatusLookup = new Map(
+      metrics.propagation.byChip.map((item) => [item.chipId, item.passMse ? "passing" : item.mse !== null ? "failed" : "unfitted"])
+    );
 
     return waferTemplateLayout.map((slot) => {
       const metricCell = metricLookup.get(slot.chipId);
+      const hasMeasurement = metricCell?.value !== null && metricCell?.value !== undefined;
+      const propagationStatus = propagationStatusLookup.get(slot.chipId) || "unmeasured";
+      const isVisible = waferMapDisplayMode === "all"
+        || (waferMapDisplayMode === "measured" && hasMeasurement)
+        || waferMapDisplayMode === propagationStatus;
+
       return {
         chipId: slot.chipId,
         dieX: slot.dieX,
         dieY: slot.dieY,
         value: metricCell?.value ?? null,
         detail: metricCell?.detail ?? "No measurement loaded for this chip.",
-        hasMeasurement: metricCell?.value !== null && metricCell?.value !== undefined
+        hasMeasurement,
+        propagationStatus,
+        isVisible
       };
     });
   }, [metrics, propagationAllWaferCells, selectedWaferMetric, waferMapDisplayMode, waferTemplateLayout]);
@@ -2366,12 +2438,16 @@ export default function App() {
                 draft={propagationDraft}
                 hasChanges={propagationHasChanges}
                 isApplying={isApplyingPropagation}
+                isExpanded={isPropagationSettingsExpanded}
                 onNumberChange={updatePropagationDraftField}
                 onLengthChange={updateWaveguideDraftLength}
                 onApply={applyPropagationDraft}
                 onReset={resetPropagationDraft}
+                onToggleExpanded={() => setIsPropagationSettingsExpanded((previous) => !previous)}
               />
             ) : null}
+
+            {activeTab === "propagation" ? <MatlabSummaryPanel summary={reportState.matlabSummary} /> : null}
 
             <section className="analysis-top-grid">
               <article className="analysis-card analysis-chart-card">
@@ -2405,14 +2481,40 @@ export default function App() {
               <article className="analysis-card analysis-wafer-card">
                 <div className="analysis-card-head">
                   <div><h2>Wafermap - {metricLabel(selectedWaferMetric)}</h2></div>
-                  <div className="analysis-card-controls compact"><span>Metric</span><select value={selectedWaferMetric} onChange={(event) => setSelectedWaferMetric(event.target.value)}><option value="propagation">Propagation Loss</option><option value="insertion">Insertion Loss</option><option value="heater">Heater Efficiency</option></select></div>
-                </div>                <WaferMapPanel cells={currentWaferCells} metricKey={selectedWaferMetric} selectedChip={selectedChip} onSelect={setSelectedChip} overlayMode={waferMapOverlayMode} templateName={currentWaferTemplate?.name || ""} notchOrientation={currentWaferTemplate?.notchOrientation || "south"} colorScaleMin={sourceMeta.waferColorScaleMin} colorScaleMax={sourceMeta.waferColorScaleMax} />
-                <div className="wafer-footer-bar"><div><span>Show</span><select value={waferMapDisplayMode} onChange={(event) => setWaferMapDisplayMode(event.target.value)} disabled={selectedWaferMetric !== "propagation"}><option value="all">All Dies</option><option value="passing">Passing only</option></select></div><div><span>Overlay</span><select value={waferMapOverlayMode} onChange={(event) => setWaferMapOverlayMode(event.target.value)}><option value="none">None</option><option value="chip">Chip ID</option><option value="value">Metric value</option></select></div><div><span>Template</span><select value={currentWaferTemplate?.id || defaultWaferTemplateId()} onChange={(event) => { const match = allWaferTemplates.find((template) => template.id === event.target.value); if (match) useWaferTemplate(match); }}><option value="">Select</option>{allWaferTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select></div><div><span>Scale Min</span><input type="number" value={sourceMeta.waferColorScaleMin ?? ""} onChange={(event) => setSourceMeta((previous) => ({ ...previous, waferColorScaleMin: event.target.value === "" ? null : Number(event.target.value) }))} /></div><div><span>Scale Max</span><input type="number" value={sourceMeta.waferColorScaleMax ?? ""} onChange={(event) => setSourceMeta((previous) => ({ ...previous, waferColorScaleMax: event.target.value === "" ? null : Number(event.target.value) }))} /></div></div>
+                  <div className="analysis-card-controls compact">
+                    <span>Metric</span>
+                    <select value={selectedWaferMetric} onChange={(event) => setSelectedWaferMetric(event.target.value)}>
+                      <option value="propagation">Propagation Loss</option>
+                      <option value="insertion">Insertion Loss</option>
+                      <option value="heater">Heater Efficiency</option>
+                    </select>
+                  </div>
+                </div>
+                <WaferMapPanel
+                  cells={currentWaferCells}
+                  metricKey={selectedWaferMetric}
+                  selectedChip={selectedChip}
+                  onSelect={setSelectedChip}
+                  overlayMode={waferMapOverlayMode}
+                  templateName={currentWaferTemplate?.name || ""}
+                  notchOrientation={currentWaferTemplate?.notchOrientation || "south"}
+                  colorScaleMin={sourceMeta.waferColorScaleMin}
+                  colorScaleMid={sourceMeta.waferColorScaleMid}
+                  colorScaleMax={sourceMeta.waferColorScaleMax}
+                />
+                <div className="wafer-footer-bar">
+                  <label><span>Show</span><select value={waferMapDisplayMode} onChange={(event) => setWaferMapDisplayMode(event.target.value)}><option value="all">All Chips</option><option value="passing">Passed Chips</option><option value="failed">Failed Chips</option><option value="measured">Measured Chips</option></select></label>
+                  <label><span>Overlay</span><select value={waferMapOverlayMode} onChange={(event) => setWaferMapOverlayMode(event.target.value)}><option value="none">None</option><option value="chip">Chip ID</option><option value="value">Metric value</option></select></label>
+                  <label><span>Template</span><select value={currentWaferTemplate?.id || defaultWaferTemplateId()} onChange={(event) => { const match = allWaferTemplates.find((template) => template.id === event.target.value); if (match) useWaferTemplate(match); }}><option value="">Select</option>{allWaferTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select></label>
+                  <label className="wafer-scale-control low"><span><i aria-hidden="true" />Scale Min</span><input type="number" value={sourceMeta.waferColorScaleMin ?? ""} placeholder="Auto" onChange={(event) => setSourceMeta((previous) => ({ ...previous, waferColorScaleMin: event.target.value === "" ? null : Number(event.target.value) }))} /></label>
+                  <label className="wafer-scale-control medium"><span><i aria-hidden="true" />Scale Medium</span><input type="number" value={sourceMeta.waferColorScaleMid ?? ""} placeholder="Auto" onChange={(event) => setSourceMeta((previous) => ({ ...previous, waferColorScaleMid: event.target.value === "" ? null : Number(event.target.value) }))} /></label>
+                  <label className="wafer-scale-control high"><span><i aria-hidden="true" />Scale Max</span><input type="number" value={sourceMeta.waferColorScaleMax ?? ""} placeholder="Auto" onChange={(event) => setSourceMeta((previous) => ({ ...previous, waferColorScaleMax: event.target.value === "" ? null : Number(event.target.value) }))} /></label>
+                </div>
+                <p className="wafer-scale-hint">Low values are green, the medium threshold is yellow, and high values are red. Leave fields blank for automatic scaling.</p>
               </article>
             </section>
 
             {activeTab === "propagation" ? <>
-              <MatlabSummaryPanel summary={reportState.matlabSummary} />
               <section className="analysis-spectrum-grid analysis-spectrum-grid-dual">
                 <article className="analysis-card wide-span">
                   <div className="analysis-card-head">

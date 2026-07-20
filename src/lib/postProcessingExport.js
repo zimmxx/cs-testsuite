@@ -5,8 +5,31 @@ import { getMetricRange, metricLabel } from "./analysis";
 const PLOTLY_CDN = "https://cdn.plot.ly/plotly-2.35.2.min.js";
 const PLOT_FONT = "IBM Plex Sans, Arial, sans-serif";
 const PLOT_COLORS = ["#4f8df3", "#ff8f45", "#0f8a83", "#9d5cf6", "#d6658f", "#2f7d68"];
+const PLOT_TITLE_FONT_SIZE = 30;
+const PLOT_AXIS_TITLE_FONT_SIZE = 22;
+const PLOT_AXIS_TICK_FONT_SIZE = 18;
+const PLOT_LEGEND_FONT_SIZE = 18;
 
 let plotlyPromise = null;
+
+function buildAxisTitle(text) {
+  return {
+    text,
+    standoff: 18,
+    font: { family: PLOT_FONT, size: PLOT_AXIS_TITLE_FONT_SIZE, color: "#16323b" }
+  };
+}
+
+function buildTopLegend() {
+  return {
+    orientation: "h",
+    x: 0,
+    xanchor: "left",
+    y: 1.04,
+    yanchor: "bottom",
+    font: { family: PLOT_FONT, size: PLOT_LEGEND_FONT_SIZE, color: "#16323b" }
+  };
+}
 
 function arrayMin(values, fallback = 0) {
   if (!values.length) return fallback;
@@ -141,7 +164,7 @@ function buildPropagationPlotSpec({ chip, projectCode, slotLabel, targetWaveleng
     layout: {
       width: 1600,
       height: 980,
-      margin: { l: 80, r: 320, t: 120, b: 76 },
+      margin: { l: 112, r: 340, t: 180, b: 104 },
       paper_bgcolor: "#ffffff",
       plot_bgcolor: "#fbfcfc",
       hovermode: "closest",
@@ -149,7 +172,11 @@ function buildPropagationPlotSpec({ chip, projectCode, slotLabel, targetWaveleng
         text: `Project: ${projectCode} | ${slotLabel} | ${chip.chipId} | Propagation Loss = ${lossValue} dB/cm`,
         x: 0.02,
         xanchor: "left",
-        font: { family: PLOT_FONT, size: 24, color: "#16323b" }
+        xref: "container",
+        y: 0.98,
+        yanchor: "top",
+        yref: "container",
+        font: { family: PLOT_FONT, size: PLOT_TITLE_FONT_SIZE, color: "#16323b" }
       },
       annotations: [
         {
@@ -165,7 +192,7 @@ function buildPropagationPlotSpec({ chip, projectCode, slotLabel, targetWaveleng
           borderwidth: 1,
           borderpad: 12,
           bgcolor: "#f8fbfb",
-          font: { family: PLOT_FONT, size: 16, color: "#16323b" },
+          font: { family: PLOT_FONT, size: 18, color: "#16323b" },
           text: [
             `<b>Fit Results</b>`,
             `Propagation loss: ${lossValue} dB/cm`,
@@ -180,21 +207,25 @@ function buildPropagationPlotSpec({ chip, projectCode, slotLabel, targetWaveleng
         }
       ],
       xaxis: {
-        title: "Relative length (mm)",
+        title: buildAxisTitle("Relative length (mm)"),
+        tickfont: { family: PLOT_FONT, size: PLOT_AXIS_TICK_FONT_SIZE, color: "#294650" },
+        automargin: true,
         zeroline: false,
         gridcolor: "#e3ecef",
         linecolor: "#9db2b8",
         ticks: "outside"
       },
       yaxis: {
-        title: "Transmission (dB)",
+        title: buildAxisTitle("Transmission (dB)"),
+        tickfont: { family: PLOT_FONT, size: PLOT_AXIS_TICK_FONT_SIZE, color: "#294650" },
+        automargin: true,
         zeroline: false,
         gridcolor: "#e3ecef",
         linecolor: "#9db2b8",
         ticks: "outside"
       },
-      legend: { orientation: "h", y: 1.12, x: 0 },
-      font: { family: PLOT_FONT, color: "#16323b" }
+      legend: buildTopLegend(),
+      font: { family: PLOT_FONT, size: 17, color: "#16323b" }
     },
     config: buildBasePlotConfig(`${chip.chipId}-propagation-fit`)
   };
@@ -234,7 +265,7 @@ function buildPropagationSpectrumPlotSpec({ chip, projectCode }) {
     layout: {
       width: 1600,
       height: 840,
-      margin: { l: 80, r: 86, t: 110, b: 76 },
+      margin: { l: 112, r: 120, t: 180, b: 104 },
       paper_bgcolor: "#ffffff",
       plot_bgcolor: "#fbfcfc",
       hovermode: "x unified",
@@ -242,10 +273,16 @@ function buildPropagationSpectrumPlotSpec({ chip, projectCode }) {
         text: `Project: ${projectCode} | ${chip.chipId} | Propagation Loss Spectrum`,
         x: 0.02,
         xanchor: "left",
-        font: { family: PLOT_FONT, size: 24, color: "#16323b" }
+        xref: "container",
+        y: 0.98,
+        yanchor: "top",
+        yref: "container",
+        font: { family: PLOT_FONT, size: PLOT_TITLE_FONT_SIZE, color: "#16323b" }
       },
       xaxis: {
-        title: "Wavelength interval center (nm)",
+        title: buildAxisTitle("Wavelength interval center (nm)"),
+        tickfont: { family: PLOT_FONT, size: PLOT_AXIS_TICK_FONT_SIZE, color: "#294650" },
+        automargin: true,
         tickmode: "linear",
         dtick: Math.max(chip.spectralStepNm || 10, 1),
         zeroline: false,
@@ -254,14 +291,18 @@ function buildPropagationSpectrumPlotSpec({ chip, projectCode }) {
         ticks: "outside"
       },
       yaxis: {
-        title: "Propagation loss (dB/cm)",
+        title: buildAxisTitle("Propagation loss (dB/cm)"),
+        tickfont: { family: PLOT_FONT, size: PLOT_AXIS_TICK_FONT_SIZE, color: "#294650" },
+        automargin: true,
         zeroline: false,
         gridcolor: "#e3ecef",
         linecolor: "#9db2b8",
         ticks: "outside"
       },
       yaxis2: {
-        title: "MSE",
+        title: buildAxisTitle("MSE"),
+        tickfont: { family: PLOT_FONT, size: PLOT_AXIS_TICK_FONT_SIZE, color: "#294650" },
+        automargin: true,
         overlaying: "y",
         side: "right",
         zeroline: false,
@@ -282,8 +323,8 @@ function buildPropagationSpectrumPlotSpec({ chip, projectCode }) {
           line: { width: 0 }
         }
       ],
-      legend: { orientation: "h", y: 1.12, x: 0 },
-      font: { family: PLOT_FONT, color: "#16323b" }
+      legend: buildTopLegend(),
+      font: { family: PLOT_FONT, size: 17, color: "#16323b" }
     },
     config: buildBasePlotConfig(`${chip.chipId}-propagation-spectrum`)
   };
@@ -307,7 +348,7 @@ function buildTransmissionSpectrumPlotSpec({ chip, projectCode }) {
     layout: {
       width: 1600,
       height: 840,
-      margin: { l: 80, r: 34, t: 110, b: 76 },
+      margin: { l: 112, r: 50, t: 180, b: 104 },
       paper_bgcolor: "#ffffff",
       plot_bgcolor: "#fbfcfc",
       hovermode: "x unified",
@@ -315,10 +356,16 @@ function buildTransmissionSpectrumPlotSpec({ chip, projectCode }) {
         text: `Project: ${projectCode} | ${chip.chipId} | Transmission Spectrum`,
         x: 0.02,
         xanchor: "left",
-        font: { family: PLOT_FONT, size: 24, color: "#16323b" }
+        xref: "container",
+        y: 0.98,
+        yanchor: "top",
+        yref: "container",
+        font: { family: PLOT_FONT, size: PLOT_TITLE_FONT_SIZE, color: "#16323b" }
       },
       xaxis: {
-        title: "Wavelength (nm)",
+        title: buildAxisTitle("Wavelength (nm)"),
+        tickfont: { family: PLOT_FONT, size: PLOT_AXIS_TICK_FONT_SIZE, color: "#294650" },
+        automargin: true,
         tickmode: "linear",
         tick0: Math.floor(minWavelength / 10) * 10,
         dtick: 10,
@@ -328,7 +375,9 @@ function buildTransmissionSpectrumPlotSpec({ chip, projectCode }) {
         ticks: "outside"
       },
       yaxis: {
-        title: "Transmission (dB)",
+        title: buildAxisTitle("Transmission (dB)"),
+        tickfont: { family: PLOT_FONT, size: PLOT_AXIS_TICK_FONT_SIZE, color: "#294650" },
+        automargin: true,
         zeroline: false,
         gridcolor: "#e3ecef",
         linecolor: "#9db2b8",
@@ -346,8 +395,8 @@ function buildTransmissionSpectrumPlotSpec({ chip, projectCode }) {
           line: { color: "#7dc6c4", width: 2, dash: "dash" }
         }
       ],
-      legend: { orientation: "h", y: 1.12, x: 0 },
-      font: { family: PLOT_FONT, color: "#16323b" }
+      legend: buildTopLegend(),
+      font: { family: PLOT_FONT, size: 17, color: "#16323b" }
     },
     config: buildBasePlotConfig(`${chip.chipId}-transmission-spectrum`)
   };
@@ -497,7 +546,7 @@ function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, tit
       const fill = cell ? colorForValue(metricKey, cell.value, range) : "#f4f7f8";
       gridCells.push(`
         <rect x="${cellX + 4}" y="${cellY + 4}" width="${cellSize - 8}" height="${cellSize - 8}" rx="12" fill="${fill}" stroke="#d7e2e6" stroke-width="1.5" />
-        ${cell ? `<text x="${cellX + cellSize / 2}" y="${cellY + cellSize / 2 + 6}" text-anchor="middle" font-family="${PLOT_FONT}" font-size="${overlayMode === "value" ? 14 : 13}" font-weight="600" fill="#16323b">${escapeXml(label)}</text>` : ""}
+        ${cell ? `<text x="${cellX + cellSize / 2}" y="${cellY + cellSize / 2 + 6}" text-anchor="middle" font-family="${PLOT_FONT}" font-size="${overlayMode === "value" ? 16 : 15}" font-weight="600" fill="#16323b">${escapeXml(label)}</text>` : ""}
       `);
     }
   }
@@ -505,16 +554,16 @@ function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, tit
   return `<?xml version="1.0" encoding="UTF-8"?>
   <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <rect width="100%" height="100%" fill="#ffffff" />
-    <text x="48" y="52" font-family="${PLOT_FONT}" font-size="28" font-weight="700" fill="#16323b">${escapeXml(title)}</text>
-    <text x="48" y="84" font-family="${PLOT_FONT}" font-size="16" fill="#48626b">${escapeXml(subtitle)}</text>
+    <text x="48" y="48" font-family="${PLOT_FONT}" font-size="32" font-weight="700" fill="#16323b">${escapeXml(title)}</text>
+    <text x="48" y="84" font-family="${PLOT_FONT}" font-size="19" fill="#48626b">${escapeXml(subtitle)}</text>
     <circle cx="${waferCenterX}" cy="${waferCenterY}" r="${waferRadius}" fill="#f7fbfc" stroke="#d6e3e7" stroke-width="3" />
     ${notchSvg}
     ${gridCells.join("\n")}
-    <text x="${waferPadding + gridWidth + 40}" y="${titleBlockHeight + 54}" font-family="${PLOT_FONT}" font-size="18" font-weight="700" fill="#16323b">${escapeXml(metricLabel(metricKey) || metricKey)}</text>
+    <text x="${waferPadding + gridWidth + 40}" y="${titleBlockHeight + 54}" font-family="${PLOT_FONT}" font-size="21" font-weight="700" fill="#16323b">${escapeXml(metricLabel(metricKey) || metricKey)}</text>
     <rect x="${waferPadding + gridWidth + 64}" y="${titleBlockHeight + 82}" width="28" height="${gridHeight - 24}" rx="14" fill="url(#scaleGradient)" />
-    <text x="${waferPadding + gridWidth + 104}" y="${titleBlockHeight + 96}" font-family="${PLOT_FONT}" font-size="15" fill="#16323b">${range ? formatNumber(range.max, 2) : "--"}</text>
-    <text x="${waferPadding + gridWidth + 104}" y="${titleBlockHeight + 82 + (gridHeight - 24) / 2}" font-family="${PLOT_FONT}" font-size="15" fill="#16323b">${range ? formatNumber((range.max + range.min) / 2, 2) : "--"}</text>
-    <text x="${waferPadding + gridWidth + 104}" y="${titleBlockHeight + gridHeight + 46}" font-family="${PLOT_FONT}" font-size="15" fill="#16323b">${range ? formatNumber(range.min, 2) : "--"}</text>
+    <text x="${waferPadding + gridWidth + 104}" y="${titleBlockHeight + 96}" font-family="${PLOT_FONT}" font-size="18" fill="#16323b">${range ? formatNumber(range.max, 2) : "--"}</text>
+    <text x="${waferPadding + gridWidth + 104}" y="${titleBlockHeight + 82 + (gridHeight - 24) / 2}" font-family="${PLOT_FONT}" font-size="18" fill="#16323b">${range ? formatNumber((range.max + range.min) / 2, 2) : "--"}</text>
+    <text x="${waferPadding + gridWidth + 104}" y="${titleBlockHeight + gridHeight + 46}" font-family="${PLOT_FONT}" font-size="18" fill="#16323b">${range ? formatNumber(range.min, 2) : "--"}</text>
     <defs>
       <linearGradient id="scaleGradient" x1="0" x2="0" y1="0" y2="1">
         <stop offset="0%" stop-color="${colorForValue(metricKey, range?.max ?? null, range)}" />

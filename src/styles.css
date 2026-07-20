@@ -2377,3 +2377,119 @@ body {
     grid-template-columns: 1fr;
   }
 }
+.propagation-overview-grid {
+  grid-template-columns: minmax(0, 1.38fr) minmax(460px, 0.9fr);
+  grid-template-areas:
+    "fit wafer"
+    "spectra wafer";
+  align-items: start;
+}
+
+.propagation-overview-grid .overview-fit-card {
+  grid-area: fit;
+  min-height: 0;
+}
+
+.overview-fit-card .propagation-headline-controls {
+  grid-template-columns: repeat(3, auto);
+  align-items: center;
+  justify-content: end;
+  column-gap: 10px;
+}
+
+.overview-fit-card .fit-results-card {
+  padding: 12px;
+}
+
+.overview-fit-card .fit-results-card h3 {
+  margin-bottom: 8px;
+}
+
+.overview-fit-card .result-row {
+  padding-block: 7px;
+}
+
+.propagation-overview-grid .overview-wafer-card {
+  grid-area: wafer;
+  min-height: 0;
+  align-self: stretch;
+}
+
+.propagation-overview-grid .overview-spectra-grid {
+  grid-area: spectra;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  min-width: 0;
+}
+
+.overview-spectra-grid .analysis-card {
+  min-width: 0;
+  padding: 12px;
+}
+
+.overview-spectra-grid .analysis-card-head {
+  min-height: 58px;
+  margin-bottom: 4px;
+}
+
+.overview-spectra-grid .analysis-card h2 {
+  font-size: 1rem;
+}
+
+.overview-spectra-grid .analysis-card p {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.overview-spectra-grid .plotly-figure {
+  min-height: 220px;
+}
+
+.overview-wafer-card .wafer-card-layout {
+  width: min(100%, 520px);
+  grid-template-columns: minmax(0, 450px) 52px;
+  margin-inline: auto;
+}
+
+.overview-wafer-card .wafer-outline {
+  padding: 22px;
+}
+
+@media (max-width: 1500px) {
+  .propagation-overview-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(430px, 0.85fr);
+  }
+
+  .overview-spectra-grid .analysis-card-head {
+    min-height: 72px;
+  }
+}
+
+@media (max-width: 1320px) {
+  .propagation-overview-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "fit"
+      "wafer"
+      "spectra";
+  }
+
+  .propagation-overview-grid .overview-wafer-card {
+    align-self: auto;
+  }
+
+  .overview-wafer-card .wafer-card-layout {
+    width: min(100%, 620px);
+    grid-template-columns: minmax(0, 550px) 52px;
+  }
+}
+
+@media (max-width: 840px) {
+  .propagation-overview-grid .overview-spectra-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-spectra-grid .analysis-card-head {
+    min-height: 0;
+  }
+}

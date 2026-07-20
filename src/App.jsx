@@ -2449,8 +2449,8 @@ export default function App() {
 
             {activeTab === "propagation" ? <MatlabSummaryPanel summary={reportState.matlabSummary} /> : null}
 
-            <section className="analysis-top-grid">
-              <article className="analysis-card analysis-chart-card">
+            <section className={activeTab === "propagation" ? "analysis-top-grid propagation-overview-grid" : "analysis-top-grid"}>
+              <article className="analysis-card analysis-chart-card overview-fit-card">
                 <div className="analysis-card-head">
                   <div>
                     <h2>{activeMetricKey === "heater" ? "Heater Efficiency" : activeMetricKey === "insertion" ? "Insertion Loss" : "Propagation Loss"}</h2>
@@ -2478,7 +2478,7 @@ export default function App() {
                 </div>
               </article>
 
-              <article className="analysis-card analysis-wafer-card">
+              <article className="analysis-card analysis-wafer-card overview-wafer-card">
                 <div className="analysis-card-head">
                   <div><h2>Wafermap - {metricLabel(selectedWaferMetric)}</h2></div>
                   <div className="analysis-card-controls compact">
@@ -2512,10 +2512,9 @@ export default function App() {
                 </div>
                 <p className="wafer-scale-hint">Low values are green, the medium threshold is yellow, and high values are red. Leave fields blank for automatic scaling.</p>
               </article>
-            </section>
 
-            {activeTab === "propagation" ? <>
-              <section className="analysis-spectrum-grid analysis-spectrum-grid-dual">
+            {activeTab === "propagation" ? (
+              <section className="analysis-spectrum-grid analysis-spectrum-grid-dual overview-spectra-grid">
                 <article className="analysis-card wide-span">
                   <div className="analysis-card-head">
                     <div>
@@ -2535,7 +2534,8 @@ export default function App() {
                   <InteractiveTransmissionSpectrumPlot series={propagationLead?.transmissionSeries ?? []} targetWavelengthNm={sourceMeta.propagationTargetWavelengthNm} chipId={propagationLead?.chipId || selectedChip} />
                 </article>
               </section>
-            </> : null}
+            ) : null}
+            </section>
 
             <section className="analysis-bottom-grid">
               <article className="analysis-card wide-span">

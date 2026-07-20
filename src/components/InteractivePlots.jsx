@@ -266,7 +266,7 @@ export function InteractivePropagationPlot({ rows, fit, chipId }) {
       config={plot?.config || {}}
       windowTitle={`Propagation Fit - ${chipId || "Chip"}`}
       emptyMessage="Upload propagation rows to fit a model."
-      height={360}
+      height={280}
     />
   );
 }
@@ -360,7 +360,7 @@ export function InteractivePropagationSpectrumPlot({ series, targetWavelengthNm,
       config={plot?.config || {}}
       windowTitle={`Propagation Spectrum - ${chipId || "Chip"}`}
       emptyMessage="No wavelength-interval propagation fits are available for the selected chip."
-      height={300}
+      height={220}
     />
   );
 }
@@ -430,7 +430,7 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
       config={plot?.config || {}}
       windowTitle={`Transmission Spectrum - ${chipId || "Chip"}`}
       emptyMessage="No transmission spectra are available for the selected chip."
-      height={300}
+      height={220}
     />
   );
 }

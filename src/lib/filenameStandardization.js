@@ -82,14 +82,14 @@ export function detectStandardFilenameMetadata(pathOrName, overrides = {}) {
   const source = String(pathOrName || "");
   const combined = `${source} ${JSON.stringify(overrides)}`;
   return normalizeStandardMetadata({
-    mpw: matchToken(combined, /(MPW\s*\d+)/i, (match) => cleanToken(match[1]).toUpperCase()),
+    mpw: overrides.mpw || matchToken(combined, /(MPW\s*\d+)/i, (match) => cleanToken(match[1]).toUpperCase()),
     platform: overrides.platform || detectPlatform(combined),
-    slot: matchToken(combined, /(?:^|[_\-\s])slot\s*[_\-\s]*(\d+)/i, (match) => `Slot${match[1]}`),
+    slot: overrides.slot || matchToken(combined, /(?:^|[\\/_\-\s])slot\s*[_\-\s]*(\d+)/i, (match) => `Slot${match[1]}`),
     waveguideDescriptor: overrides.waveguideDescriptor || detectWaveguideType(combined),
     measurementType: overrides.measurementType || detectMeasurementType(combined),
     mode: overrides.mode || detectMeasurementMode(combined),
-    chipId: matchToken(combined, /(?:^|[_\-\s])chip\s*[_\-\s]*(\d+)/i, (match) => `Chip${match[1]}`),
-    waveguideId: matchToken(combined, /(?:^|[_\-\s])wg\s*[_\-\s]*(\d+)/i, (match) => `WG${match[1]}`),
+    chipId: overrides.chipId || matchToken(combined, /(?:^|[\\/_\-\s])chip\s*[_\-\s]*(\d+)/i, (match) => `Chip${match[1]}`),
+    waveguideId: overrides.waveguideId || matchToken(combined, /(?:^|[\\/_\-\s])wg\s*[_\-\s]*(\d+)/i, (match) => `WG${match[1]}`),
     extension: overrides.extension || source.split(".").pop() || "txt"
   });
 }
@@ -166,3 +166,4 @@ export function buildFilenameConversionManifest(entries = []) {
   ].map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","));
   return [header.join(","), ...lines].join("\n");
 }
+

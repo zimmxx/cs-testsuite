@@ -19,6 +19,7 @@ import {
 import { createCenterFilledWaferTemplate, defaultWaferTemplateId, getBuiltInWaferTemplates, getWaferTemplateLayout, shortChipLabel } from "./lib/waferTemplates";
 import { buildDatasetSnapshotMetadata, buildGithubDatasetPackage, publishDatasetPackageToGithub } from "./lib/githubLibrary";
 import { getDatasetPresentation } from "./lib/datasetPresentation";
+import { generatePostProcessedArchive } from "./lib/postProcessingExport";
 import {
   InteractivePropagationPlot,
   InteractivePropagationSpectrumPlot,
@@ -1498,6 +1499,7 @@ export default function App() {
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [waferMapDisplayMode, setWaferMapDisplayMode] = useState("all");
   const [waferMapOverlayMode, setWaferMapOverlayMode] = useState("none");
+  const [isGeneratingPostProcessed, setIsGeneratingPostProcessed] = useState(false);
 
   const deferredSearch = useDeferredValue(search);
   const builtInWaferTemplates = useMemo(() => getBuiltInWaferTemplates(), []);
@@ -1938,6 +1940,44 @@ export default function App() {
     downloadBlob(buildHtmlReport(reportState, reportTitle), `${safeWafer}-report-summary.html`, "text/html;charset=utf-8");
     appendAudit("export", "Report summary exported", `Exported HTML and JSON reports for ${waferName}.`);
   }
+  async function generatePostProcessedFiles() {
+    if (!metrics.propagation.byChip.length) {
+      const message = "Load a propagation-loss dataset before generating post-processed files.";
+      setStatusMessage(message);
+      pushToast("Export skipped", message, "danger");
+      return;
+    }
+
+    setIsGeneratingPostProcessed(true);
+    const presented = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows });
+    const exportProjectCode = presented.projectDisplayName || projectName || "MPWUNDEFINED";
+    const exportSlot = presented.slot || waferName || "SlotUndefined";
+
+    try {
+      const result = await generatePostProcessedArchive({
+        projectCode: exportProjectCode,
+        slot: exportSlot,
+        selectedDate,
+        sourceMeta,
+        metrics,
+        currentWaferTemplate,
+        currentWaferCells,
+        onProgress: (message) => setStatusMessage(message)
+      });
+      downloadBlob(result.zipBlob, `${result.baseName}.zip`, "application/zip");
+      const detail = `Generated ${result.fileCount} files for ${result.chipCount} chip(s) in ${result.baseName}.zip.`;
+      setStatusMessage(detail);
+      appendAudit("export", "Post-processed package exported", detail);
+      pushToast("Post-processed files ready", `${result.chipCount} chip(s) packaged for download.`, "success");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown export error.";
+      setStatusMessage(`Post-processed export failed: ${detail}`);
+      appendAudit("export", "Post-processed package failed", detail);
+      pushToast("Post-processed export failed", detail, "danger");
+    } finally {
+      setIsGeneratingPostProcessed(false);
+    }
+  }
   function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const currentPresentation = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }); const projectRecord = { id: createId("project"), projectName: currentPresentation.projectDisplayName, waferName: currentPresentation.waferDisplayName, slot: currentPresentation.slot, waveguideType: currentPresentation.waveguideType, measurementMode: currentPresentation.measurementMode, measurementType: currentPresentation.measurementType, datasetLabel: sourceMeta?.name || `${currentPresentation.projectDisplayName} ${currentPresentation.slot}`, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${currentPresentation.projectDisplayName} for slot ${currentPresentation.slot}.`); setStatusMessage(`Saved project ${currentPresentation.projectDisplayName}. You can reopen it later from the Projects section.`); }
   function loadProject(project) { const presented = presentDataset(project); setProjectName(presented.projectDisplayName); setWaferName(presented.waferDisplayName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${presented.projectDisplayName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${presented.projectDisplayName} for wafer run ${presented.waferDisplayName}.`); }
   function deleteProject(projectId) { const target = savedProjects.find((project) => project.id === projectId); setSavedProjects((previous) => previous.filter((project) => project.id !== projectId)); appendAudit("project", "Project deleted", `Deleted saved project ${target?.projectName || projectId}.`); }
@@ -2124,7 +2164,7 @@ export default function App() {
                   <div className="analysis-card-controls propagation-headline-controls">
                     <span>{activeMetricKey === "propagation" ? `Lambda0 ${sourceMeta.propagationTargetWavelengthNm} nm` : `${activeMetricItems.length} selected dies`}</span>
                     <span>{activeMetricKey === "propagation" ? `Window +/- ${sourceMeta.propagationWindowNm} nm` : sourceMeta.type}</span>
-                    <span>{activeMetricKey === "propagation" ? `MSE <= ${sourceMeta.propagationMseThreshold}` : `${datasetSummary.families.join(", ") || "single metric"}`}</span>{activeMetricKey === "propagation" ? <select value={selectedChip} onChange={(event) => setSelectedChip(event.target.value)}>{chipOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select> : null}
+                    <span>{activeMetricKey === "propagation" ? `MSE <= ${sourceMeta.propagationMseThreshold}` : `${datasetSummary.families.join(", ") || "single metric"}`}</span>{activeMetricKey === "propagation" ? <><select value={selectedChip} onChange={(event) => setSelectedChip(event.target.value)}>{chipOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select><button type="button" className="secondary-action" onClick={generatePostProcessedFiles} disabled={isGeneratingPostProcessed || !metrics.propagation.byChip.length}>{isGeneratingPostProcessed ? "Generating Files..." : "Generate Post-Processed Files"}</button></> : null}
                   </div>
                 </div>
                 <div className="analysis-card-body split-layout">

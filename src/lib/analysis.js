@@ -186,7 +186,7 @@ function summarizeTransmission(series) {
   };
 }
 
-function computePropagationLoss(normalizedRows, options = {}) {
+export function computePropagationLoss(normalizedRows, options = {}) {
   const targetWavelengthNm = toNumber(options.targetWavelengthNm) ?? 1550;
   const windowNm = toNumber(options.windowNm) ?? 5;
   const mseThreshold = toNumber(options.mseThreshold) ?? 0.5;
@@ -285,7 +285,7 @@ function computePropagationLoss(normalizedRows, options = {}) {
   };
 }
 
-function computeInsertionLoss(normalizedRows) {
+export function computeInsertionLoss(normalizedRows) {
   const groups = groupBy(
     normalizedRows.filter(
       (row) =>
@@ -335,7 +335,7 @@ function computeInsertionLoss(normalizedRows) {
   };
 }
 
-function computeHeaterEfficiency(normalizedRows) {
+export function computeHeaterEfficiency(normalizedRows) {
   const groups = groupBy(
     normalizedRows.filter((row) => row.metric_family === "heater"),
     (row, index) => resolveChipId(row, index)

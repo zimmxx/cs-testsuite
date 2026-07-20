@@ -2,7 +2,9 @@ import { useDeferredValue, useEffect, useMemo, useState, startTransition } from 
 import {
   buildHtmlReport,
   buildReportState,
-  calculateAllMetrics,
+  computeHeaterEfficiency,
+  computeInsertionLoss,
+  computePropagationLoss,
   getMetricRange,
   metricLabel,
   summarizeDataset
@@ -552,6 +554,112 @@ function applyWaveguideSettingsToSourceMeta(previous, patch = {}) {
   };
 }
 
+function propagationDraftFromSourceMeta(sourceMeta = {}) {
+  return {
+    launchPowerDbm: String(sourceMeta.launchPowerDbm ?? ""),
+    propagationTargetWavelengthNm: String(sourceMeta.propagationTargetWavelengthNm ?? ""),
+    propagationWindowNm: String(sourceMeta.propagationWindowNm ?? ""),
+    propagationSpectralStepNm: String(sourceMeta.propagationSpectralStepNm ?? ""),
+    propagationMseThreshold: String(sourceMeta.propagationMseThreshold ?? ""),
+    propagationWaveguideCount: String(sourceMeta.propagationWaveguideCount ?? ""),
+    propagationWaveguideStartMm: String(sourceMeta.propagationWaveguideStartMm ?? ""),
+    propagationWaveguideIntervalMm: String(sourceMeta.propagationWaveguideIntervalMm ?? ""),
+    propagationWaveguideManualMode: Boolean(sourceMeta.propagationWaveguideManualMode),
+    waveguideLengthByIndex: Object.fromEntries(
+      Object.entries(sourceMeta.waveguideLengthByIndex || {}).map(([key, value]) => [key, String(value ?? "")])
+    )
+  };
+}
+
+function updatePropagationDraft(previous, field, value) {
+  const next = { ...previous, [field]: value };
+  if (!["propagationWaveguideCount", "propagationWaveguideStartMm", "propagationWaveguideIntervalMm", "propagationWaveguideManualMode"].includes(field)) {
+    return next;
+  }
+
+  const count = Math.round(Number(next.propagationWaveguideCount));
+  const start = Number(next.propagationWaveguideStartMm);
+  const interval = Number(next.propagationWaveguideIntervalMm);
+  if (!Number.isFinite(count) || count < 1 || !Number.isFinite(start) || !Number.isFinite(interval)) {
+    return next;
+  }
+
+  return {
+    ...next,
+    waveguideLengthByIndex: cloneWaveguideLengthMap(
+      next.waveguideLengthByIndex,
+      count,
+      start,
+      interval,
+      Boolean(next.propagationWaveguideManualMode)
+    )
+  };
+}
+
+function propagationSettingsFingerprint(values = {}) {
+  const numericOrText = (value) => {
+    if (value === "") return "";
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : String(value);
+  };
+  const lengths = Object.entries(values.waveguideLengthByIndex || {})
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([key, value]) => [key, numericOrText(value)]);
+
+  return JSON.stringify({
+    launchPowerDbm: numericOrText(values.launchPowerDbm),
+    propagationTargetWavelengthNm: numericOrText(values.propagationTargetWavelengthNm),
+    propagationWindowNm: numericOrText(values.propagationWindowNm),
+    propagationSpectralStepNm: numericOrText(values.propagationSpectralStepNm),
+    propagationMseThreshold: numericOrText(values.propagationMseThreshold),
+    propagationWaveguideCount: numericOrText(values.propagationWaveguideCount),
+    propagationWaveguideStartMm: numericOrText(values.propagationWaveguideStartMm),
+    propagationWaveguideIntervalMm: numericOrText(values.propagationWaveguideIntervalMm),
+    propagationWaveguideManualMode: Boolean(values.propagationWaveguideManualMode),
+    waveguideLengthByIndex: lengths
+  });
+}
+
+function validatePropagationDraft(draft) {
+  const readNumber = (field, label, { min = null, integer = false } = {}) => {
+    if (draft[field] === "") throw new Error(`${label} is required.`);
+    const value = Number(draft[field]);
+    if (!Number.isFinite(value)) throw new Error(`${label} must be a valid number.`);
+    if (integer && !Number.isInteger(value)) throw new Error(`${label} must be a whole number.`);
+    if (min !== null && value < min) throw new Error(`${label} must be at least ${min}.`);
+    return value;
+  };
+
+  const count = readNumber("propagationWaveguideCount", "Number of waveguides", { min: 1, integer: true });
+  const manualMode = Boolean(draft.propagationWaveguideManualMode);
+  const start = readNumber("propagationWaveguideStartMm", "Start waveguide length");
+  const interval = readNumber("propagationWaveguideIntervalMm", "Waveguide length interval");
+  const generatedLengths = buildGeneratedWaveguideLengthMap(count, start, interval);
+  const lengths = {};
+  for (let index = 1; index <= count; index += 1) {
+    const rawValue = draft.waveguideLengthByIndex?.[index] ?? generatedLengths[index];
+    if (manualMode && (rawValue === "" || rawValue === null || rawValue === undefined)) {
+      throw new Error(`WG${index} length is required.`);
+    }
+    const parsedLength = Number(rawValue);
+    if (!Number.isFinite(parsedLength)) throw new Error(`WG${index} length must be a valid number.`);
+    lengths[index] = parsedLength;
+  }
+
+  return {
+    launchPowerDbm: readNumber("launchPowerDbm", "Laser output power"),
+    propagationTargetWavelengthNm: readNumber("propagationTargetWavelengthNm", "Target wavelength"),
+    propagationWindowNm: readNumber("propagationWindowNm", "Window", { min: 0 }),
+    propagationSpectralStepNm: readNumber("propagationSpectralStepNm", "Spectral interval", { min: 1 }),
+    propagationMseThreshold: readNumber("propagationMseThreshold", "Fit MSE threshold", { min: 0 }),
+    propagationWaveguideCount: count,
+    propagationWaveguideStartMm: start,
+    propagationWaveguideIntervalMm: interval,
+    propagationWaveguideManualMode: manualMode,
+    waveguideLengthByIndex: lengths
+  };
+}
+
 function applyWaveguideSettingsToDraft(previous, patch = {}) {
   const next = { ...previous, ...patch };
   const count = Math.max(Math.round(Number(next.propagationWaveguideCount) || DEFAULT_WAVEGUIDE_COUNT), 1);
@@ -572,7 +680,7 @@ function applyWaveguideSettingsToDraft(previous, patch = {}) {
 function formatWaveguideLengthPreview(map = {}) {
   const values = Object.entries(map)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([, value]) => formatMetricNumber(value, Number.isInteger(value) ? 0 : 2));
+    .map(([, value]) => { const numericValue = Number(value); return formatMetricNumber(numericValue, Number.isInteger(numericValue) ? 0 : 2); });
   return values.length ? `[${values.join(" ")}] mm` : "[] mm";
 }
 
@@ -1327,15 +1435,15 @@ function WaveguideLengthConfigurator({
       <div className="propagation-length-grid waveguide-generator-grid">
         <label className="mapping-field">
           <span>Number of waveguides</span>
-          <input type="number" min="1" value={count ?? ""} onChange={(event) => onNumberChange("propagationWaveguideCount", Math.max(Number(event.target.value) || 1, 1))} />
+          <input type="number" min="1" value={count ?? ""} onChange={(event) => onNumberChange("propagationWaveguideCount", event.target.value)} />
         </label>
         <label className="mapping-field">
           <span>Start waveguide length (mm)</span>
-          <input type="number" value={start ?? ""} onChange={(event) => onNumberChange("propagationWaveguideStartMm", Number(event.target.value) || 0)} />
+          <input type="number" value={start ?? ""} onChange={(event) => onNumberChange("propagationWaveguideStartMm", event.target.value)} />
         </label>
         <label className="mapping-field">
           <span>Waveguide length interval (mm)</span>
-          <input type="number" value={interval ?? ""} onChange={(event) => onNumberChange("propagationWaveguideIntervalMm", Number(event.target.value) || 0)} />
+          <input type="number" value={interval ?? ""} onChange={(event) => onNumberChange("propagationWaveguideIntervalMm", event.target.value)} />
         </label>
       </div>
       <label className="toggle-row compact-toggle-row">
@@ -1422,48 +1530,65 @@ function WafermapsLibrary({ draft, onDraftChange, onSaveTemplate, templates, sel
   );
 }
 
-function PropagationSettingsPanel({ sourceMeta, onNumberChange, onLengthChange }) {
+function PropagationSettingsPanel({
+  draft,
+  hasChanges,
+  isApplying,
+  onNumberChange,
+  onLengthChange,
+  onApply,
+  onReset
+}) {
   return (
-    <section className="analysis-card propagation-settings-card">
+    <form className="analysis-card propagation-settings-card" onSubmit={(event) => { event.preventDefault(); onApply(); }}>
       <div className="analysis-card-head">
         <div>
           <h2>Propagation Processing Settings</h2>
-          <p>Configure launch power, target wavelength, averaging window, fit-quality filtering, and the generated or manual WG length map used for automated WST traces.</p>
+          <p>Edit values freely, then apply them once to update the analysis and plots.</p>
+        </div>
+        <div className="analysis-card-controls propagation-settings-actions">
+          <span className={isApplying ? "dataset-status-chip progress" : hasChanges ? "dataset-status-chip progress" : "dataset-status-chip success"}>
+            {isApplying ? "Updating analysis..." : hasChanges ? "Changes not applied" : "Analysis current"}
+          </span>
+          <button type="button" onClick={onReset} disabled={!hasChanges || isApplying}>Reset</button>
+          <button type="submit" className="propagation-apply-action" disabled={!hasChanges || isApplying}>
+            {isApplying ? "Recalculating..." : "Apply & Recalculate"}
+          </button>
         </div>
       </div>
       <div className="propagation-settings-grid">
         <label className="mapping-field">
           <span>Laser output power (dBm)</span>
-          <input type="number" value={sourceMeta.launchPowerDbm ?? ""} onChange={(event) => onNumberChange("launchPowerDbm", Number(event.target.value) || 0)} />
+          <input type="number" value={draft.launchPowerDbm} onChange={(event) => onNumberChange("launchPowerDbm", event.target.value)} />
         </label>
         <label className="mapping-field">
           <span>Target wavelength (nm)</span>
-          <input type="number" value={sourceMeta.propagationTargetWavelengthNm ?? ""} onChange={(event) => onNumberChange("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} />
+          <input type="number" value={draft.propagationTargetWavelengthNm} onChange={(event) => onNumberChange("propagationTargetWavelengthNm", event.target.value)} />
         </label>
         <label className="mapping-field">
           <span>Window (+/- nm)</span>
-          <input type="number" value={sourceMeta.propagationWindowNm ?? ""} onChange={(event) => onNumberChange("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} />
+          <input type="number" min="0" value={draft.propagationWindowNm} onChange={(event) => onNumberChange("propagationWindowNm", event.target.value)} />
         </label>
         <label className="mapping-field">
           <span>Spectral interval (nm)</span>
-          <input type="number" min="1" value={sourceMeta.propagationSpectralStepNm ?? ""} onChange={(event) => onNumberChange("propagationSpectralStepNm", Math.max(Number(event.target.value) || 1, 1))} />
+          <input type="number" min="1" value={draft.propagationSpectralStepNm} onChange={(event) => onNumberChange("propagationSpectralStepNm", event.target.value)} />
         </label>
         <label className="mapping-field">
           <span>Fit MSE threshold</span>
-          <input type="number" step="0.01" value={sourceMeta.propagationMseThreshold ?? ""} onChange={(event) => onNumberChange("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} />
+          <input type="number" min="0" step="0.01" value={draft.propagationMseThreshold} onChange={(event) => onNumberChange("propagationMseThreshold", event.target.value)} />
         </label>
       </div>
       <WaveguideLengthConfigurator
-        count={sourceMeta.propagationWaveguideCount}
-        start={sourceMeta.propagationWaveguideStartMm}
-        interval={sourceMeta.propagationWaveguideIntervalMm}
-        manualMode={sourceMeta.propagationWaveguideManualMode}
-        lengths={sourceMeta.waveguideLengthByIndex}
+        count={draft.propagationWaveguideCount}
+        start={draft.propagationWaveguideStartMm}
+        interval={draft.propagationWaveguideIntervalMm}
+        manualMode={draft.propagationWaveguideManualMode}
+        lengths={draft.waveguideLengthByIndex}
         onNumberChange={onNumberChange}
         onLengthChange={onLengthChange}
         onManualModeChange={(checked) => onNumberChange("propagationWaveguideManualMode", checked)}
       />
-    </section>
+    </form>
   );
 }
 
@@ -1474,6 +1599,8 @@ export default function App() {
   const [rawRows, setRawRows] = useState([]);
   const [columnMap, setColumnMap] = useState({});
   const [sourceMeta, setSourceMeta] = useState(() => buildDefaultSourceMeta(initialSettings));
+  const [propagationDraft, setPropagationDraft] = useState(() => propagationDraftFromSourceMeta(buildDefaultSourceMeta(initialSettings)));
+  const [pendingPropagationFingerprint, setPendingPropagationFingerprint] = useState("");
   const [statusMessage, setStatusMessage] = useState("Workspace ready. Load a project or upload measurement files to begin.");
   const [search, setSearch] = useState("");
   const [datasetPreviewMode, setDatasetPreviewMode] = useState("all-chips");
@@ -1521,20 +1648,71 @@ export default function App() {
   const waferTemplateLayout = useMemo(() => getWaferTemplateLayout(currentWaferTemplate || defaultWaferTemplateId()), [currentWaferTemplate]);
   const hasLoadedData = rawRows.length > 0;
   const currentRows = rawRows;
-  const currentMap = Object.keys(columnMap).length ? columnMap : inferColumnMap(Object.keys(currentRows[0] || {}));
-  const normalizedRows = useMemo(() => buildNormalizedRows(currentRows, currentMap, sourceMeta), [currentRows, currentMap, sourceMeta]);
-  const metrics = useMemo(
-    () =>
-      calculateAllMetrics(normalizedRows, {
-        propagation: {
-          targetWavelengthNm: sourceMeta.propagationTargetWavelengthNm,
-          windowNm: sourceMeta.propagationWindowNm,
-          spectralStepNm: sourceMeta.propagationSpectralStepNm,
-          mseThreshold: sourceMeta.propagationMseThreshold
-        }
-      }),
-    [normalizedRows, sourceMeta]
+  const currentMap = useMemo(
+    () => Object.keys(columnMap).length ? columnMap : inferColumnMap(Object.keys(currentRows[0] || {})),
+    [columnMap, currentRows]
   );
+  const normalizationSourceMeta = useMemo(
+    () => ({ ...sourceMeta }),
+    [
+      sourceMeta.name,
+      sourceMeta.type,
+      sourceMeta.defaultMetricFamily,
+      sourceMeta.defaultWavelengthNm,
+      sourceMeta.launchPowerDbm,
+      sourceMeta.waveguideLengthByIndex,
+      sourceMeta.waferTemplateId,
+      sourceMeta.waferTemplateLayout,
+      sourceMeta.waferTemplateName,
+      sourceMeta.waferTemplateNotchOrientation
+    ]
+  );
+  const normalizedRows = useMemo(
+    () => buildNormalizedRows(currentRows, currentMap, normalizationSourceMeta),
+    [currentRows, currentMap, normalizationSourceMeta]
+  );
+  const propagationMetrics = useMemo(
+    () => computePropagationLoss(normalizedRows, {
+      targetWavelengthNm: sourceMeta.propagationTargetWavelengthNm,
+      windowNm: sourceMeta.propagationWindowNm,
+      spectralStepNm: sourceMeta.propagationSpectralStepNm,
+      mseThreshold: sourceMeta.propagationMseThreshold
+    }),
+    [
+      normalizedRows,
+      sourceMeta.propagationTargetWavelengthNm,
+      sourceMeta.propagationWindowNm,
+      sourceMeta.propagationSpectralStepNm,
+      sourceMeta.propagationMseThreshold
+    ]
+  );
+  const insertionMetrics = useMemo(() => computeInsertionLoss(normalizedRows), [normalizedRows]);
+  const heaterMetrics = useMemo(() => computeHeaterEfficiency(normalizedRows), [normalizedRows]);
+  const metrics = useMemo(
+    () => ({ propagation: propagationMetrics, insertion: insertionMetrics, heater: heaterMetrics }),
+    [propagationMetrics, insertionMetrics, heaterMetrics]
+  );
+  const appliedPropagationFingerprint = useMemo(
+    () => propagationSettingsFingerprint(sourceMeta),
+    [
+      sourceMeta.launchPowerDbm,
+      sourceMeta.propagationTargetWavelengthNm,
+      sourceMeta.propagationWindowNm,
+      sourceMeta.propagationSpectralStepNm,
+      sourceMeta.propagationMseThreshold,
+      sourceMeta.propagationWaveguideCount,
+      sourceMeta.propagationWaveguideStartMm,
+      sourceMeta.propagationWaveguideIntervalMm,
+      sourceMeta.propagationWaveguideManualMode,
+      sourceMeta.waveguideLengthByIndex
+    ]
+  );
+  const draftPropagationFingerprint = useMemo(
+    () => propagationSettingsFingerprint(propagationDraft),
+    [propagationDraft]
+  );
+  const propagationHasChanges = draftPropagationFingerprint !== appliedPropagationFingerprint;
+  const isApplyingPropagation = Boolean(pendingPropagationFingerprint);
   const datasetSummary = useMemo(() => summarizeDataset(normalizedRows), [normalizedRows]);
   const reportState = useMemo(() => buildReportState(metrics, datasetSummary), [metrics, datasetSummary]);
   const propagationAllWaferCells = useMemo(
@@ -1640,6 +1818,18 @@ export default function App() {
         { label: "Selectable die inspector", color: "#0f8a83" }
       ];
 
+  useEffect(() => {
+    setPropagationDraft(propagationDraftFromSourceMeta(sourceMeta));
+  }, [appliedPropagationFingerprint]);
+
+  useEffect(() => {
+    if (!pendingPropagationFingerprint || pendingPropagationFingerprint !== appliedPropagationFingerprint) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      setPendingPropagationFingerprint("");
+      setStatusMessage("Propagation analysis updated with the applied settings.");
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [appliedPropagationFingerprint, pendingPropagationFingerprint]);
   useEffect(() => {
     let cancelled = false;
 
@@ -1871,23 +2061,42 @@ export default function App() {
       setLoadingBundledId("");
     }
   }
-  function updatePropagationMeta(field, value) {
-    setSourceMeta((previous) => applyWaveguideSettingsToSourceMeta(previous, { [field]: value }));
+  function updatePropagationDraftField(field, value) {
+    setPropagationDraft((previous) => updatePropagationDraft(previous, field, value));
   }
-  function updateWaveguideLength(index, value) {
-    setSourceMeta((previous) => applyWaveguideSettingsToSourceMeta(previous, {
+  function updateWaveguideDraftLength(index, value) {
+    setPropagationDraft((previous) => ({
+      ...previous,
       propagationWaveguideManualMode: true,
       waveguideLengthByIndex: {
-        ...cloneWaveguideLengthMap(
-          previous.waveguideLengthByIndex,
-          previous.propagationWaveguideCount,
-          previous.propagationWaveguideStartMm,
-          previous.propagationWaveguideIntervalMm,
-          true
-        ),
-        [index]: value === "" ? null : Number(value)
+        ...previous.waveguideLengthByIndex,
+        [index]: value
       }
     }));
+  }
+  function resetPropagationDraft() {
+    setPropagationDraft(propagationDraftFromSourceMeta(sourceMeta));
+  }
+  function applyPropagationDraft() {
+    let patch;
+    try {
+      patch = validatePropagationDraft(propagationDraft);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Review the propagation settings.";
+      setStatusMessage(detail);
+      pushToast("Settings need attention", detail, "danger");
+      return;
+    }
+
+    const nextSourceMeta = applyWaveguideSettingsToSourceMeta(sourceMeta, patch);
+    const nextFingerprint = propagationSettingsFingerprint(nextSourceMeta);
+    if (nextFingerprint === appliedPropagationFingerprint) return;
+
+    setPendingPropagationFingerprint(nextFingerprint);
+    setStatusMessage("Applying propagation settings and recalculating the analysis...");
+    window.requestAnimationFrame(() => {
+      startTransition(() => setSourceMeta(nextSourceMeta));
+    });
   }
   function updateWaferTemplateDraft(field, value) { setWaferTemplateDraft((previous) => ({ ...previous, [field]: value })); }
   function useWaferTemplate(template) {
@@ -2152,7 +2361,17 @@ export default function App() {
               <ShellStat label="Wafer Yield" value={propagationYield !== null && propagationYield !== undefined ? `${propagationYield.toFixed(1)}%` : "--"} note={`Pass criteria: MSE <= ${sourceMeta.propagationMseThreshold}`} tone="yield" icon="Yield" />
             </section>
 
-            {activeTab === "propagation" ? <PropagationSettingsPanel sourceMeta={sourceMeta} onNumberChange={updatePropagationMeta} onLengthChange={updateWaveguideLength} /> : null}
+            {activeTab === "propagation" ? (
+              <PropagationSettingsPanel
+                draft={propagationDraft}
+                hasChanges={propagationHasChanges}
+                isApplying={isApplyingPropagation}
+                onNumberChange={updatePropagationDraftField}
+                onLengthChange={updateWaveguideDraftLength}
+                onApply={applyPropagationDraft}
+                onReset={resetPropagationDraft}
+              />
+            ) : null}
 
             <section className="analysis-top-grid">
               <article className="analysis-card analysis-chart-card">

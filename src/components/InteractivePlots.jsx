@@ -78,18 +78,25 @@ function PlotlyFigure({ data, layout, config, emptyMessage, windowTitle, height 
   const hasData = Array.isArray(data) && data.some((trace) => Array.isArray(trace?.x) && trace.x.length);
 
   useEffect(() => {
+    const resizeHandler = () => {
+      if (window.Plotly && ref.current) window.Plotly.Plots.resize(ref.current);
+    };
+    window.addEventListener("resize", resizeHandler);
+    return () => {
+      window.removeEventListener("resize", resizeHandler);
+      if (window.Plotly && ref.current) window.Plotly.purge(ref.current);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!hasData || !ref.current) return undefined;
 
     let active = true;
-    let resizeHandler = null;
-
     loadPlotly()
       .then((Plotly) => {
-        if (!active || !ref.current) return;
-        return Plotly.newPlot(ref.current, data, layout, config).then(() => {
-          resizeHandler = () => Plotly.Plots.resize(ref.current);
-          window.addEventListener("resize", resizeHandler);
-        });
+        if (!active || !ref.current) return undefined;
+        setError("");
+        return Plotly.react(ref.current, data, layout, config);
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : "Failed to load interactive plot.");
@@ -97,13 +104,8 @@ function PlotlyFigure({ data, layout, config, emptyMessage, windowTitle, height 
 
     return () => {
       active = false;
-      if (resizeHandler) window.removeEventListener("resize", resizeHandler);
-      if (window.Plotly && ref.current) {
-        window.Plotly.purge(ref.current);
-      }
     };
   }, [config, data, hasData, layout]);
-
   if (!hasData) return <div className="chart-empty">{emptyMessage}</div>;
   if (error) return <div className="chart-empty">{error}</div>;
 
@@ -372,7 +374,7 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
 
     return {
       data: series.map((item, index) => ({
-        type: "scatter",
+        type: "scattergl",
         mode: "lines",
         name: item.waveguideId,
         x: item.points.map((point) => point.wavelengthNm),

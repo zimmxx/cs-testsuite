@@ -1174,6 +1174,30 @@ tbody tr:last-child td {
   gap: 16px;
 }
 
+.propagation-settings-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 620px;
+}
+
+.propagation-settings-actions .dataset-status-chip {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.propagation-settings-actions .propagation-apply-action {
+  background: var(--teal-strong);
+  border-color: var(--teal-strong);
+  color: #fff;
+}
+
+.propagation-settings-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
 .propagation-settings-grid,
 .propagation-length-grid {
   display: grid;

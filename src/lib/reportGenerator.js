@@ -1,3 +1,4 @@
+import PptxGenJS from "pptxgenjs";
 import {
   buildPropagationPlotSpec,
   buildPropagationSpectrumPlotSpec,
@@ -502,4 +503,5 @@ export async function generatePowerPointReport({
     chipCount: metrics.propagation.byChip.length
   };
 }
+
 

@@ -192,6 +192,7 @@ function buildTableRows(summaryRows) {
   return [header, ...body];
 }
 
+
 function addTitleSlide(pptx, context) {
   const slide = pptx.addSlide();
   addSlideFrame(slide, `${context.projectCode} ${context.slotLabel} Post-Processed Report`, `Generated ${context.generatedAtLabel}${context.selectedDate ? ` | Measurement date ${context.selectedDate}` : ""}`, "Report Generator");
@@ -213,17 +214,15 @@ function addTitleSlide(pptx, context) {
   });
   slide.addText("Deck contents", { x: 0.68, y: 3.22, w: 2.2, h: 0.18, fontFace: TITLE_FONT, fontSize: 18, bold: true, color: TEXT, margin: 0 });
   slide.addText([
-    { text: "1. Summary KPIs and measurement settings" },
-    { text: "2. Chip summary table with loss, MSE, peak wavelength, insertion loss, and bandwidth" },
-    { text: "3. Wafermaps for chip IDs and wafer-level metrics" },
-    { text: "4. One detailed slide per measured chip with fit, transmission, and loss spectrum plots" }
-  ], {
+    "Summary KPIs and measurement settings",
+    "Chip summary table with loss, MSE, peak wavelength, insertion loss, and bandwidth",
+    "Wafermaps for chip IDs and wafer-level metrics",
+    "One detailed slide per measured chip with fit, transmission, and loss spectrum plots"
+  ].join("\n"), {
     x: 0.74,
     y: 3.62,
     w: 5.4,
     h: 2.1,
-    breakLine: true,
-    bullet: { indent: 14 },
     paraSpaceAfterPt: 8,
     fontFace: BODY_FONT,
     fontSize: 12,
@@ -503,5 +502,4 @@ export async function generatePowerPointReport({
     chipCount: metrics.propagation.byChip.length
   };
 }
-
 

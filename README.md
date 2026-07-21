@@ -14,6 +14,7 @@ The app translates uploaded measurement data into a normalized internal schema, 
 - MZI heater efficiency analysis in `mW/pi`
 - Wafermap visualization
 - Report preview and export-ready reporting state
+- PowerPoint slide generation for chip-by-chip post-processed reviews
 - GitHub-hosted dataset library management
 - Cross-dataset comparison for wafer/process variation studies
 - Filename and manual-measurement conversion into standardized trace names
@@ -34,6 +35,7 @@ Live deployment:
 - React 18
 - Vite 5
 - `xlsx` for spreadsheet parsing
+- `pptxgenjs` for browser-based PowerPoint export
 - GitHub Actions + GitHub Pages for deployment
 
 ## Local Development
@@ -120,3 +122,4 @@ When new features are added, update:
 2. `docs/DATASET_FILENAME_STANDARD.md` if the naming convention changes
 3. `docs/releases/<version>/FEATURES.md` for feature behavior
 4. `docs/releases/<version>/CHANGELOG.md` for change history
+

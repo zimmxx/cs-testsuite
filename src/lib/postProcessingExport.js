@@ -105,7 +105,7 @@ function buildConfidenceBand(rows, fit) {
   };
 }
 
-function buildPropagationPlotSpec({ chip, projectCode, slotLabel, targetWavelengthNm, windowNm }) {
+export function buildPropagationPlotSpec({ chip, projectCode, slotLabel, targetWavelengthNm, windowNm }) {
   if (!chip?.samples?.length || !chip?.fit) return null;
 
   const x = chip.samples.map((row) => row.relative_length_mm);
@@ -231,7 +231,7 @@ function buildPropagationPlotSpec({ chip, projectCode, slotLabel, targetWaveleng
   };
 }
 
-function buildPropagationSpectrumPlotSpec({ chip, projectCode }) {
+export function buildPropagationSpectrumPlotSpec({ chip, projectCode }) {
   if (!chip?.spectralSeries?.length) return null;
 
   const x = chip.spectralSeries.map((point) => point.wavelengthNm);
@@ -330,7 +330,7 @@ function buildPropagationSpectrumPlotSpec({ chip, projectCode }) {
   };
 }
 
-function buildTransmissionSpectrumPlotSpec({ chip, projectCode }) {
+export function buildTransmissionSpectrumPlotSpec({ chip, projectCode }) {
   if (!chip?.transmissionSeries?.length) return null;
 
   const minWavelength = arrayMin(chip.transmissionSeries.flatMap((item) => item.points.map((point) => point.wavelengthNm)));
@@ -429,7 +429,7 @@ async function ensurePlotlyLoaded() {
   return plotlyPromise;
 }
 
-async function renderPlotSpecToPng(plot, width = 1600, height = 900, scale = 2) {
+export async function renderPlotSpecToPng(plot, width = 1600, height = 900, scale = 2) {
   const Plotly = await ensurePlotlyLoaded();
   const container = document.createElement("div");
   container.style.position = "fixed";
@@ -621,7 +621,7 @@ async function svgToPngBlob(svgText, width, height) {
   }
 }
 
-async function buildWaferMapPng({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax }) {
+export async function buildWaferMapPng({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax }) {
   const svg = buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax });
   return svgToPngBlob(svg, 1600, 1200);
 }
@@ -851,3 +851,4 @@ export async function generatePostProcessedArchive({
     fileCount: zipEntries.length
   };
 }
+

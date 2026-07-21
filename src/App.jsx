@@ -22,6 +22,7 @@ import { createCenterFilledWaferTemplate, defaultWaferTemplateId, getBuiltInWafe
 import { buildDatasetSnapshotMetadata, buildGithubDatasetPackage, publishDatasetPackageToGithub } from "./lib/githubLibrary";
 import { getDatasetPresentation } from "./lib/datasetPresentation";
 import { generatePostProcessedArchive } from "./lib/postProcessingExport";
+import { generatePowerPointReport } from "./lib/reportGenerator";
 import {
   InteractivePropagationPlot,
   InteractivePropagationSpectrumPlot,
@@ -31,6 +32,7 @@ import ManualConversionPanel from "./components/ManualConversionPanel";
 import DatasetLibraryPanel from "./components/DatasetLibraryPanel";
 import ComparisonLibraryPanel from "./components/ComparisonLibraryPanel";
 import FilenameConversionPanel from "./components/FilenameConversionPanel";
+import ReportGeneratorPanel from "./components/ReportGeneratorPanel";
 import ToastTray from "./components/ToastTray";
 
 const APP_TABS = [
@@ -50,6 +52,7 @@ const RAIL_SECTIONS = [
       { id: "comparison", label: "Comparison" },
       { id: "filename-conversion", label: "Filename Conversion" },
       { id: "wafermaps", label: "Wafermaps" },
+      { id: "report-generator", label: "Report Generator" },
       { id: "settings", label: "Settings" },
       { id: "audit", label: "Audit Log" },
       { id: "help", label: "Help" }
@@ -1675,6 +1678,7 @@ export default function App() {
   const [waferMapOverlayMode, setWaferMapOverlayMode] = useState("none");
   const [isPropagationSettingsExpanded, setIsPropagationSettingsExpanded] = useState(true);
   const [isGeneratingPostProcessed, setIsGeneratingPostProcessed] = useState(false);
+  const [isGeneratingPptReport, setIsGeneratingPptReport] = useState(false);
 
   const deferredSearch = useDeferredValue(search);
   const builtInWaferTemplates = useMemo(() => getBuiltInWaferTemplates(), []);
@@ -2252,6 +2256,44 @@ export default function App() {
       setIsGeneratingPostProcessed(false);
     }
   }
+  async function generatePowerPointDeck() {
+    if (!metrics.propagation.byChip.length) {
+      const message = "Load a propagation-loss dataset before generating the PowerPoint report.";
+      setStatusMessage(message);
+      pushToast("PPT export skipped", message, "danger");
+      return;
+    }
+
+    setIsGeneratingPptReport(true);
+    const presented = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows });
+    const exportProjectCode = presented.projectDisplayName || projectName || "MPWUNDEFINED";
+    const exportSlot = presented.slot || waferName || "SlotUndefined";
+
+    try {
+      const result = await generatePowerPointReport({
+        projectCode: exportProjectCode,
+        slotLabel: exportSlot,
+        selectedDate,
+        sourceMeta,
+        metrics,
+        currentWaferTemplate,
+        currentWaferCells,
+        onProgress: (message) => setStatusMessage(message)
+      });
+      downloadBlob(result.blob, result.fileName, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+      const detail = `Generated ${result.fileName} with ${result.chipCount} chip slides across ${result.slideCount} total slides.`;
+      setStatusMessage(detail);
+      appendAudit("export", "PowerPoint report exported", detail);
+      pushToast("PowerPoint report ready", `${result.chipCount} chip slides exported to ${result.fileName}.`, "success");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown PowerPoint export error.";
+      setStatusMessage(`PowerPoint export failed: ${detail}`);
+      appendAudit("export", "PowerPoint report failed", detail);
+      pushToast("PowerPoint export failed", detail, "danger");
+    } finally {
+      setIsGeneratingPptReport(false);
+    }
+  }
   function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const currentPresentation = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }); const projectRecord = { id: createId("project"), projectName: currentPresentation.projectDisplayName, waferName: currentPresentation.waferDisplayName, slot: currentPresentation.slot, waveguideType: currentPresentation.waveguideType, measurementMode: currentPresentation.measurementMode, measurementType: currentPresentation.measurementType, datasetLabel: sourceMeta?.name || `${currentPresentation.projectDisplayName} ${currentPresentation.slot}`, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${currentPresentation.projectDisplayName} for slot ${currentPresentation.slot}.`); setStatusMessage(`Saved project ${currentPresentation.projectDisplayName}. You can reopen it later from the Projects section.`); }
   function loadProject(project) { const presented = presentDataset(project); setProjectName(presented.projectDisplayName); setWaferName(presented.waferDisplayName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setQuickDatasetSelection(""); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${presented.projectDisplayName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${presented.projectDisplayName} for wafer run ${presented.waferDisplayName}.`); }
   function deleteProject(projectId) { const target = savedProjects.find((project) => project.id === projectId); setSavedProjects((previous) => previous.filter((project) => project.id !== projectId)); appendAudit("project", "Project deleted", `Deleted saved project ${target?.projectName || projectId}.`); }
@@ -2561,6 +2603,7 @@ export default function App() {
           {activeTab === "filename-conversion" ? <FilenameConversionPanel /> : null}
           {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Theme preference</span><select value={settingsDraft.themePreference} onChange={(event) => updateSettingsDraft("themePreference", event.target.value)}>{THEME_PREFERENCE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label><label className="mapping-field"><span>Propagation spectral interval (nm)</span><input type="number" min="1" value={settingsDraft.propagationSpectralStepNm} onChange={(event) => updateSettingsDraft("propagationSpectralStepNm", Math.max(Number(event.target.value) || 1, 1))} /></label><label className="mapping-field"><span>Propagation fit MSE threshold</span><input type="number" step="0.01" value={settingsDraft.propagationMseThreshold} onChange={(event) => updateSettingsDraft("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} /></label></div><WaveguideLengthConfigurator count={settingsDraft.propagationWaveguideCount} start={settingsDraft.propagationWaveguideStartMm} interval={settingsDraft.propagationWaveguideIntervalMm} manualMode={settingsDraft.propagationWaveguideManualMode} lengths={settingsDraft.propagationWaveguideLengthsMm} onNumberChange={updateSettingsDraft} onLengthChange={updateSettingsWaveguideLength} onManualModeChange={(checked) => updateSettingsDraft("propagationWaveguideManualMode", checked)} /><div className="chart-empty compact">Uploaded measurement files now stay in the active workspace only. Use <strong>Save Dataset Snapshot</strong> or <strong>Save to GitHub</strong> from <strong>Dataset Snapshots</strong> when you want to keep a dataset.</div></article></section> : null}
           {activeTab === "wafermaps" ? <WafermapsLibrary draft={waferTemplateDraft} onDraftChange={updateWaferTemplateDraft} onSaveTemplate={saveWaferTemplate} templates={allWaferTemplates} selectedTemplateId={currentWaferTemplate?.id || ""} onUseTemplate={useWaferTemplate} onDeleteTemplate={deleteWaferTemplate} /> : null}
+          {activeTab === "report-generator" ? <ReportGeneratorPanel reportState={reportState} sourceMeta={sourceMeta} isGeneratingPptReport={isGeneratingPptReport} isGeneratingPostProcessed={isGeneratingPostProcessed} onGeneratePptReport={generatePowerPointDeck} onGeneratePostProcessedFiles={generatePostProcessedFiles} /> : null}
           {activeTab === "audit" ? <section className="library-stack workspace-fit-view"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Audit Log</h2><p>Review the local activity trail for uploads, exports, saves, loads, and settings changes.</p></div><div className="library-action-row"><button type="button" className="ghost-action" onClick={clearAuditLog}>Clear Audit Log</button></div></div><LibraryTable columns={["Action", "Type", "Detail", "Time"]} rows={auditRows} emptyMessage="No audit entries yet." /></article></section> : null}
           {activeTab === "help" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Help Center</h2><p>Quick in-app guidance for the current release, focused on how data flows through propagation processing, storage, and reporting.</p></div><div className="library-action-row"><button type="button" onClick={() => updateTab("projects")}>Open Workspace Snapshots</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Open Propagation View</button></div></div><div className="help-grid">{HELP_TOPICS.map((topic) => <article key={topic.title} className="help-card"><h3>{topic.title}</h3><p>{topic.body}</p></article>)}</div><div className="doc-link-list">{DOC_LINKS.map((doc) => <a key={doc.label} className="doc-link-item" href={doc.href} target="_blank" rel="noreferrer"><strong>{doc.label}</strong><span>{doc.path}</span></a>)}</div></article></section> : null}
         </main>
@@ -2568,6 +2611,13 @@ export default function App() {
     </div>
   );
 }
+
+
+
+
+
+
+
 
 
 

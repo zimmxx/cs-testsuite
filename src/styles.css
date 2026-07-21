@@ -2566,3 +2566,31 @@ body {
     min-height: 0;
   }
 }
+
+.report-generator-card .library-action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.report-generator-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.report-generator-note-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.report-generator-helper {
+  min-height: 120px;
+}
+
+@media (max-width: 960px) {
+  .report-generator-summary-grid,
+  .report-generator-note-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -352,7 +352,8 @@ async function buildWafermapViews(context) {
       subtitle,
       colorScaleMin: context.sourceMeta.waferColorScaleMin,
       colorScaleMid: context.sourceMeta.waferColorScaleMid,
-      colorScaleMax: context.sourceMeta.waferColorScaleMax
+      colorScaleMax: context.sourceMeta.waferColorScaleMax,
+      includeHeader: false
     });
     rendered.push({ ...view, dataUrl: await blobToDataUrl(png) });
   }
@@ -369,21 +370,21 @@ function addWafermapSlides(pptx, context, wafermapViews) {
     const slide = pptx.addSlide();
     addSlideFrame(slide, "Wafermaps", `${context.projectCode} | ${context.slotLabel} | Spatial summary of measured chips`, `Wafermaps ${index + 1}/${groups.length}`);
     const layouts = group.length === 1
-      ? [{ titleX: 0.52, imageX: 1.32, imageW: 10.7 }]
+      ? [{ titleX: 0.52, imageX: 0.98, imageW: 11.1 }]
       : [
-        { titleX: 0.52, imageX: 0.42, imageW: 6.0 },
-        { titleX: 6.8, imageX: 6.75, imageW: 6.0 }
+        { titleX: 0.52, imageX: 0.36, imageW: 6.18 },
+        { titleX: 6.78, imageX: 6.8, imageW: 6.18 }
       ];
 
     group.forEach((view, itemIndex) => {
       const layout = layouts[itemIndex];
       slide.addText(view.title.replace("Wafermap - ", ""), {
         x: layout.titleX,
-        y: 1.42,
+        y: 1.35,
         w: layout.imageW,
-        h: 0.22,
+        h: 0.24,
         fontFace: TITLE_FONT,
-        fontSize: 15,
+        fontSize: 18,
         bold: true,
         color: TEXT,
         margin: 0
@@ -391,11 +392,77 @@ function addWafermapSlides(pptx, context, wafermapViews) {
       slide.addImage({
         data: view.dataUrl,
         x: layout.imageX,
-        y: 1.78,
+        y: 1.66,
         w: layout.imageW,
-        h: 5.12,
-        sizing: { type: "contain", w: layout.imageW, h: 5.12 }
+        h: 5.5,
+        sizing: { type: "contain", w: layout.imageW, h: 5.5 }
       });
+    });
+  });
+}
+
+function buildChipMetricPairs(chip) {
+  return [
+    ["Chip", chip.chipId],
+    ["Location", locationLabel(chip)],
+    ["Propagation loss", formatMetric(chip.lossDbPerCm, "dB/cm")],
+    ["MSE", formatNumber(chip.mse, 4)],
+    ["Fit status", chipStatus(chip)],
+    ["Peak wavelength", formatMetric(chip.transmissionSummary?.peakWavelengthNm, "nm", 1)],
+    ["Insertion loss", formatMetric(chip.transmissionSummary?.insertionLossDb, "dB")],
+    ["3 dB bandwidth", formatMetric(chip.transmissionSummary?.bandwidth3dBNm, "nm", 1)],
+    ["Fit points", String(chip.samples?.length || 0)],
+    ["Spectral points", String(chip.spectralSeries?.length || 0)]
+  ];
+}
+
+function addMetricListPanel(slide, title, rows, box) {
+  slide.addShape("roundRect", {
+    x: box.x,
+    y: box.y,
+    w: box.w,
+    h: box.h,
+    rectRadius: 0.05,
+    line: { color: BORDER, pt: 1 },
+    fill: { color: WHITE }
+  });
+  slide.addText(title, {
+    x: box.x + 0.18,
+    y: box.y + 0.14,
+    w: box.w - 0.36,
+    h: 0.24,
+    fontFace: TITLE_FONT,
+    fontSize: 19,
+    bold: true,
+    color: TEXT,
+    margin: 0
+  });
+
+  const startY = box.y + 0.48;
+  const rowHeight = 0.19;
+  rows.forEach(([label, value], index) => {
+    const rowY = startY + index * rowHeight;
+    slide.addText(label, {
+      x: box.x + 0.2,
+      y: rowY,
+      w: box.w * 0.45,
+      h: 0.15,
+      fontFace: BODY_FONT,
+      fontSize: 10.5,
+      color: MUTED,
+      margin: 0
+    });
+    slide.addText(value, {
+      x: box.x + box.w * 0.48,
+      y: rowY,
+      w: box.w * 0.47 - 0.18,
+      h: 0.15,
+      fontFace: BODY_FONT,
+      fontSize: 10.5,
+      bold: true,
+      color: TEXT,
+      margin: 0,
+      align: "right"
     });
   });
 }
@@ -412,54 +479,24 @@ async function renderChipAssets(chip, context) {
   const transmissionPlot = buildTransmissionSpectrumPlotSpec({ chip, projectCode: context.projectCode });
 
   return {
-    fit: fitPlot ? blobToDataUrl(await renderPlotSpecToPng(fitPlot, 2200, 1300, 2)) : null,
-    spectrum: spectrumPlot ? blobToDataUrl(await renderPlotSpecToPng(spectrumPlot, 2200, 1200, 2)) : null,
-    transmission: transmissionPlot ? blobToDataUrl(await renderPlotSpecToPng(transmissionPlot, 2400, 1200, 2)) : null
+    fit: fitPlot ? blobToDataUrl(await renderPlotSpecToPng(fitPlot, 2800, 1700, 2)) : null,
+    spectrum: spectrumPlot ? blobToDataUrl(await renderPlotSpecToPng(spectrumPlot, 2800, 1650, 2)) : null,
+    transmission: transmissionPlot ? blobToDataUrl(await renderPlotSpecToPng(transmissionPlot, 3000, 1650, 2)) : null
   };
 }
 
-function addChipSlide(pptx, context, chip, assets, index, total) {
-  const slide = pptx.addSlide();
-  addSlideFrame(slide, `${context.projectCode} | ${context.slotLabel} | ${chip.chipId}`, `Propagation report section | ${locationLabel(chip)} | Slide ${index + 1} of ${total}`, `Chip ${index + 1}/${total}`);
+function addChipSlides(pptx, context, chip, assets, index, total) {
+  const metrics = buildChipMetricPairs(chip);
 
-  addImageOrPlaceholder(slide, assets.fit, { x: 0.42, y: 1.48, w: 5.85, h: 2.58 }, "Propagation loss fit");
-  addImageOrPlaceholder(slide, assets.transmission, { x: 6.42, y: 1.48, w: 6.46, h: 2.58 }, "Transmission spectrum");
-  addImageOrPlaceholder(slide, assets.spectrum, { x: 0.42, y: 4.18, w: 7.18, h: 2.5 }, "Propagation loss spectrum");
+  const overviewSlide = pptx.addSlide();
+  addSlideFrame(overviewSlide, `${context.projectCode} | ${context.slotLabel} | ${chip.chipId}`, `Propagation report section | ${locationLabel(chip)} | Overview`, `Chip ${index + 1}/${total} - A`);
+  addImageOrPlaceholder(overviewSlide, assets.fit, { x: 0.36, y: 1.42, w: 6.15, h: 5.6 }, "Propagation loss fit");
+  addImageOrPlaceholder(overviewSlide, assets.transmission, { x: 6.82, y: 1.42, w: 6.15, h: 5.6 }, "Transmission spectrum");
 
-  slide.addShape("roundRect", {
-    x: 7.78,
-    y: 4.18,
-    w: 5.1,
-    h: 2.5,
-    rectRadius: 0.05,
-    line: { color: BORDER, pt: 1 },
-    fill: { color: WHITE }
-  });
-  slide.addText("Chip metrics", { x: 8.0, y: 4.34, w: 2.0, h: 0.18, fontFace: TITLE_FONT, fontSize: 16, bold: true, color: TEXT, margin: 0 });
-  slide.addTable([
-    ["Chip", chip.chipId],
-    ["Location", locationLabel(chip)],
-    ["Propagation loss", formatMetric(chip.lossDbPerCm, "dB/cm")],
-    ["MSE", formatNumber(chip.mse, 4)],
-    ["Fit status", chipStatus(chip)],
-    ["Peak wavelength", formatMetric(chip.transmissionSummary?.peakWavelengthNm, "nm", 1)],
-    ["Insertion loss", formatMetric(chip.transmissionSummary?.insertionLossDb, "dB")],
-    ["3 dB bandwidth", formatMetric(chip.transmissionSummary?.bandwidth3dBNm, "nm", 1)],
-    ["Fit points", String(chip.samples?.length || 0)],
-    ["Spectral points", String(chip.spectralSeries?.length || 0)]
-  ], {
-    x: 7.98,
-    y: 4.68,
-    w: 4.72,
-    border: { type: "solid", pt: 1, color: BORDER },
-    fill: WHITE,
-    fontFace: BODY_FONT,
-    fontSize: 9.5,
-    color: TEXT,
-    margin: 0.04,
-    colW: [1.95, 2.77],
-    rowH: 0.19
-  });
+  const spectrumSlide = pptx.addSlide();
+  addSlideFrame(spectrumSlide, `${context.projectCode} | ${context.slotLabel} | ${chip.chipId}`, `Propagation report section | ${locationLabel(chip)} | Spectrum and metrics`, `Chip ${index + 1}/${total} - B`);
+  addImageOrPlaceholder(spectrumSlide, assets.spectrum, { x: 0.36, y: 1.48, w: 8.8, h: 5.35 }, "Propagation loss spectrum");
+  addMetricListPanel(spectrumSlide, "Chip metrics", metrics, { x: 9.38, y: 1.66, w: 3.35, h: 4.25 });
 }
 
 export async function generatePowerPointReport({
@@ -518,7 +555,7 @@ export async function generatePowerPointReport({
       spectrum: await renderedAssets.spectrum,
       transmission: await renderedAssets.transmission
     };
-    addChipSlide(pptx, context, chip, assets, index, metrics.propagation.byChip.length);
+    addChipSlides(pptx, context, chip, assets, index, metrics.propagation.byChip.length);
   }
 
   onProgress?.("Finalizing PowerPoint file...");

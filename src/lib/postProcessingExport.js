@@ -6,10 +6,10 @@ import { shortChipLabel } from "./waferTemplates";
 const PLOTLY_CDN = "https://cdn.plot.ly/plotly-2.35.2.min.js";
 const PLOT_FONT = "IBM Plex Sans, Arial, sans-serif";
 const PLOT_COLORS = ["#4f8df3", "#ff8f45", "#0f8a83", "#9d5cf6", "#d6658f", "#2f7d68"];
-const PLOT_TITLE_FONT_SIZE = 30;
-const PLOT_AXIS_TITLE_FONT_SIZE = 22;
-const PLOT_AXIS_TICK_FONT_SIZE = 18;
-const PLOT_LEGEND_FONT_SIZE = 18;
+const PLOT_TITLE_FONT_SIZE = 40;
+const PLOT_AXIS_TITLE_FONT_SIZE = 28;
+const PLOT_AXIS_TICK_FONT_SIZE = 24;
+const PLOT_LEGEND_FONT_SIZE = 22;
 
 let plotlyPromise = null;
 
@@ -571,7 +571,7 @@ function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, tit
       const fill = cell ? colorForValue(visible ? cell.value : null, range) : "#f4f7f8";
       gridCells.push(`
         <rect x="${cellX + 4}" y="${cellY + 4}" width="${cellSize - 8}" height="${cellSize - 8}" rx="12" fill="${fill}" stroke="#d7e2e6" stroke-width="1.5" />
-        ${label ? `<text x="${cellX + cellSize / 2}" y="${cellY + cellSize / 2 + 6}" text-anchor="middle" font-family="${PLOT_FONT}" font-size="${overlayMode === "value" ? 16 : 18}" font-weight="600" fill="#16323b">${escapeXml(label)}</text>` : ""}
+        ${label ? `<text x="${cellX + cellSize / 2}" y="${cellY + cellSize / 2 + (overlayMode === "value" ? 6 : 7)}" text-anchor="middle" font-family="${PLOT_FONT}" font-size="${overlayMode === "value" ? (includeHeader ? 16 : 18) : (includeHeader ? 18 : 21)}" font-weight="600" fill="#16323b">${escapeXml(label)}</text>` : ""}
       `);
     }
   }
@@ -622,8 +622,8 @@ async function svgToPngBlob(svgText, width, height) {
   }
 }
 
-export async function buildWaferMapPng({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax }) {
-  const svg = buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax });
+export async function buildWaferMapPng({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax, includeHeader = true }) {
+  const svg = buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax, includeHeader });
   return svgToPngBlob(svg, 2200, 1650);
 }
 

@@ -87,6 +87,18 @@ label.upload-measurement-button {
 
 .brand-mark {
   padding: 8px 6px 14px;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+}
+
+.brand-logo {
+  display: block;
+  width: 100%;
+  max-width: 128px;
+  max-height: 58px;
+  object-fit: contain;
+  object-position: left center;
 }
 
 .brand-wafer {
@@ -204,7 +216,7 @@ label.upload-measurement-button {
 
 .dashboard-header-filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(360px, 1fr) minmax(190px, auto);
   gap: 10px;
   align-items: end;
 }
@@ -242,6 +254,15 @@ label.upload-measurement-button {
   border: none;
   background: transparent;
   color: var(--text);
+}
+
+.quick-dataset-field,
+.quick-dataset-field select {
+  min-width: 0;
+}
+
+.quick-dataset-field select {
+  text-overflow: ellipsis;
 }
 
 .upload-measurement-button {

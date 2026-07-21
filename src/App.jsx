@@ -750,24 +750,13 @@ function SidebarSection({ section, activeTab, onSelect }) {
   );
 }
 
-function FilterField({ label, value, onChange, options, icon = null }) {
-  const safeOptions = options.length ? options : [""];
-
-  return (
-    <label className="filter-field">
-      <span>{label}</span>
-      <div>
-        {icon ? <i>{icon}</i> : null}
-        <select value={value} onChange={(event) => onChange(event.target.value)}>
-          {safeOptions.map((option, index) => (
-            <option key={`${label}-${option || index}`} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </div>
-    </label>
-  );
+function quickDatasetLabel(dataset = {}) {
+  const presentation = getDatasetPresentation(dataset);
+  const name = dataset.label || dataset.display?.shortLabel || dataset.sourceMeta?.name || "Dataset snapshot";
+  const context = [presentation.projectDisplayName, presentation.slot, dataset.selectedDate]
+    .filter((value) => value && !/undefined/i.test(value))
+    .join(" - ");
+  return context ? `${name} (${context})` : name;
 }
 
 function MappingSelect({ label, value, columns, onChange, allowBlank = true }) {
@@ -1674,6 +1663,8 @@ export default function App() {
   const [settingsDraft, setSettingsDraft] = useState(initialSettings);
   const [waferTemplateDraft, setWaferTemplateDraft] = useState(DEFAULT_WAFER_TEMPLATE_DRAFT);
   const [loadingBundledId, setLoadingBundledId] = useState("");
+  const [quickDatasetSelection, setQuickDatasetSelection] = useState("");
+  const [brandLogoAvailable, setBrandLogoAvailable] = useState(true);
   const [publishingDatasetId, setPublishingDatasetId] = useState("");
   const [remoteLibraryDatasets, setRemoteLibraryDatasets] = useState(() => BUNDLED_LIBRARY_DATASETS.map(normalizeLibraryDataset));
   const [remoteLibraryStatus, setRemoteLibraryStatus] = useState("GitHub measurement library ready. Refresh to pull the latest published folders.");
@@ -2064,6 +2055,7 @@ export default function App() {
       setRawRows(rows);
       setColumnMap(inferredMap);
       setSourceMeta(nextSourceMeta);
+      setQuickDatasetSelection("");
       setStatusMessage(files.length === 1 ? `Loaded ${rows.length} rows from ${files[0].name}.` : `Loaded ${rows.length} rows from ${files.length} uploaded measurement files.`);
       appendAudit("upload", "Measurement file uploaded", `Loaded ${rows.length} rows from ${files.length} file(s) as ${sharedType}.`);
       pushToast("Files loaded", files.length === 1 ? `${files[0].name} loaded successfully.` : `${files.length} measurement files loaded.`, "success");
@@ -2079,7 +2071,7 @@ export default function App() {
     }
   }
   function clearWorkspace() {
-    setProjectName(""); setWaferName(""); setSelectedDate(""); setRawRows([]); setColumnMap({}); setSelectedChip("");
+    setProjectName(""); setWaferName(""); setSelectedDate(""); setRawRows([]); setColumnMap({}); setSelectedChip(""); setQuickDatasetSelection("");
     setSourceMeta(buildDefaultSourceMeta(appSettings));
     setStatusMessage("Workspace cleared. Upload a measurement set or load a saved project to begin.");
     setActiveTab("propagation");
@@ -2116,6 +2108,7 @@ export default function App() {
       setRawRows(rows);
       setColumnMap(inferredMap);
       setSourceMeta(nextSourceMeta);
+      setQuickDatasetSelection(`github:${definition.id}`);
       setSelectedWaferMetric("propagation");
       setSelectedChip(rows[0]?.chip_id || "");
       setActiveTab("propagation");
@@ -2260,10 +2253,24 @@ export default function App() {
     }
   }
   function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const currentPresentation = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }); const projectRecord = { id: createId("project"), projectName: currentPresentation.projectDisplayName, waferName: currentPresentation.waferDisplayName, slot: currentPresentation.slot, waveguideType: currentPresentation.waveguideType, measurementMode: currentPresentation.measurementMode, measurementType: currentPresentation.measurementType, datasetLabel: sourceMeta?.name || `${currentPresentation.projectDisplayName} ${currentPresentation.slot}`, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${currentPresentation.projectDisplayName} for slot ${currentPresentation.slot}.`); setStatusMessage(`Saved project ${currentPresentation.projectDisplayName}. You can reopen it later from the Projects section.`); }
-  function loadProject(project) { const presented = presentDataset(project); setProjectName(presented.projectDisplayName); setWaferName(presented.waferDisplayName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${presented.projectDisplayName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${presented.projectDisplayName} for wafer run ${presented.waferDisplayName}.`); }
+  function loadProject(project) { const presented = presentDataset(project); setProjectName(presented.projectDisplayName); setWaferName(presented.waferDisplayName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setQuickDatasetSelection(""); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${presented.projectDisplayName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${presented.projectDisplayName} for wafer run ${presented.waferDisplayName}.`); }
   function deleteProject(projectId) { const target = savedProjects.find((project) => project.id === projectId); setSavedProjects((previous) => previous.filter((project) => project.id !== projectId)); appendAudit("project", "Project deleted", `Deleted saved project ${target?.projectName || projectId}.`); }
   function saveCurrentDataset(autoSaved = false) { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Dataset save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("dataset", autoSaved ? "Dataset auto-save skipped" : "Dataset save skipped", detail); pushToast(autoSaved ? "Auto-save skipped" : "Dataset save skipped", "This dataset is too large for reliable browser storage.", "progress"); return; } const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
-  function loadDataset(dataset) { const presented = presentDataset(dataset); setProjectName(presented.projectDisplayName || projectName); setWaferName(presented.waferDisplayName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(dataset.rawRows || []); setColumnMap(dataset.columnMap || {}); setSourceMeta(dataset.sourceMeta || buildDefaultSourceMeta(appSettings)); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${presented.projectDisplayName}.`); }
+  function loadDataset(dataset) { const presented = presentDataset(dataset); const rows = dataset.rawRows || []; setProjectName(presented.projectDisplayName || projectName); setWaferName(presented.waferDisplayName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(rows); setColumnMap(dataset.columnMap || {}); setSourceMeta(dataset.sourceMeta || buildDefaultSourceMeta(appSettings)); setQuickDatasetSelection(`local:${dataset.id}`); setSelectedChip(rows[0]?.chip_id || ""); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${presented.projectDisplayName}.`); }
+  async function handleQuickDatasetLoad(value) {
+    if (!value) return;
+    setQuickDatasetSelection(value);
+    const separator = value.indexOf(":");
+    const source = value.slice(0, separator);
+    const datasetId = value.slice(separator + 1);
+    if (source === "github") {
+      const dataset = remoteLibraryDatasets.find((item) => String(item.id) === datasetId);
+      if (dataset) await loadBundledDataset(dataset, "dataset");
+      return;
+    }
+    const dataset = currentDatasetRows.find((item) => String(item.id) === datasetId);
+    if (dataset) loadDataset(dataset);
+  }
   function deleteDataset(datasetId) { const target = savedDatasets.find((dataset) => dataset.id === datasetId); setSavedDatasets((previous) => previous.filter((dataset) => dataset.id !== datasetId)); appendAudit("dataset", "Dataset deleted", `Deleted dataset snapshot ${target?.label || datasetId}.`); }
   function updateGithubConfig(field, value) { setGithubConfig((previous) => ({ ...previous, [field]: value })); }
   function saveGithubConfig() { persistStoredJson(STORAGE_KEYS.github, githubConfig); setStatusMessage(`Saved GitHub sync settings for ${githubConfig.owner}/${githubConfig.repo} on ${githubConfig.branch}.`); appendAudit("github", "GitHub settings saved", `Saved GitHub dataset sync settings for ${githubConfig.owner}/${githubConfig.repo}.`); pushToast("GitHub settings saved", `${githubConfig.owner}/${githubConfig.repo} stored in this browser.`, "success"); }
@@ -2364,20 +2371,6 @@ export default function App() {
     ...dataset,
     ...getDatasetPresentation(dataset)
   }));
-  const knownDatasetContexts = [
-    ...remoteLibraryDatasets.map((dataset) => presentDataset(dataset)),
-    ...savedProjects.map((project) => presentDataset(project)),
-    ...currentDatasetRows.map((dataset) => presentDataset(dataset)),
-    ...(projectName || waferName ? [{ projectName, waferName, projectDisplayName: projectName, waferDisplayName: waferName }] : [])
-  ];
-  const projectOptions = uniqueOptions([projectName, ...knownDatasetContexts.map((item) => item.projectDisplayName || item.projectName)].filter(Boolean));
-  const waferOptions = uniqueOptions([
-    waferName,
-    ...knownDatasetContexts
-      .filter((item) => !projectName || (item.projectDisplayName || item.projectName) === projectName)
-      .map((item) => item.slot || item.waferDisplayName || item.waferName)
-  ].filter(Boolean));
-  const dateOptions = uniqueOptions([selectedDate, ...savedProjects.map((project) => project.selectedDate), ...remoteLibraryDatasets.map((dataset) => dataset.selectedDate)].filter(Boolean));
   const bundledProjectRows = remoteLibraryDatasets.map((definition) => {
     const presented = presentDataset(definition);
     return (
@@ -2400,7 +2393,9 @@ export default function App() {
       <ToastTray items={toastItems} />
       <div className="dashboard-shell">
         <aside className="dashboard-rail">
-          <div className="brand-mark"><div className="brand-wafer" /></div>
+          <div className="brand-mark">
+            {brandLogoAvailable ? <img className="brand-logo" src={bundledAssetUrl("cornerstone_logo.png")} alt="CORNERSTONE" onError={() => setBrandLogoAvailable(false)} /> : <div className="brand-wafer" aria-label="CORNERSTONE logo placeholder" />}
+          </div>
           {RAIL_SECTIONS.map((section) => <SidebarSection key={section.title} section={section} activeTab={activeTab} onSelect={updateTab} />)}
           <div className="rail-user"><div className="rail-avatar">{railAvatar}</div><div><strong>{appSettings.operatorName}</strong><span>{appSettings.operatorRole}</span></div></div>
         </aside>
@@ -2412,9 +2407,21 @@ export default function App() {
               <p>Normalize txt and xlsx into one analysis pipeline</p>
             </div>
             <div className="dashboard-header-filters">
-              <FilterField label="Project" value={projectName} onChange={setProjectName} options={projectOptions} />
-              <FilterField label="Slot" value={waferName} onChange={setWaferName} options={waferOptions} />
-              <FilterField label="Date" value={selectedDate} onChange={setSelectedDate} options={dateOptions} icon="Cal" />
+              <label className="filter-field quick-dataset-field">
+                <span>Quick Load Dataset</span>
+                <div>
+                  <i>Data</i>
+                  <select aria-label="Quick Load Dataset" value={quickDatasetSelection} onChange={(event) => handleQuickDatasetLoad(event.target.value)} disabled={Boolean(loadingBundledId)}>
+                    <option value="">{loadingBundledId ? "Loading dataset..." : "Select a GitHub or local dataset"}</option>
+                    <optgroup label="GitHub Measurement Data Library">
+                      {remoteLibraryDatasets.map((dataset) => <option key={`quick-github-${dataset.id}`} value={`github:${dataset.id}`}>{quickDatasetLabel(dataset)}</option>)}
+                    </optgroup>
+                    {currentDatasetRows.length ? <optgroup label="Local Dataset Snapshots">
+                      {currentDatasetRows.map((dataset) => <option key={`quick-local-${dataset.id}`} value={`local:${dataset.id}`}>{quickDatasetLabel(dataset)}</option>)}
+                    </optgroup> : null}
+                  </select>
+                </div>
+              </label>
               <label className="upload-measurement-button"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleFileUpload} disabled={isUploadingFiles} /><span>{isUploadingFiles ? "Processing Files..." : "Upload Measurement Files"}</span></label>
             </div>
           </header>

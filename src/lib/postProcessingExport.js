@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { buildStoredZip } from "./manualConversion";
 import { getMetricRange, metricLabel } from "./analysis";
+import { shortChipLabel } from "./waferTemplates";
 
 const PLOTLY_CDN = "https://cdn.plot.ly/plotly-2.35.2.min.js";
 const PLOT_FONT = "IBM Plex Sans, Arial, sans-serif";
@@ -565,12 +566,12 @@ function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, tit
       const label = visible && cell
         ? overlayMode === "value" && cell.value !== null && cell.value !== undefined
           ? formatNumber(cell.value, metricKey === "heater" ? 1 : 2)
-          : overlayMode === "chip" ? cell.chipId : ""
+          : overlayMode === "chip" ? shortChipLabel(cell.chipId) : ""
         : "";
       const fill = cell ? colorForValue(visible ? cell.value : null, range) : "#f4f7f8";
       gridCells.push(`
         <rect x="${cellX + 4}" y="${cellY + 4}" width="${cellSize - 8}" height="${cellSize - 8}" rx="12" fill="${fill}" stroke="#d7e2e6" stroke-width="1.5" />
-        ${label ? `<text x="${cellX + cellSize / 2}" y="${cellY + cellSize / 2 + 6}" text-anchor="middle" font-family="${PLOT_FONT}" font-size="${overlayMode === "value" ? 16 : 15}" font-weight="600" fill="#16323b">${escapeXml(label)}</text>` : ""}
+        ${label ? `<text x="${cellX + cellSize / 2}" y="${cellY + cellSize / 2 + 6}" text-anchor="middle" font-family="${PLOT_FONT}" font-size="${overlayMode === "value" ? 16 : 18}" font-weight="600" fill="#16323b">${escapeXml(label)}</text>` : ""}
       `);
     }
   }
@@ -623,7 +624,7 @@ async function svgToPngBlob(svgText, width, height) {
 
 export async function buildWaferMapPng({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax }) {
   const svg = buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax });
-  return svgToPngBlob(svg, 1600, 1200);
+  return svgToPngBlob(svg, 2200, 1650);
 }
 
 function workbookBytes({ projectCode, slotLabel, selectedDate, summaryRows, propagationMetrics }) {

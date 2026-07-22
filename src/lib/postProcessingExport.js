@@ -513,7 +513,7 @@ function colorForValue(value, range) {
   const ratio = (value - range.mid) / Math.max(range.max - range.mid, 0.0001);
   return mixHexColors(WAFER_SCALE_COLORS.medium, WAFER_SCALE_COLORS.high, ratio);
 }
-function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax }) {
+function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax, includeHeader = true }) {
   const validCells = Array.isArray(cells) ? cells : [];
   const rowValues = Array.from(new Set(validCells.map((cell) => cell.dieY).filter((value) => value !== null && value !== undefined))).sort((a, b) => b - a);
   const cols = Math.max(arrayMax(validCells.map((cell) => cell.dieX || 0), 0), 1);

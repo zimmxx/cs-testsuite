@@ -2576,8 +2576,8 @@ export default function App() {
                 <article className="analysis-card wide-span">
                   <div className="analysis-card-head">
                     <div>
-                      <h2>Transmission Spectrum</h2>
-                      <p>Overlay of all waveguide spectra for the selected chip, inspired by the MATLAB chip transmission figure set.</p>
+                      <h2>Loss Spectrum</h2>
+                      <p>Overlay of all waveguide loss traces for the selected chip, aligned with the raw measurement view rather than launch-power-shifted output power.</p>
                     </div>
                   </div>
                   <InteractiveTransmissionSpectrumPlot series={propagationLead?.transmissionSeries ?? []} targetWavelengthNm={sourceMeta.propagationTargetWavelengthNm} chipId={propagationLead?.chipId || selectedChip} />
@@ -2611,80 +2611,4 @@ export default function App() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

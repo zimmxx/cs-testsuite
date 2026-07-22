@@ -57,8 +57,8 @@ function propagationLossValue(row) {
 }
 
 function transmissionValue(row) {
-  if (row.transmission_db !== null && row.transmission_db !== undefined) return row.transmission_db;
-  if (row.loss_db !== null && row.loss_db !== undefined) return -row.loss_db;
+  if (row.loss_db !== null && row.loss_db !== undefined) return row.loss_db;
+  if (row.transmission_db !== null && row.transmission_db !== undefined) return Math.abs(row.transmission_db);
   return null;
 }
 
@@ -169,10 +169,10 @@ function summarizeTransmission(series) {
   const wg1 = series.find((item) => item.waveguideId === "WG1") || series[0] || null;
   if (!wg1 || !wg1.points.length) return null;
   const transmissionValues = wg1.points.map((point) => point.transmissionDb);
-  const peakTransmissionDb = arrayMax(transmissionValues);
-  const peakPoint = wg1.points.find((point) => point.transmissionDb === peakTransmissionDb) || null;
-  const halfMax = peakTransmissionDb - 3;
-  const withinBandwidth = wg1.points.filter((point) => point.transmissionDb >= halfMax);
+  const minimumLossDb = arrayMin(transmissionValues);
+  const peakPoint = wg1.points.find((point) => point.transmissionDb === minimumLossDb) || null;
+  const lossThreshold = minimumLossDb + 3;
+  const withinBandwidth = wg1.points.filter((point) => point.transmissionDb <= lossThreshold);
   const bandwidthNm = withinBandwidth.length
     ? withinBandwidth[withinBandwidth.length - 1].wavelengthNm - withinBandwidth[0].wavelengthNm
     : null;
@@ -180,8 +180,8 @@ function summarizeTransmission(series) {
   return {
     waveguideId: wg1.waveguideId,
     peakWavelengthNm: peakPoint?.wavelengthNm ?? null,
-    peakTransmissionDb,
-    insertionLossDb: Math.abs(peakTransmissionDb),
+    peakTransmissionDb: minimumLossDb,
+    insertionLossDb: minimumLossDb,
     bandwidth3dBNm: bandwidthNm
   };
 }
@@ -509,5 +509,4 @@ export function chipFields() {
 export function numeric(value) {
   return toNumber(value);
 }
-
 

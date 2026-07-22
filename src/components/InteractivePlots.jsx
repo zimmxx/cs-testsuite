@@ -246,7 +246,7 @@ export function InteractivePropagationPlot({ rows, fit, chipId }) {
           ticks: "outside"
         },
         yaxis: {
-          title: "Transmission (dB)",
+          title: "Loss (dB)",
           zeroline: false,
           gridcolor: "#e3ecef",
           linecolor: "#9db2b8",
@@ -380,7 +380,7 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
         x: item.points.map((point) => point.wavelengthNm),
         y: item.points.map((point) => point.transmissionDb),
         line: { color: palette[index % palette.length], width: 2.4 },
-        hovertemplate: `${item.waveguideId}<br>Wavelength: %{x:.2f} nm<br>Transmission: %{y:.2f} dB<extra></extra>`
+        hovertemplate: `${item.waveguideId}<br>Wavelength: %{x:.2f} nm<br>Loss: %{y:.2f} dB<extra></extra>`
       })),
       layout: {
         margin: { l: 66, r: 24, t: 18, b: 56 },
@@ -398,7 +398,7 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
           ticks: "outside"
         },
         yaxis: {
-          title: "Transmission (dB)",
+          title: "Loss (dB)",
           zeroline: false,
           gridcolor: "#e3ecef",
           linecolor: "#9db2b8",
@@ -428,9 +428,10 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
       data={plot?.data || []}
       layout={plot?.layout || {}}
       config={plot?.config || {}}
-      windowTitle={`Transmission Spectrum - ${chipId || "Chip"}`}
-      emptyMessage="No transmission spectra are available for the selected chip."
+      windowTitle={`Loss Spectrum - ${chipId || "Chip"}`}
+      emptyMessage="No loss spectra are available for the selected chip."
       height={220}
     />
   );
 }
+

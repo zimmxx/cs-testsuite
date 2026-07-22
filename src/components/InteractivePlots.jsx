@@ -399,6 +399,7 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
         },
         yaxis: {
           title: "Loss (dB)",
+          autorange: "reversed",
           zeroline: false,
           gridcolor: "#e3ecef",
           linecolor: "#9db2b8",

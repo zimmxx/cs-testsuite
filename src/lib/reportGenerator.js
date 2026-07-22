@@ -370,21 +370,21 @@ function addWafermapSlides(pptx, context, wafermapViews) {
     const slide = pptx.addSlide();
     addSlideFrame(slide, "Wafermaps", `${context.projectCode} | ${context.slotLabel} | Spatial summary of measured chips`, `Wafermaps ${index + 1}/${groups.length}`);
     const layouts = group.length === 1
-      ? [{ titleX: 0.52, imageX: 0.98, imageW: 11.1 }]
+      ? [{ titleX: 0.54, imageX: 1.02, imageW: 11.0 }]
       : [
-        { titleX: 0.52, imageX: 0.36, imageW: 6.18 },
-        { titleX: 6.78, imageX: 6.8, imageW: 6.18 }
+        { titleX: 0.54, imageX: 0.46, imageW: 5.88 },
+        { titleX: 6.98, imageX: 6.98, imageW: 5.88 }
       ];
 
     group.forEach((view, itemIndex) => {
       const layout = layouts[itemIndex];
       slide.addText(view.title.replace("Wafermap - ", ""), {
         x: layout.titleX,
-        y: 1.35,
+        y: 1.28,
         w: layout.imageW,
-        h: 0.24,
+        h: 0.22,
         fontFace: TITLE_FONT,
-        fontSize: 18,
+        fontSize: 16,
         bold: true,
         color: TEXT,
         margin: 0
@@ -392,10 +392,10 @@ function addWafermapSlides(pptx, context, wafermapViews) {
       slide.addImage({
         data: view.dataUrl,
         x: layout.imageX,
-        y: 1.66,
+        y: 1.62,
         w: layout.imageW,
-        h: 5.5,
-        sizing: { type: "contain", w: layout.imageW, h: 5.5 }
+        h: 5.28,
+        sizing: { type: "contain", w: layout.imageW, h: 5.28 }
       });
     });
   });
@@ -430,35 +430,35 @@ function addMetricListPanel(slide, title, rows, box) {
     x: box.x + 0.18,
     y: box.y + 0.14,
     w: box.w - 0.36,
-    h: 0.24,
+    h: 0.22,
     fontFace: TITLE_FONT,
-    fontSize: 19,
+    fontSize: 16,
     bold: true,
     color: TEXT,
     margin: 0
   });
 
-  const startY = box.y + 0.48;
+  const startY = box.y + 0.46;
   const rowHeight = 0.19;
   rows.forEach(([label, value], index) => {
     const rowY = startY + index * rowHeight;
     slide.addText(label, {
-      x: box.x + 0.2,
+      x: box.x + 0.18,
       y: rowY,
       w: box.w * 0.45,
-      h: 0.15,
+      h: 0.14,
       fontFace: BODY_FONT,
-      fontSize: 10.5,
+      fontSize: 9.5,
       color: MUTED,
       margin: 0
     });
     slide.addText(value, {
       x: box.x + box.w * 0.48,
       y: rowY,
-      w: box.w * 0.47 - 0.18,
-      h: 0.15,
+      w: box.w * 0.47 - 0.16,
+      h: 0.14,
       fontFace: BODY_FONT,
-      fontSize: 10.5,
+      fontSize: 9.5,
       bold: true,
       color: TEXT,
       margin: 0,
@@ -479,26 +479,22 @@ async function renderChipAssets(chip, context) {
   const transmissionPlot = buildTransmissionSpectrumPlotSpec({ chip, projectCode: context.projectCode });
 
   return {
-    fit: fitPlot ? blobToDataUrl(await renderPlotSpecToPng(fitPlot, 2800, 1700, 2)) : null,
-    spectrum: spectrumPlot ? blobToDataUrl(await renderPlotSpecToPng(spectrumPlot, 2800, 1650, 2)) : null,
-    transmission: transmissionPlot ? blobToDataUrl(await renderPlotSpecToPng(transmissionPlot, 3000, 1650, 2)) : null
+    fit: fitPlot ? blobToDataUrl(await renderPlotSpecToPng(fitPlot, 2700, 1180, 2)) : null,
+    spectrum: spectrumPlot ? blobToDataUrl(await renderPlotSpecToPng(spectrumPlot, 3000, 1060, 2)) : null,
+    transmission: transmissionPlot ? blobToDataUrl(await renderPlotSpecToPng(transmissionPlot, 2850, 1180, 2)) : null
   };
 }
 
 function addChipSlides(pptx, context, chip, assets, index, total) {
+  const slide = pptx.addSlide();
   const metrics = buildChipMetricPairs(chip);
+  addSlideFrame(slide, `${context.projectCode} | ${context.slotLabel} | ${chip.chipId}`, `Propagation report section | ${locationLabel(chip)} | Slide ${index + 1} of ${total}`, `Chip ${index + 1}/${total}`);
 
-  const overviewSlide = pptx.addSlide();
-  addSlideFrame(overviewSlide, `${context.projectCode} | ${context.slotLabel} | ${chip.chipId}`, `Propagation report section | ${locationLabel(chip)} | Overview`, `Chip ${index + 1}/${total} - A`);
-  addImageOrPlaceholder(overviewSlide, assets.fit, { x: 0.36, y: 1.42, w: 6.15, h: 5.6 }, "Propagation loss fit");
-  addImageOrPlaceholder(overviewSlide, assets.transmission, { x: 6.82, y: 1.42, w: 6.15, h: 5.6 }, "Transmission spectrum");
-
-  const spectrumSlide = pptx.addSlide();
-  addSlideFrame(spectrumSlide, `${context.projectCode} | ${context.slotLabel} | ${chip.chipId}`, `Propagation report section | ${locationLabel(chip)} | Spectrum and metrics`, `Chip ${index + 1}/${total} - B`);
-  addImageOrPlaceholder(spectrumSlide, assets.spectrum, { x: 0.36, y: 1.48, w: 8.8, h: 5.35 }, "Propagation loss spectrum");
-  addMetricListPanel(spectrumSlide, "Chip metrics", metrics, { x: 9.38, y: 1.66, w: 3.35, h: 4.25 });
+  addImageOrPlaceholder(slide, assets.fit, { x: 0.38, y: 1.44, w: 6.02, h: 2.46 }, "Propagation loss fit");
+  addImageOrPlaceholder(slide, assets.transmission, { x: 6.66, y: 1.44, w: 6.24, h: 2.46 }, "Transmission spectrum");
+  addImageOrPlaceholder(slide, assets.spectrum, { x: 0.38, y: 4.14, w: 8.64, h: 2.74 }, "Propagation loss spectrum");
+  addMetricListPanel(slide, "Chip metrics", metrics, { x: 9.2, y: 4.16, w: 3.48, h: 2.72 });
 }
-
 export async function generatePowerPointReport({
   projectCode,
   slotLabel,

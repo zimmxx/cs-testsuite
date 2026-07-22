@@ -7,11 +7,11 @@ This folder contains GitHub-hosted measurement traces for MPWUNDEFINED.
 - Wafer: SlotUndefined
 - Measurement mode: Manual converted
 - Source type: Automated WST trace set
-- Date: 2026-07-20
-- Files: 35
-- Chips: Chip25, Chip49, Chip51, Chip53, Chip77
+- Date: 2026-07-22
+- Files: 49
+- Chips: Chip21, Chip25, Chip49, Chip51, Chip53, Chip77, Chip81
 - Waveguides: WG1, WG2, WG3, WG4, WG5, WG6, WG7
-- Normalized rows: 665035
+- Normalized rows: 931049
 - Wavelength span: 1525.000 nm to 1620.000 nm
 
 ## Filename Pattern

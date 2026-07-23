@@ -302,6 +302,7 @@ export function buildPropagationSpectrumPlotSpec({ chip, projectCode }) {
       },
       yaxis: {
         title: buildAxisTitle("Propagation loss (dB/cm)"),
+        autorange: "reversed",
         tickfont: { family: PLOT_FONT, size: PLOT_AXIS_TICK_FONT_SIZE, color: "#294650" },
         automargin: true,
         zeroline: false,

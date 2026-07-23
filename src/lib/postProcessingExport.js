@@ -359,7 +359,7 @@ export function buildTransmissionSpectrumPlotSpec({ chip, projectCode }) {
       x: item.points.map((point) => point.wavelengthNm),
       y: item.points.map((point) => point.transmissionDb),
       line: { color: PLOT_COLORS[index % PLOT_COLORS.length], width: 3.3 },
-      hovertemplate: `${item.waveguideId}<br>Wavelength: %{x:.2f} nm<br>Transmission: %{y:.2f} dB<extra></extra>`
+      hovertemplate: `${item.waveguideId}<br>Wavelength: %{x:.2f} nm<br>Loss: %{y:.2f} dB<extra></extra>`
     })),
     layout: {
       width: 1600,
@@ -369,7 +369,7 @@ export function buildTransmissionSpectrumPlotSpec({ chip, projectCode }) {
       plot_bgcolor: "#fbfcfc",
       hovermode: "x unified",
       title: {
-        text: `Project: ${projectCode} | ${chip.chipId} | Transmission Spectrum`,
+        text: `Project: ${projectCode} | ${chip.chipId} | Loss Spectrum`,
         x: 0.02,
         xanchor: "left",
         xref: "container",
@@ -394,7 +394,8 @@ export function buildTransmissionSpectrumPlotSpec({ chip, projectCode }) {
         ticks: "outside"
       },
       yaxis: {
-        title: buildAxisTitle("Transmission (dB)"),
+        title: buildAxisTitle("Loss (dB)"),
+        autorange: "reversed",
         tickfont: { family: PLOT_FONT, size: PLOT_AXIS_TICK_FONT_SIZE, color: "#294650" },
         automargin: true,
         zeroline: false,

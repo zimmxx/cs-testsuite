@@ -145,6 +145,16 @@ function arrayMax(values, fallback = 0) {
   if (!values.length) return fallback;
   return values.reduce((max, value) => (value > max ? value : max), values[0]);
 }
+function wattsToDbm(powerW) {
+  if (powerW === null || powerW === undefined || powerW <= 0) return null;
+  return 10 * Math.log10(powerW * 1000);
+}
+
+function valueForSpectrumUnit(point, displayUnit) {
+  if (displayUnit === "watts") return point.opticalPowerW;
+  return point.lossDb ?? point.opticalPowerDbm ?? wattsToDbm(point.opticalPowerW);
+}
+
 
 function buildConfidenceBand(rows, fit) {
   if (!rows.length || !fit || rows.length < 3) return null;
@@ -369,18 +379,21 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
   const plot = useMemo(() => {
     if (!series.length) return null;
 
-    const palette = ["#4f8df3", "#ff8f45", "#0f8a83", "#9d5cf6", "#d6658f", "#2f7d68"];
-    const minWavelength = arrayMin(series.flatMap((item) => item.points.map((point) => point.wavelengthNm)));
+    const visibleSeries = series.filter((item) => item.visible !== false);
+    if (!visibleSeries.length) return null;
+
+    const palette = ["#4f8df3", "#ff8f45", "#0f8a83", "#9d5cf6", "#d6658f", "#2f7d68", "#b94f9d", "#8b6b3f"];
+    const minWavelength = arrayMin(visibleSeries.flatMap((item) => item.points.map((point) => point.wavelengthNm)));
 
     return {
-      data: series.map((item, index) => ({
+      data: visibleSeries.map((item, index) => ({
         type: "scattergl",
         mode: "lines",
-        name: item.waveguideId,
+        name: item.label || item.waveguideId,
         x: item.points.map((point) => point.wavelengthNm),
         y: item.points.map((point) => point.transmissionDb),
         line: { color: palette[index % palette.length], width: 2.4 },
-        hovertemplate: `${item.waveguideId}<br>Wavelength: %{x:.2f} nm<br>Loss: %{y:.2f} dB<extra></extra>`
+        hovertemplate: `${item.label || item.waveguideId}<br>Wavelength: %{x:.2f} nm<br>Loss: %{y:.2f} dB<extra></extra>`
       })),
       layout: {
         margin: { l: 66, r: 24, t: 18, b: 56 },
@@ -435,4 +448,75 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
     />
   );
 }
+
+
+export function InteractiveSpectrumViewerPlot({ series, displayUnit = "db", chipId = "Spectrum Viewer" }) {
+  const plot = useMemo(() => {
+    if (!series.length) return null;
+
+    const visibleSeries = series.filter((item) => item.visible !== false);
+    if (!visibleSeries.length) return null;
+
+    const palette = ["#4f8df3", "#ff8f45", "#0f8a83", "#9d5cf6", "#d6658f", "#2f7d68", "#b94f9d", "#8b6b3f"];
+    const allWavelengths = visibleSeries.flatMap((item) => item.points.map((point) => point.wavelengthNm));
+    const minWavelength = arrayMin(allWavelengths);
+    const yTitle = displayUnit === "watts" ? "Power (W)" : "Loss (dB)";
+
+    return {
+      data: visibleSeries.map((item, index) => ({
+        type: "scattergl",
+        mode: "lines",
+        name: item.label,
+        x: item.points.map((point) => point.wavelengthNm),
+        y: item.points.map((point) => valueForSpectrumUnit(point, displayUnit)),
+        line: { color: palette[index % palette.length], width: 2.4 },
+        hovertemplate:
+          displayUnit === "watts"
+            ? `${item.label}<br>Wavelength: %{x:.2f} nm<br>Power: %{y:.4e} W<extra></extra>`
+            : `${item.label}<br>Wavelength: %{x:.2f} nm<br>Loss: %{y:.2f} dB<extra></extra>`
+      })),
+      layout: {
+        margin: { l: 66, r: 24, t: 18, b: 56 },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "#fbfcfc",
+        hovermode: "x unified",
+        xaxis: {
+          title: "Wavelength (nm)",
+          tickmode: "linear",
+          tick0: Math.floor(minWavelength / 10) * 10,
+          dtick: 10,
+          zeroline: false,
+          gridcolor: "#e3ecef",
+          linecolor: "#9db2b8",
+          ticks: "outside"
+        },
+        yaxis: {
+          title: yTitle,
+          autorange: displayUnit === "watts" ? true : "reversed",
+          zeroline: false,
+          gridcolor: "#e3ecef",
+          linecolor: "#9db2b8",
+          ticks: "outside"
+        },
+        legend: { orientation: "h", y: 1.16, x: 0 },
+        font: { family: "IBM Plex Sans, Arial, sans-serif", color: "#16323b" }
+      },
+      config: baseConfig(`${chipId || "viewer"}-spectrum-viewer`)
+    };
+  }, [chipId, displayUnit, series]);
+
+  return (
+    <PlotlyFigure
+      data={plot?.data || []}
+      layout={plot?.layout || {}}
+      config={plot?.config || {}}
+      windowTitle={`${chipId || "Spectrum Viewer"} - Spectrum Viewer`}
+      emptyMessage="Upload one or more files to visualize the spectra."
+      height={340}
+    />
+  );
+}
+
+
+
 

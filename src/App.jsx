@@ -15,6 +15,7 @@ import {
   normalizedRowsToCsv,
   readFileRows,
   readNamedTextRows,
+  readSpectrumFile,
   requiredColumns,
   sourceTypeLabel
 } from "./lib/parsers";
@@ -26,6 +27,7 @@ import { generatePowerPointReport } from "./lib/reportGenerator";
 import {
   InteractivePropagationPlot,
   InteractivePropagationSpectrumPlot,
+  InteractiveSpectrumViewerPlot,
   InteractiveTransmissionSpectrumPlot
 } from "./components/InteractivePlots";
 import ManualConversionPanel from "./components/ManualConversionPanel";
@@ -50,6 +52,7 @@ const RAIL_SECTIONS = [
       { id: "datasets", label: "Dataset Snapshots" },
       { id: "manual-conversion", label: "Manual Conversion" },
       { id: "comparison", label: "Comparison" },
+      { id: "spectrum-viewer", label: "Spectrum Viewer" },
       { id: "filename-conversion", label: "Filename Conversion" },
       { id: "wafermaps", label: "Wafermaps" },
       { id: "report-generator", label: "Report Generator" },
@@ -108,6 +111,7 @@ const DEFAULT_SETTINGS = {
   defaultMetricFamily: "propagation",
   autoSaveUploads: false,
   launchPowerDbm: 10,
+  traceInputUnit: "watts",
   propagationTargetWavelengthNm: 1550,
   propagationWindowNm: 5,
   propagationSpectralStepNm: 10,
@@ -151,8 +155,8 @@ const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
-  { label: "Feature Guide v0.1.0", path: "docs/releases/v0.1.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.1.0/FEATURES.md` },
-  { label: "Change Log v0.1.0", path: "docs/releases/v0.1.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.1.0/CHANGELOG.md` },
+  { label: "Feature Guide v0.2.0", path: "docs/releases/v0.2.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.2.0/FEATURES.md` },
+  { label: "Change Log v0.2.0", path: "docs/releases/v0.2.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.2.0/CHANGELOG.md` },
   { label: "Dataset Filename Standard", path: "docs/DATASET_FILENAME_STANDARD.md", href: `${REPO_DOC_BASE}docs/DATASET_FILENAME_STANDARD.md` }
 ];
 
@@ -378,6 +382,13 @@ function formatSavedTime(value) {
   return new Date(value).toLocaleString();
 }
 
+function inferSpectrumInputUnit(files = []) {
+  const names = files.map((file) => String(file?.name || "").toLowerCase());
+  if (!names.length) return "watts";
+  if (names.every((name) => name.endsWith(".xlsx") || name.endsWith(".xls"))) return "db";
+  return "watts";
+}
+
 function initialsFromName(name) {
   return (
     String(name || "SE")
@@ -516,6 +527,7 @@ function buildDefaultSourceMeta(settings) {
     defaultMetricFamily: settings.defaultMetricFamily,
     defaultWavelengthNm: settings.defaultWavelengthNm,
     launchPowerDbm: settings.launchPowerDbm,
+    traceInputUnit: settings.traceInputUnit || "watts",
     propagationTargetWavelengthNm: settings.propagationTargetWavelengthNm,
     propagationWindowNm: settings.propagationWindowNm,
     propagationSpectralStepNm: settings.propagationSpectralStepNm,
@@ -900,18 +912,35 @@ function buildMiniBars(values) {
   });
 }
 
-function metricValueForComparison(metricKey, item) {
+function metricValueForComparison(metricKey, item, insertionMetricField = "insertionLossDb") {
   if (!item) return null;
   if (metricKey === "propagation") return item.lossDbPerCm;
-  if (metricKey === "insertion") return item.insertionLossDb;
+  if (metricKey === "insertion") return item[insertionMetricField] ?? null;
   return item.efficiencyMwPerPi;
 }
 
 function metricDescriptorForComparison(metricKey, item) {
   if (!item) return "--";
   if (metricKey === "propagation") return `${item.samples?.length ?? 0} fit points`;
-  if (metricKey === "insertion") return `${item.blockCount ?? 0} blocks`;
+  if (metricKey === "insertion") return `${item.referenceWaveguideIds?.join(", ") || `${item.blockCount ?? 0} blocks`}`;
   return `${item.samples ?? 0} heater rows`;
+}
+
+function insertionMetricLabel(field) {
+  return {
+    insertionLossDb: "Insertion loss at peak",
+    insertionLossAt1550Db: "Insertion loss at 1550 nm",
+    peakWavelengthNm: "Peak wavelength",
+    bandwidth3dBNm: "3 dB bandwidth",
+    spectralFlatnessDb: "Spectral flatness"
+  }[field] || "Insertion metric";
+}
+
+function formatInsertionMetric(field, value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "--";
+  if (field === "peakWavelengthNm") return `${Number(value).toFixed(1)} nm`;
+  if (field === "bandwidth3dBNm") return `${Number(value).toFixed(1)} nm`;
+  return `${Number(value).toFixed(2)} dB`;
 }
 
 const WAFER_SCALE_COLORS = {
@@ -1038,12 +1067,12 @@ function WaferMapPanel({
     </div>
   );
 }
-function MetricComparisonPlot({ metricKey, items, selectedKey, onSelect, emptyMessage }) {
+function MetricComparisonPlot({ metricKey, items, selectedKey, onSelect, emptyMessage, insertionMetricField = "insertionLossDb" }) {
   if (!items.length) {
     return <div className="chart-empty">{emptyMessage}</div>;
   }
 
-  const values = items.map((item) => metricValueForComparison(metricKey, item)).filter((value) => value !== null && value !== undefined);
+  const values = items.map((item) => metricValueForComparison(metricKey, item, insertionMetricField)).filter((value) => value !== null && value !== undefined);
   const min = arrayMin(values);
   const max = arrayMax(values);
 
@@ -1051,7 +1080,7 @@ function MetricComparisonPlot({ metricKey, items, selectedKey, onSelect, emptyMe
     <div className="metric-comparison-plot">
       {items.slice(0, 12).map((item) => {
         const key = item.chipId;
-        const value = metricValueForComparison(metricKey, item);
+        const value = metricValueForComparison(metricKey, item, insertionMetricField);
         const ratio = value === null || value === undefined
           ? 0
           : max === min
@@ -1071,7 +1100,7 @@ function MetricComparisonPlot({ metricKey, items, selectedKey, onSelect, emptyMe
             <div className="metric-comparison-track">
               <span style={{ width: `${ratio * 100}%` }} />
             </div>
-            <div className="metric-comparison-value">{formatMetric(metricKey, value)}</div>
+            <div className="metric-comparison-value">{metricKey === "insertion" ? formatInsertionMetric(insertionMetricField, value) : formatMetric(metricKey, value)}</div>
           </button>
         );
       })}
@@ -1079,7 +1108,7 @@ function MetricComparisonPlot({ metricKey, items, selectedKey, onSelect, emptyMe
   );
 }
 
-function MetricInspector({ metricKey, item, sourceMeta }) {
+function MetricInspector({ metricKey, item, sourceMeta, insertionDeviceLabel = "Selected Device" }) {
   if (!item) {
     return (
       <aside className="fit-results-card metric-inspector-card">
@@ -1107,11 +1136,16 @@ function MetricInspector({ metricKey, item, sourceMeta }) {
   if (metricKey === "insertion") {
     return (
       <aside className="fit-results-card metric-inspector-card">
-        <h3>Insertion Inspector</h3>
+        <h3>{insertionDeviceLabel} Inspector</h3>
         <ResultKeyValue label="Chip" value={item.chipId} />
-        <ResultKeyValue label="Mean insertion loss" value={formatMetric("insertion", item.insertionLossDb ?? null)} />
+        <ResultKeyValue label="Insertion loss at peak" value={formatMetric("insertion", item.insertionLossDb ?? null)} />
+        <ResultKeyValue label="Insertion loss at 1550 nm" value={item.insertionLossAt1550Db !== null && item.insertionLossAt1550Db !== undefined ? `${item.insertionLossAt1550Db.toFixed(2)} dB` : "--"} />
         <ResultKeyValue label="Blocks tracked" value={String(item.blockCount ?? 0)} />
         <ResultKeyValue label="Building blocks" value={item.blockNames?.join(", ") || "--"} />
+        <ResultKeyValue label="Reference WG" value={item.referenceWaveguideIds?.join(", ") || "WG1 / shortest trace"} />
+        <ResultKeyValue label="Peak wavelength" value={item.peakWavelengthNm !== null && item.peakWavelengthNm !== undefined ? `${item.peakWavelengthNm.toFixed(1)} nm` : "--"} />
+        <ResultKeyValue label="3 dB bandwidth" value={item.bandwidth3dBNm !== null && item.bandwidth3dBNm !== undefined ? `${item.bandwidth3dBNm.toFixed(1)} nm` : "--"} />
+        <ResultKeyValue label="Spectral flatness" value={item.spectralFlatnessDb !== null && item.spectralFlatnessDb !== undefined ? `${item.spectralFlatnessDb.toFixed(2)} dB` : "--"} />
         <ResultKeyValue label="Die position" value={item.dieX !== null && item.dieY !== null ? `${item.dieX}, ${item.dieY}` : "--"} />
       </aside>
     );
@@ -1125,6 +1159,41 @@ function MetricInspector({ metricKey, item, sourceMeta }) {
       <ResultKeyValue label="Samples" value={String(item.samples ?? 0)} />
       <ResultKeyValue label="Die position" value={item.dieX !== null && item.dieY !== null ? `${item.dieX}, ${item.dieY}` : "--"} />
     </aside>
+  );
+}
+
+function InsertionPerformanceTable({ items, emptyMessage }) {
+  if (!items.length) return <div className="chart-empty">{emptyMessage}</div>;
+
+  return (
+    <div className="dashboard-table-wrap insertion-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Chip</th>
+            <th>Peak WL (nm)</th>
+            <th>IL At Peak (dB)</th>
+            <th>IL @ 1550 nm (dB)</th>
+            <th>3 dB BW (nm)</th>
+            <th>Flatness (dB)</th>
+            <th>Reference</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={`insertion-table-${item.chipId}`}>
+              <td>{item.chipId}</td>
+              <td>{item.peakWavelengthNm !== null && item.peakWavelengthNm !== undefined ? item.peakWavelengthNm.toFixed(1) : "--"}</td>
+              <td>{item.insertionLossDb !== null && item.insertionLossDb !== undefined ? item.insertionLossDb.toFixed(2) : "--"}</td>
+              <td>{item.insertionLossAt1550Db !== null && item.insertionLossAt1550Db !== undefined ? item.insertionLossAt1550Db.toFixed(2) : "--"}</td>
+              <td>{item.bandwidth3dBNm !== null && item.bandwidth3dBNm !== undefined ? item.bandwidth3dBNm.toFixed(1) : "--"}</td>
+              <td>{item.spectralFlatnessDb !== null && item.spectralFlatnessDb !== undefined ? item.spectralFlatnessDb.toFixed(2) : "--"}</td>
+              <td>{item.referenceWaveguideIds?.join(", ") || item.deviceDescriptor || "--"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -1654,6 +1723,9 @@ export default function App() {
   const [datasetPreviewMode, setDatasetPreviewMode] = useState("all-chips");
   const [selectedWaferMetric, setSelectedWaferMetric] = useState("propagation");
   const [selectedChip, setSelectedChip] = useState("");
+  const [insertionDeviceType, setInsertionDeviceType] = useState("grating-couplers");
+  const [insertionMetricField, setInsertionMetricField] = useState("insertionLossDb");
+  const [insertionOverlayVisibility, setInsertionOverlayVisibility] = useState({});
   const [projectName, setProjectName] = useState("");
   const [waferName, setWaferName] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
@@ -1679,6 +1751,11 @@ export default function App() {
   const [isPropagationSettingsExpanded, setIsPropagationSettingsExpanded] = useState(true);
   const [isGeneratingPostProcessed, setIsGeneratingPostProcessed] = useState(false);
   const [isGeneratingPptReport, setIsGeneratingPptReport] = useState(false);
+  const [spectrumViewerSeries, setSpectrumViewerSeries] = useState([]);
+  const [spectrumViewerInputUnit, setSpectrumViewerInputUnit] = useState("watts");
+  const [spectrumViewerDisplayUnit, setSpectrumViewerDisplayUnit] = useState("db");
+  const [isUploadingSpectrumViewerFiles, setIsUploadingSpectrumViewerFiles] = useState(false);
+  const [isSpectrumViewerDragging, setIsSpectrumViewerDragging] = useState(false);
 
   const deferredSearch = useDeferredValue(search);
   const builtInWaferTemplates = useMemo(() => getBuiltInWaferTemplates(), []);
@@ -1741,7 +1818,7 @@ export default function App() {
       sourceMeta.propagationMseThreshold
     ]
   );
-  const insertionMetrics = useMemo(() => computeInsertionLoss(normalizedRows), [normalizedRows]);
+  const insertionMetrics = useMemo(() => computeInsertionLoss(normalizedRows, { targetWavelengthNm: sourceMeta.propagationTargetWavelengthNm }), [normalizedRows, sourceMeta.propagationTargetWavelengthNm]);
   const heaterMetrics = useMemo(() => computeHeaterEfficiency(normalizedRows), [normalizedRows]);
   const metrics = useMemo(
     () => ({ propagation: propagationMetrics, insertion: insertionMetrics, heater: heaterMetrics }),
@@ -1785,24 +1862,38 @@ export default function App() {
       })),
     [metrics.propagation.byChip, sourceMeta.propagationTargetWavelengthNm, sourceMeta.propagationWindowNm]
   );
-  const insertionByChip = useMemo(
-    () => metrics.insertion.waferMetric.map((cell) => {
-      const blocks = metrics.insertion.byBlock.filter((item) => item.chipId === cell.chipId);
-      return {
-        chipId: cell.chipId,
-        dieX: cell.dieX,
-        dieY: cell.dieY,
-        insertionLossDb: cell.value,
-        blockCount: blocks.length,
-        blockNames: blocks.map((block) => block.blockName)
-      };
-    }),
-    [metrics.insertion.byBlock, metrics.insertion.waferMetric]
-  );
+  const insertionProfile = useMemo(() => {
+    const profiles = metrics.insertion.deviceProfiles || {};
+    return profiles[insertionDeviceType] || profiles["grating-couplers"] || { byChip: [], metricOptions: [] };
+  }, [insertionDeviceType, metrics.insertion.deviceProfiles]);
+  const insertionByChip = useMemo(() => insertionProfile.byChip || [], [insertionProfile.byChip]);
+  const insertionMetricOptions = insertionProfile.metricOptions || [];
+  const insertionOverlaySeries = useMemo(() => insertionByChip.flatMap((item) => (item.transmissionSeries || []).map((seriesItem, index) => ({
+    id: `${item.chipId}-${seriesItem.waveguideId || index}`,
+    chipId: item.chipId,
+    waveguideId: seriesItem.waveguideId || item.chipId,
+    label: `${item.chipId}${seriesItem.waveguideId ? ` - ${seriesItem.waveguideId}` : ""}`,
+    pointCount: seriesItem.points?.length || 0,
+    wavelengthMinNm: seriesItem.points?.length ? Math.min(...seriesItem.points.map((point) => point.wavelengthNm)) : null,
+    wavelengthMaxNm: seriesItem.points?.length ? Math.max(...seriesItem.points.map((point) => point.wavelengthNm)) : null,
+    points: seriesItem.points || []
+  }))), [insertionByChip]);
+  const insertionOverlayDisplaySeries = useMemo(() => insertionOverlaySeries.map((item) => ({ ...item, visible: insertionOverlayVisibility[item.id] !== false })), [insertionOverlaySeries, insertionOverlayVisibility]);
   const currentWaferCells = useMemo(() => {
+    const insertionWaferCells = insertionByChip
+      .filter((item) => item[insertionMetricField] !== null && item[insertionMetricField] !== undefined)
+      .map((item) => ({
+        chipId: item.chipId,
+        dieX: item.dieX,
+        dieY: item.dieY,
+        value: item[insertionMetricField],
+        detail: `${insertionProfile.label || "Building block"} | ${insertionMetricLabel(insertionMetricField)}: ${formatInsertionMetric(insertionMetricField, item[insertionMetricField])}${item.referenceWaveguideIds?.length ? ` | Ref ${item.referenceWaveguideIds.join(", ")}` : ""}`
+      }));
     const metricCells = selectedWaferMetric === "propagation"
       ? propagationAllWaferCells
-      : metrics[selectedWaferMetric].waferMetric;
+      : selectedWaferMetric === "insertion"
+        ? insertionWaferCells
+        : metrics[selectedWaferMetric].waferMetric;
     const metricLookup = new Map(metricCells.map((cell) => [cell.chipId, cell]));
     const propagationStatusLookup = new Map(
       metrics.propagation.byChip.map((item) => [item.chipId, item.passMse ? "passing" : item.mse !== null ? "failed" : "unfitted"])
@@ -1827,13 +1918,13 @@ export default function App() {
         isVisible
       };
     });
-  }, [metrics, propagationAllWaferCells, selectedWaferMetric, waferMapDisplayMode, waferTemplateLayout]);
+  }, [insertionByChip, insertionMetricField, insertionProfile.label, metrics, propagationAllWaferCells, selectedWaferMetric, waferMapDisplayMode, waferTemplateLayout]);
   const propagationLead = metrics.propagation.byChip.find((item) => item.chipId === selectedChip) || metrics.propagation.byChip[0] || null;
   const insertionLead = insertionByChip.find((item) => item.chipId === selectedChip) || insertionByChip[0] || null;
   const heaterLead = metrics.heater.byChip.find((item) => item.chipId === selectedChip) || metrics.heater.byChip[0] || null;
   const selectedMetricDetail = selectedWaferMetric === "heater" ? heaterLead : selectedWaferMetric === "insertion" ? insertionLead : propagationLead;
   const propagationMean = average(metrics.propagation.byChip.map((item) => item.lossDbPerCm).filter((value) => value !== null));
-  const insertionMean = average(metrics.insertion.byBlock.map((item) => item.insertionLossDb));
+  const insertionMean = average(insertionByChip.map((item) => item[insertionMetricField]).filter((value) => value !== null && value !== undefined));
   const heaterMean = average(metrics.heater.byChip.map((item) => item.efficiencyMwPerPi));
   const propagationYield = metrics.propagation.passRate;
   const matchedDevices = Math.max(datasetSummary.rows - 2, 0);
@@ -1854,13 +1945,16 @@ export default function App() {
   const primaryMetric = activeTab === "heater"
     ? { key: "heater", value: heaterMean, title: "Mean Heater Efficiency", icon: "Thermal" }
     : activeTab === "insertion"
-      ? { key: "insertion", value: insertionMean, title: "Mean Insertion Loss", icon: "Blocks" }
+      ? { key: "insertion", value: insertionMean, title: insertionMetricLabel(insertionMetricField), icon: "Blocks" }
       : { key: "propagation", value: propagationMean, title: "Mean Propagation Loss", icon: "Trend" };
   const secondaryMetric = activeTab === "heater"
     ? { label: "Heater Chips", value: metrics.heater.byChip.length.toLocaleString(), note: "Dies with heater-efficiency estimates", icon: "Heater" }
     : activeTab === "insertion"
-      ? { label: "Building Blocks", value: metrics.insertion.byBlock.length.toLocaleString(), note: "Insertion-loss block averages extracted", icon: "Blocks" }
+      ? { label: insertionProfile.label || "Building Block", value: insertionByChip.length.toLocaleString(), note: insertionProfile.description || "Device-specific insertion-loss analysis across the wafer.", icon: "Blocks" }
       : { label: "Fit R2", value: propagationLead?.mse !== null && propagationLead?.mse !== undefined ? (1 - propagationLead.mse).toFixed(3) : "--", note: "Selected wavelength-window fit quality", icon: "Fit" };
+  const primaryMetricDisplay = activeTab === "insertion"
+    ? formatInsertionMetric(insertionMetricField, primaryMetric.value)
+    : formatMetric(primaryMetric.key, primaryMetric.value);
   const activeMetricItems = activeTab === "heater"
     ? metrics.heater.byChip
     : activeTab === "insertion"
@@ -1868,7 +1962,7 @@ export default function App() {
       : metrics.propagation.byChip;
   const activeMetricKey = activeTab === "heater" ? "heater" : activeTab === "insertion" ? "insertion" : "propagation";
   const activeMetricDetail = activeMetricKey === "heater" ? heaterLead : activeMetricKey === "insertion" ? insertionLead : propagationLead;
-  const chipOptions = uniqueOptions(metrics.propagation.byChip.map((item) => item.chipId));
+  const activeChipOptions = uniqueOptions(activeMetricItems.map((item) => item.chipId));
   const legendItems = activeMetricKey === "propagation"
     ? (sourceMeta.type.includes("Automated")
       ? [
@@ -1993,10 +2087,16 @@ export default function App() {
     };
   }, [appSettings.themePreference]);
   useEffect(() => {
-    if (chipOptions.length && !chipOptions.includes(selectedChip)) {
-      setSelectedChip(chipOptions[0]);
+    if (activeChipOptions.length && !activeChipOptions.includes(selectedChip)) {
+      setSelectedChip(activeChipOptions[0]);
     }
-  }, [chipOptions, selectedChip]);
+  }, [activeChipOptions, selectedChip]);
+
+  useEffect(() => {
+    if (insertionMetricOptions.length && !insertionMetricOptions.some((option) => option.value === insertionMetricField)) {
+      setInsertionMetricField(insertionMetricOptions[0].value);
+    }
+  }, [insertionMetricField, insertionMetricOptions]);
 
   function appendAudit(kind, title, detail) {
     setAuditLog((previous) => [{ id: createId("audit"), kind, title, detail, timestamp: new Date().toISOString() }, ...previous].slice(0, 120));
@@ -2035,7 +2135,8 @@ export default function App() {
         (file) => readFileRows(file, {
           launchPowerDbm: sourceMeta.launchPowerDbm,
           defaultMetricFamily: sourceMeta.defaultMetricFamily,
-          defaultWavelengthNm: sourceMeta.defaultWavelengthNm
+          defaultWavelengthNm: sourceMeta.defaultWavelengthNm,
+          traceValueUnit: sourceMeta.traceInputUnit
         }),
         UPLOAD_BATCH_SIZE,
         (completed, total) => {
@@ -2052,7 +2153,7 @@ export default function App() {
         ? (files.length > 1 && firstType === "Automated WST trace" ? "Automated WST trace set" : firstType)
         : "Mixed measurement upload";
       const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
-      const nextSourceMeta = { ...sourceMeta, name: files.length === 1 ? files[0].name : `${files.length} measurement files`, type: sharedType };
+      const nextSourceMeta = { ...sourceMeta, name: files.length === 1 ? files[0].name : `${files.length} measurement files`, type: sharedType, traceInputUnit: sourceMeta.traceInputUnit || "watts" };
       const nextPresentation = getDatasetPresentation({ projectName: "", waferName: "", sourceMeta: nextSourceMeta, rawRows: rows, files: files.map((file) => file.name) });
       setProjectName(nextPresentation.projectDisplayName);
       setWaferName(nextPresentation.waferDisplayName);
@@ -2073,6 +2174,52 @@ export default function App() {
       setIsUploadingFiles(false);
       if (event.target) event.target.value = "";
     }
+  }
+  async function loadSpectrumViewerFiles(files) {
+    if (!files.length || isUploadingSpectrumViewerFiles) return;
+    const inferredInputUnit = inferSpectrumInputUnit(files);
+    setSpectrumViewerInputUnit(inferredInputUnit);
+    setIsUploadingSpectrumViewerFiles(true);
+    try {
+      const series = await Promise.all(
+        files.map((file) => readSpectrumFile(file, { traceValueUnit: inferredInputUnit, launchPowerDbm: sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm }))
+      );
+      setSpectrumViewerSeries((previous) => {
+        const next = [...previous];
+        series.forEach((item, index) => {
+          next.push({
+            ...item,
+            id: `${item.fileName}-${Date.now()}-${index}`,
+            visible: true
+          });
+        });
+        return next;
+      });
+      setStatusMessage(series.length === 1 ? `Added ${series[0].fileName} to Spectrum Viewer.` : `Added ${series.length} traces to Spectrum Viewer.`);
+      appendAudit("upload", "Spectrum viewer files uploaded", `Loaded ${series.length} spectrum file(s) using ${inferredInputUnit} input mode.`);
+      pushToast("Spectrum viewer updated", `${series.length} trace${series.length === 1 ? "" : "s"} added to the viewer.`, "success");
+      setActiveTab("spectrum-viewer");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown spectrum upload error.";
+      setStatusMessage(`Spectrum Viewer upload failed: ${detail}`);
+      appendAudit("upload", "Spectrum viewer upload failed", detail);
+      pushToast("Spectrum viewer upload failed", detail, "danger");
+    } finally {
+      setIsUploadingSpectrumViewerFiles(false);
+      setIsSpectrumViewerDragging(false);
+    }
+  }
+
+  async function handleSpectrumViewerUpload(event) {
+    const files = Array.from(event.target.files || []);
+    await loadSpectrumViewerFiles(files);
+    if (event.target) event.target.value = "";
+  }
+
+  async function handleSpectrumViewerDrop(event) {
+    event.preventDefault();
+    const files = Array.from(event.dataTransfer?.files || []);
+    await loadSpectrumViewerFiles(files);
   }
   function clearWorkspace() {
     setProjectName(""); setWaferName(""); setSelectedDate(""); setRawRows([]); setColumnMap({}); setSelectedChip(""); setQuickDatasetSelection("");
@@ -2095,7 +2242,8 @@ export default function App() {
           return readNamedTextRows(fileName, text, {
             launchPowerDbm: appSettings.launchPowerDbm,
             defaultMetricFamily: appSettings.defaultMetricFamily,
-            defaultWavelengthNm: appSettings.defaultWavelengthNm
+            defaultWavelengthNm: appSettings.defaultWavelengthNm,
+            traceValueUnit: appSettings.traceInputUnit || "watts"
           });
         })
       );
@@ -2103,7 +2251,8 @@ export default function App() {
       const nextSourceMeta = {
         ...buildDefaultSourceMeta(appSettings),
         name: definition.label,
-        type: definition.sourceType
+        type: definition.sourceType,
+        traceInputUnit: appSettings.traceInputUnit || "watts"
       };
       const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
       setProjectName(definition.projectDisplayName || definition.projectName);
@@ -2474,7 +2623,7 @@ export default function App() {
 
           {isWorkspaceTab ? <>
             <section className="hero-stats-row">
-              <ShellStat label={primaryMetric.title} value={formatMetric(primaryMetric.key, primaryMetric.value)} note="Across all matched dies" tone="primary" icon={primaryMetric.icon} />
+              <ShellStat label={primaryMetric.title} value={primaryMetricDisplay} note="Across all matched dies" tone="primary" icon={primaryMetric.icon} />
               <ShellStat label={secondaryMetric.label} value={secondaryMetric.value} note={secondaryMetric.note} tone="secondary" icon={secondaryMetric.icon} />
               <ShellStat label="Devices" value={datasetSummary.rows.toLocaleString()} note={`Across ${sourceCount(normalizedRows)} uploaded source files`} tone="mint" icon="Dev" />
               <ShellStat label="Wavelength" value={`${sourceMeta.propagationTargetWavelengthNm} nm`} note={`Window +/- ${sourceMeta.propagationWindowNm} nm`} tone="orange" icon="WL" />
@@ -2502,13 +2651,26 @@ export default function App() {
               <article className="analysis-card analysis-chart-card overview-fit-card">
                 <div className="analysis-card-head">
                   <div>
-                    <h2>{activeMetricKey === "heater" ? "Heater Efficiency" : activeMetricKey === "insertion" ? "Insertion Loss" : "Propagation Loss"}</h2>
+                    <h2>{activeMetricKey === "heater" ? "Heater Efficiency" : activeMetricKey === "insertion" ? insertionProfile.label || "Insertion Loss" : "Propagation Loss"}</h2>
                     <PlotLegend items={legendItems} />
                   </div>
                   <div className="analysis-card-controls propagation-headline-controls">
-                    <span>{activeMetricKey === "propagation" ? `Lambda0 ${sourceMeta.propagationTargetWavelengthNm} nm` : `${activeMetricItems.length} selected dies`}</span>
-                    <span>{activeMetricKey === "propagation" ? `Window +/- ${sourceMeta.propagationWindowNm} nm` : sourceMeta.type}</span>
-                    <span>{activeMetricKey === "propagation" ? `MSE <= ${sourceMeta.propagationMseThreshold}` : `${datasetSummary.families.join(", ") || "single metric"}`}</span>{activeMetricKey === "propagation" ? <><select value={selectedChip} onChange={(event) => setSelectedChip(event.target.value)}>{chipOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select><button type="button" className="secondary-action" onClick={generatePostProcessedFiles} disabled={isGeneratingPostProcessed || !metrics.propagation.byChip.length}>{isGeneratingPostProcessed ? "Generating Files..." : "Generate Post-Processed Files"}</button></> : null}
+                    {activeMetricKey === "propagation" ? <>
+                      <span>{`Lambda0 ${sourceMeta.propagationTargetWavelengthNm} nm`}</span>
+                      <span>{`Window +/- ${sourceMeta.propagationWindowNm} nm`}</span>
+                      <span>{`MSE <= ${sourceMeta.propagationMseThreshold}`}</span>
+                      <select value={selectedChip} onChange={(event) => setSelectedChip(event.target.value)}>{activeChipOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
+                      <button type="button" className="secondary-action" onClick={generatePostProcessedFiles} disabled={isGeneratingPostProcessed || !metrics.propagation.byChip.length}>{isGeneratingPostProcessed ? "Generating Files..." : "Generate Post-Processed Files"}</button>
+                    </> : activeMetricKey === "insertion" ? <>
+                      <label className="inline-select-field compact-inline-field"><span>Device</span><select value={insertionDeviceType} onChange={(event) => setInsertionDeviceType(event.target.value)}>{Object.entries(metrics.insertion.deviceProfiles || {}).map(([key, profile]) => <option key={key} value={key}>{profile.label}</option>)}</select></label>
+                      <label className="inline-select-field compact-inline-field"><span>Metric</span><select value={insertionMetricField} onChange={(event) => setInsertionMetricField(event.target.value)}>{insertionMetricOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                      <label className="inline-select-field compact-inline-field"><span>Chip</span><select value={selectedChip} onChange={(event) => setSelectedChip(event.target.value)}>{activeChipOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+                      <span>{insertionProfile.description || "Device-specific insertion-loss analysis across the wafer."}</span>
+                    </> : <>
+                      <span>{`${activeMetricItems.length} selected dies`}</span>
+                      <span>{sourceMeta.type}</span>
+                      <span>{`${datasetSummary.families.join(", ") || "single metric"}`}</span>
+                    </>}
                   </div>
                 </div>
                 <div className="analysis-card-body split-layout">
@@ -2520,10 +2682,11 @@ export default function App() {
                       items={activeMetricItems}
                       selectedKey={selectedChip}
                       onSelect={setSelectedChip}
+                      insertionMetricField={insertionMetricField}
                       emptyMessage={activeMetricKey === "insertion" ? "Upload or load insertion-loss rows to compare building-block performance by chip." : "Upload or load heater measurements to compare pi-power performance by chip."}
                     />
                   )}
-                  <MetricInspector metricKey={activeMetricKey} item={activeMetricDetail} sourceMeta={sourceMeta} />
+                  <MetricInspector metricKey={activeMetricKey} item={activeMetricDetail} sourceMeta={sourceMeta} insertionDeviceLabel={insertionProfile.label || "Selected Device"} />
                 </div>
               </article>
 
@@ -2583,6 +2746,47 @@ export default function App() {
                   <InteractiveTransmissionSpectrumPlot series={propagationLead?.transmissionSeries ?? []} targetWavelengthNm={sourceMeta.propagationTargetWavelengthNm} chipId={propagationLead?.chipId || selectedChip} />
                 </article>
               </section>
+            ) : activeTab === "insertion" ? (
+              <section className="analysis-spectrum-grid analysis-spectrum-grid-dual overview-spectra-grid">
+                <article className="analysis-card wide-span">
+                  <div className="analysis-card-head">
+                    <div>
+                      <h2>{`${insertionProfile.label || "Building Block"} Transmission Spectrum`}</h2>
+                      <p>{insertionDeviceType === "grating-couplers" ? "Uses the shortest propagation reference trace, typically WG1, to track grating-coupler response across the wafer." : "Overlay of the uploaded insertion-loss spectrum for the selected building block on the chosen chip."}</p>
+                    </div>
+                  </div>
+                  <InteractiveTransmissionSpectrumPlot series={insertionLead?.transmissionSeries ?? []} targetWavelengthNm={sourceMeta.propagationTargetWavelengthNm} chipId={insertionLead?.chipId || selectedChip} />
+                </article>
+                <article className="analysis-card wide-span insertion-overlay-card">
+                  <div className="analysis-card-head">
+                    <div>
+                      <h2>{`${insertionProfile.label || "Building Block"} Variation Overlay`}</h2>
+                      <p>Overlay all chip spectra for the selected device so you can inspect wafer-level variation and hide or show traces as needed.</p>
+                    </div>
+                  </div>
+                  <div className="spectrum-viewer-grid insertion-overlay-grid">
+                    <div className="spectrum-series-panel">
+                      <div className="spectrum-series-toolbar">
+                        <button type="button" className="secondary-action compact-inline-action" onClick={() => setInsertionOverlayVisibility((previous) => Object.fromEntries(Object.keys(previous).map((key) => [key, true])))} disabled={!insertionOverlaySeries.length}>Show All</button>
+                        <button type="button" className="secondary-action compact-inline-action" onClick={() => setInsertionOverlayVisibility((previous) => Object.fromEntries(Object.keys(previous).map((key) => [key, false])))} disabled={!insertionOverlaySeries.length}>Hide All</button>
+                      </div>
+                      <div className="spectrum-series-list">
+                        {insertionOverlayDisplaySeries.length ? insertionOverlayDisplaySeries.map((item) => <label key={item.id} className="spectrum-series-item"><input type="checkbox" checked={item.visible !== false} onChange={() => setInsertionOverlayVisibility((previous) => ({ ...previous, [item.id]: previous[item.id] === false }))} /><div><strong>{item.label}</strong><span>{item.pointCount} points | {item.wavelengthMinNm !== null && item.wavelengthMaxNm !== null ? `${item.wavelengthMinNm.toFixed(1)}-${item.wavelengthMaxNm.toFixed(1)} nm` : "Spectrum unavailable"}</span></div></label>) : <div className="chart-empty compact">No overlay spectra are available for the selected device type.</div>}
+                      </div>
+                    </div>
+                    <div className="spectrum-overlay-plot"><InteractiveTransmissionSpectrumPlot series={insertionOverlayDisplaySeries} targetWavelengthNm={sourceMeta.propagationTargetWavelengthNm} chipId={`${insertionProfile.label || "building-block"}-wafer-overlay`} /></div>
+                  </div>
+                </article>
+                <article className="analysis-card wide-span">
+                  <div className="analysis-card-head">
+                    <div>
+                      <h2>{`${insertionProfile.label || "Building Block"} Performance Table`}</h2>
+                      <p>Chip-by-chip summary of the key insertion-loss metrics for the selected silicon-photonics building block.</p>
+                    </div>
+                  </div>
+                  <InsertionPerformanceTable items={insertionByChip} emptyMessage="No insertion-loss spectra were found for the selected device type." />
+                </article>
+              </section>
             ) : null}
             </section>
 
@@ -2600,6 +2804,7 @@ export default function App() {
           {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} appSettings={appSettings} currentDatasetMeta={currentRows.length ? { ...buildDatasetSnapshotMetadata({ projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta }), ...getDatasetPresentation({ projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta }) } : null} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={refreshRemoteLibrary} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}
+          {activeTab === "spectrum-viewer" ? <section className="library-stack"><article className="analysis-card spectrum-viewer-card"><div className="analysis-card-head"><div><h2>Spectrum Viewer</h2><p>Upload any insertion-loss or transmission trace and compare devices instantly. TXT is preferred if you plan to publish the data to the GitHub library later, while Excel is supported for quick review.</p></div><div className="library-action-row"><label className="inline-select-field"><span>Input unit</span><select value={spectrumViewerInputUnit} onChange={(event) => setSpectrumViewerInputUnit(event.target.value)}><option value="watts">Watts (W)</option><option value="db">dB / dBm</option></select></label><label className="inline-select-field"><span>Display</span><select value={spectrumViewerDisplayUnit} onChange={(event) => setSpectrumViewerDisplayUnit(event.target.value)}><option value="db">dB / dBm</option><option value="watts">Watts (W)</option></select></label></div></div><div className={isSpectrumViewerDragging ? "spectrum-dropzone active" : "spectrum-dropzone"} onDragEnter={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(true); }} onDragOver={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(true); }} onDragLeave={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(false); }} onDrop={handleSpectrumViewerDrop}><strong>{isUploadingSpectrumViewerFiles ? "Reading uploaded spectra..." : "Upload Files"}</strong><p>Drag and drop `.txt`, `.csv`, `.xlsx`, or `.xls` files here, or browse from a folder. Excel files are read from the `IL` sheet using wavelength in metres and IL in dB.</p><label className="upload-measurement-button secondary-upload"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleSpectrumViewerUpload} disabled={isUploadingSpectrumViewerFiles} /><span>{isUploadingSpectrumViewerFiles ? "Processing Files..." : "Choose Files"}</span></label></div><div className="spectrum-viewer-grid insertion-overlay-grid"><div className="spectrum-series-panel"><div className="spectrum-series-toolbar"><button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: true })))} disabled={!spectrumViewerSeries.length}>Show All</button><button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: false })))} disabled={!spectrumViewerSeries.length}>Hide All</button><button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries([])} disabled={!spectrumViewerSeries.length}>Clear</button></div><div className="spectrum-series-list">{spectrumViewerSeries.length ? spectrumViewerSeries.map((item) => <label key={item.id} className="spectrum-series-item"><input type="checkbox" checked={item.visible !== false} onChange={() => setSpectrumViewerSeries((previous) => previous.map((entry) => entry.id === item.id ? { ...entry, visible: entry.visible === false } : entry))} /><div><strong>{item.label}</strong><span>{item.pointCount} points | {item.wavelengthMinNm.toFixed(1)}-{item.wavelengthMaxNm.toFixed(1)} nm</span></div></label>) : <div className="chart-empty compact">No traces loaded yet.</div>}</div></div><InteractiveSpectrumViewerPlot series={spectrumViewerSeries} displayUnit={spectrumViewerDisplayUnit} chipId="Spectrum Viewer" /></div></article></section> : null}
           {activeTab === "filename-conversion" ? <FilenameConversionPanel /> : null}
           {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Theme preference</span><select value={settingsDraft.themePreference} onChange={(event) => updateSettingsDraft("themePreference", event.target.value)}>{THEME_PREFERENCE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label><label className="mapping-field"><span>Propagation spectral interval (nm)</span><input type="number" min="1" value={settingsDraft.propagationSpectralStepNm} onChange={(event) => updateSettingsDraft("propagationSpectralStepNm", Math.max(Number(event.target.value) || 1, 1))} /></label><label className="mapping-field"><span>Propagation fit MSE threshold</span><input type="number" step="0.01" value={settingsDraft.propagationMseThreshold} onChange={(event) => updateSettingsDraft("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} /></label></div><WaveguideLengthConfigurator count={settingsDraft.propagationWaveguideCount} start={settingsDraft.propagationWaveguideStartMm} interval={settingsDraft.propagationWaveguideIntervalMm} manualMode={settingsDraft.propagationWaveguideManualMode} lengths={settingsDraft.propagationWaveguideLengthsMm} onNumberChange={updateSettingsDraft} onLengthChange={updateSettingsWaveguideLength} onManualModeChange={(checked) => updateSettingsDraft("propagationWaveguideManualMode", checked)} /><div className="chart-empty compact">Uploaded measurement files now stay in the active workspace only. Use <strong>Save Dataset Snapshot</strong> or <strong>Save to GitHub</strong> from <strong>Dataset Snapshots</strong> when you want to keep a dataset.</div></article></section> : null}
           {activeTab === "wafermaps" ? <WafermapsLibrary draft={waferTemplateDraft} onDraftChange={updateWaferTemplateDraft} onSaveTemplate={saveWaferTemplate} templates={allWaferTemplates} selectedTemplateId={currentWaferTemplate?.id || ""} onUseTemplate={useWaferTemplate} onDeleteTemplate={deleteWaferTemplate} /> : null}
@@ -2611,4 +2816,15 @@ export default function App() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
 

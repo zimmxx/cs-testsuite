@@ -13,7 +13,7 @@ const COLUMN_ALIASES = {
   waveguide_index: ["waveguide_index", "wg_index"],
   slot_id: ["slot_id", "slot"],
   wafer_label: ["wafer_label", "wafer", "wafer_id"],
-  wavelength_nm: ["wavelength_nm", "wavelength", "wl", "lambda"],
+  wavelength_nm: ["wavelength_nm", "wavelength", "wl", "lambda", "wavelength_m", "wavelength (m)", "wavelength m"],
   relative_length_mm: ["relative_length_mm", "length_mm", "relative length", "wg_length_mm"],
   optical_power_w: ["optical_power_w", "optical power", "power_w"],
   optical_power_dbm: ["optical_power_dbm", "power_dbm", "measured_power_dbm"],
@@ -127,6 +127,11 @@ function toDbmFromWatts(powerW) {
   return 10 * Math.log10(powerW * 1000);
 }
 
+function wattsFromDbm(powerDbm) {
+  if (powerDbm === null || powerDbm === undefined) return null;
+  return (10 ** (powerDbm / 10)) / 1000;
+}
+
 function isTwoColumnNumericLine(line) {
   const parts = String(line || "")
     .trim()
@@ -150,6 +155,7 @@ function isAutomatedTraceText(text, fileName) {
 
 function parseAutomatedTraceText(text, fileName, options = {}) {
   const launchPowerDbm = numeric(options.launchPowerDbm) ?? 10;
+  const traceValueUnit = String(options.traceValueUnit || "watts").toLowerCase();
   const meta = fileNameMetadata(fileName);
   return String(text || "")
     .split(/\r?\n/)
@@ -158,9 +164,10 @@ function parseAutomatedTraceText(text, fileName, options = {}) {
     .map((line, index) => {
       const [wavelengthValue, powerValue] = line.split(/\s+/);
       const wavelengthNm = numeric(wavelengthValue);
-      const opticalPowerW = numeric(powerValue);
-      const opticalPowerDbm = toDbmFromWatts(opticalPowerW);
-      const lossDb = opticalPowerDbm === null ? null : launchPowerDbm - opticalPowerDbm;
+      const parsedValue = numeric(powerValue);
+      const opticalPowerW = traceValueUnit === "db" ? wattsFromDbm(parsedValue) : parsedValue;
+      const opticalPowerDbm = traceValueUnit === "db" ? parsedValue : toDbmFromWatts(opticalPowerW);
+      const lossDb = opticalPowerDbm === null ? null : Math.abs(launchPowerDbm - opticalPowerDbm);
       return {
         __normalized: true,
         source_name: fileName,
@@ -181,7 +188,7 @@ function parseAutomatedTraceText(text, fileName, options = {}) {
         optical_power_dbm: opticalPowerDbm,
         launch_power_dbm: launchPowerDbm,
         loss_db: lossDb,
-        transmission_db: opticalPowerDbm,
+        transmission_db: lossDb,
         insertion_loss_db: null,
         heater_power_mw: null,
         pi_power_mw: null,
@@ -191,7 +198,104 @@ function parseAutomatedTraceText(text, fileName, options = {}) {
         row_index: index + 1
       };
     })
-    .filter((row) => row.wavelength_nm !== null && row.optical_power_w !== null);
+    .filter((row) => row.wavelength_nm !== null && (row.optical_power_w !== null || row.optical_power_dbm !== null));
+}
+
+function numericSpectrumPairs(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split(/[\s,\t;]+/).filter(Boolean);
+      if (parts.length < 2) return null;
+      const wavelengthNm = numeric(parts[0]);
+      const value = numeric(parts[1]);
+      if (wavelengthNm === null || value === null) return null;
+      return { wavelengthNm, value };
+    })
+    .filter(Boolean);
+}
+
+function inferSpectrumWavelengthScale(header, sampleValue) {
+  const normalizedHeader = normalizeHeader(header);
+  if (normalizedHeader.includes("(m)") || normalizedHeader.endsWith(" m") || normalizedHeader.includes("wavelength m")) {
+    return 1e9;
+  }
+  if (normalizedHeader.includes("(um)") || normalizedHeader.includes("micron") || normalizedHeader.includes("micro")) {
+    return 1e3;
+  }
+  if (sampleValue !== null && sampleValue !== undefined) {
+    if (Math.abs(sampleValue) < 1e-3) return 1e9;
+    if (Math.abs(sampleValue) < 100) return 1e3;
+  }
+  return 1;
+}
+
+function extractSpectrumRowsFromWorkbook(buffer) {
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const preferredSheetName = workbook.SheetNames.find((name) => String(name).trim().toLowerCase() === "il") || workbook.SheetNames[0];
+  const sheet = workbook.Sheets[preferredSheetName];
+  return XLSX.utils.sheet_to_json(sheet, { defval: "" });
+}
+
+function normalizeSpectrumRows(rows, fileName, options = {}) {
+  const traceValueUnit = String(options.traceValueUnit || "watts").toLowerCase();
+  const launchPowerDbm = numeric(options.launchPowerDbm) ?? 10;
+  const firstRow = rows[0] || {};
+  const columns = Object.keys(firstRow);
+  const mapping = {
+    wavelength_nm: columns.find((column) => scoreAlias(column, COLUMN_ALIASES.wavelength_nm)),
+    optical_power_w: columns.find((column) => scoreAlias(column, COLUMN_ALIASES.optical_power_w)),
+    optical_power_dbm: columns.find((column) => scoreAlias(column, COLUMN_ALIASES.optical_power_dbm)),
+    transmission_db: columns.find((column) => scoreAlias(column, COLUMN_ALIASES.transmission_db)),
+    loss_db: columns.find((column) => scoreAlias(column, COLUMN_ALIASES.loss_db)),
+    insertion_loss_db: columns.find((column) => scoreAlias(column, COLUMN_ALIASES.insertion_loss_db))
+  };
+  const valueColumn = mapping.optical_power_w || mapping.optical_power_dbm || mapping.transmission_db || mapping.loss_db || mapping.insertion_loss_db;
+
+  if (!mapping.wavelength_nm || !valueColumn) {
+    throw new Error(`Unable to identify wavelength and measurement columns in ${fileName}.`);
+  }
+
+  const firstNumericWavelength = rows
+    .map((row) => numeric(row[mapping.wavelength_nm]))
+    .find((value) => value !== null);
+  const wavelengthScale = inferSpectrumWavelengthScale(mapping.wavelength_nm, firstNumericWavelength);
+
+  const points = rows
+    .map((row) => {
+      const wavelengthValue = numeric(row[mapping.wavelength_nm]);
+      const rawValue = numeric(row[valueColumn]);
+      if (wavelengthValue === null || rawValue === null) return null;
+      const wavelengthNm = wavelengthValue * wavelengthScale;
+      const lossDb = traceValueUnit === "db" ? Math.abs(rawValue) : null;
+      const opticalPowerDbm = traceValueUnit === "db" ? launchPowerDbm - Math.abs(rawValue) : toDbmFromWatts(rawValue);
+      const opticalPowerW = traceValueUnit === "db" ? wattsFromDbm(opticalPowerDbm) : rawValue;
+      return {
+        wavelengthNm,
+        opticalPowerW,
+        opticalPowerDbm,
+        lossDb: lossDb ?? (opticalPowerDbm === null ? null : Math.abs(launchPowerDbm - opticalPowerDbm))
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.wavelengthNm - b.wavelengthNm);
+
+  if (!points.length) {
+    throw new Error(`No numeric wavelength/value rows were found in ${fileName}.`);
+  }
+
+  return {
+    id: `${fileName}-${points.length}`,
+    label: fileName.replace(/\.[^.]+$/, ""),
+    fileName,
+    inputUnit: traceValueUnit,
+    pointCount: points.length,
+    wavelengthMinNm: points[0].wavelengthNm,
+    wavelengthMaxNm: points[points.length - 1].wavelengthNm,
+    points
+  };
 }
 
 function resolveMappedLength(row, sourceMeta) {
@@ -240,6 +344,32 @@ export async function readFileRows(file, options = {}) {
 
   const text = await file.text();
   return readNamedTextRows(file.name, text, options);
+}
+
+export function readNamedSpectrumRows(fileName, text, options = {}) {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  if ((ext === "txt" || ext === "csv") && numericSpectrumPairs(text).length) {
+    const pairs = numericSpectrumPairs(text).map((pair) => ({
+      wavelength_nm: pair.wavelengthNm,
+      optical_power_w: options.traceValueUnit === "db" ? "" : pair.value,
+      optical_power_dbm: options.traceValueUnit === "db" ? pair.value : ""
+    }));
+    return normalizeSpectrumRows(pairs, fileName, options);
+  }
+
+  return normalizeSpectrumRows(parseDelimitedText(text), fileName, options);
+}
+
+export async function readSpectrumFile(file, options = {}) {
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  if (ext === "xlsx" || ext === "xls") {
+    const buffer = await file.arrayBuffer();
+    const rows = extractSpectrumRowsFromWorkbook(buffer);
+    return normalizeSpectrumRows(rows, file.name, { ...options, traceValueUnit: "db" });
+  }
+
+  const text = await file.text();
+  return readNamedSpectrumRows(file.name, text, options);
 }
 
 export function buildNormalizedRows(rows, mapping, sourceMeta) {

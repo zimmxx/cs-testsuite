@@ -165,24 +165,31 @@ function arrayMax(values, fallback = null) {
   if (!values.length) return fallback;
   return values.reduce((max, value) => (value > max ? value : max), values[0]);
 }
-function summarizeTransmission(series) {
-  const wg1 = series.find((item) => item.waveguideId === "WG1") || series[0] || null;
-  if (!wg1 || !wg1.points.length) return null;
-  const transmissionValues = wg1.points.map((point) => point.transmissionDb);
-  const minimumLossDb = arrayMin(transmissionValues);
-  const peakPoint = wg1.points.find((point) => point.transmissionDb === minimumLossDb) || null;
+function summarizeLossPoints(points = []) {
+  if (!points.length) return null;
+  const values = points.map((point) => point.transmissionDb);
+  const minimumLossDb = arrayMin(values);
+  const peakPoint = points.find((point) => point.transmissionDb === minimumLossDb) || null;
   const lossThreshold = minimumLossDb + 3;
-  const withinBandwidth = wg1.points.filter((point) => point.transmissionDb <= lossThreshold);
+  const withinBandwidth = points.filter((point) => point.transmissionDb <= lossThreshold);
   const bandwidthNm = withinBandwidth.length
     ? withinBandwidth[withinBandwidth.length - 1].wavelengthNm - withinBandwidth[0].wavelengthNm
     : null;
 
   return {
-    waveguideId: wg1.waveguideId,
     peakWavelengthNm: peakPoint?.wavelengthNm ?? null,
     peakTransmissionDb: minimumLossDb,
     insertionLossDb: minimumLossDb,
     bandwidth3dBNm: bandwidthNm
+  };
+}
+
+function summarizeTransmission(series) {
+  const wg1 = series.find((item) => item.waveguideId === "WG1") || series[0] || null;
+  if (!wg1 || !wg1.points.length) return null;
+  return {
+    waveguideId: wg1.waveguideId,
+    ...summarizeLossPoints(wg1.points)
   };
 }
 
@@ -285,53 +292,194 @@ export function computePropagationLoss(normalizedRows, options = {}) {
   };
 }
 
-export function computeInsertionLoss(normalizedRows) {
-  const groups = groupBy(
+function uniqueWaveguideIds(items) {
+  return [...new Set(items.map((item) => item.referenceWaveguideId).filter(Boolean))];
+}
+
+function nearestPoint(points = [], targetWavelengthNm = 1550) {
+  if (!points.length) return null;
+  return [...points].sort(
+    (a, b) => Math.abs(a.wavelengthNm - targetWavelengthNm) - Math.abs(b.wavelengthNm - targetWavelengthNm)
+  )[0] || null;
+}
+
+function summarizeDeviceSpectrum(points = [], targetWavelengthNm = 1550) {
+  const summary = summarizeLossPoints(points);
+  if (!summary) return null;
+  const targetPoint = nearestPoint(points, targetWavelengthNm);
+  const values = points.map((point) => point.transmissionDb).filter((value) => value !== null && value !== undefined);
+  const spectralFlatnessDb = values.length ? arrayMax(values) - arrayMin(values) : null;
+  return {
+    ...summary,
+    insertionLossAt1550Db: targetPoint?.transmissionDb ?? null,
+    insertionLossAtTargetDb: targetPoint?.transmissionDb ?? null,
+    targetWavelengthNm: targetPoint?.wavelengthNm ?? targetWavelengthNm,
+    spectralFlatnessDb
+  };
+}
+
+function explicitDeviceType(blockName = "") {
+  return /mmi/i.test(String(blockName)) ? "mmi" : "other-device";
+}
+
+function aggregateDeviceProfiles(items = [], targetWavelengthNm = 1550) {
+  const chipMap = groupBy(items, (item) => item.chipId);
+  return Array.from(chipMap.entries()).map(([chipId, chipItems]) => ({
+    chipId,
+    dieX: chipItems[0].dieX,
+    dieY: chipItems[0].dieY,
+    insertionLossDb: average(chipItems.map((item) => item.insertionLossDb)),
+    insertionLossAt1550Db: average(chipItems.map((item) => item.insertionLossAt1550Db ?? null)),
+    peakWavelengthNm: average(chipItems.map((item) => item.peakWavelengthNm ?? null)),
+    bandwidth3dBNm: average(chipItems.map((item) => item.bandwidth3dBNm ?? null)),
+    spectralFlatnessDb: average(chipItems.map((item) => item.spectralFlatnessDb ?? null)),
+    blockCount: chipItems.length,
+    blockNames: chipItems.map((item) => item.blockName),
+    referenceWaveguideIds: uniqueWaveguideIds(chipItems),
+    transmissionSeries: chipItems.flatMap((item) => item.transmissionSeries || []),
+    deviceDescriptor: chipItems.map((item) => item.blockName).join(", "),
+    targetWavelengthNm
+  }));
+}
+
+export function computeInsertionLoss(normalizedRows, options = {}) {
+  const targetWavelengthNm = toNumber(options.targetWavelengthNm) ?? 1550;
+  const explicitGroups = groupBy(
     normalizedRows.filter(
       (row) =>
         row.metric_family === "insertion" &&
+        row.wavelength_nm !== null &&
         (row.insertion_loss_db !== null || row.transmission_db !== null || row.loss_db !== null)
     ),
     (row, index) => `${resolveChipId(row, index)}::${row.block_name || "Unnamed block"}`
   );
 
-  const byBlock = Array.from(groups.entries()).map(([key, rows]) => {
+  const explicitBlocks = Array.from(explicitGroups.entries()).map(([key, rows]) => {
     const [chipId, blockName] = key.split("::");
-    const values = rows
-      .map((row) => {
-        if (row.insertion_loss_db !== null) return row.insertion_loss_db;
-        if (row.loss_db !== null) return row.loss_db;
-        if (row.transmission_db !== null) return Math.abs(row.transmission_db);
-        return null;
-      })
-      .filter((value) => value !== null);
+    const points = rows
+      .map((row) => ({
+        wavelengthNm: toNumber(row.wavelength_nm),
+        transmissionDb: transmissionValue(row)
+      }))
+      .filter((point) => point.wavelengthNm !== null && point.transmissionDb !== null)
+      .sort((a, b) => a.wavelengthNm - b.wavelengthNm);
 
-    if (!values.length) return null;
-    const avg = values.reduce((acc, value) => acc + value, 0) / values.length;
+    if (!points.length) return null;
+    const summary = summarizeDeviceSpectrum(points, targetWavelengthNm);
+    if (!summary) return null;
     return {
       chipId,
       dieX: rows[0].die_x,
       dieY: rows[0].die_y,
       blockName,
-      insertionLossDb: avg,
-      samples: rows.length
+      insertionLossDb: summary.insertionLossDb,
+      insertionLossAt1550Db: summary.insertionLossAt1550Db,
+      peakWavelengthNm: summary.peakWavelengthNm,
+      bandwidth3dBNm: summary.bandwidth3dBNm,
+      spectralFlatnessDb: summary.spectralFlatnessDb,
+      samples: rows.length,
+      transmissionSeries: [{ waveguideId: blockName, points }],
+      sourceFamily: "insertion",
+      deviceType: explicitDeviceType(blockName)
     };
   }).filter(Boolean);
 
-  const chipMap = groupBy(byBlock, (item) => item.chipId);
-  const waferMetric = Array.from(chipMap.entries()).map(([chipId, items]) => ({
-    chipId,
-    dieX: items[0].dieX,
-    dieY: items[0].dieY,
-    value: items.reduce((acc, item) => acc + item.insertionLossDb, 0) / items.length,
-    detail: `${items.length} building blocks`
+  const propagationGroups = groupBy(
+    normalizedRows.filter((row) => row.metric_family === "propagation" && transmissionValue(row) !== null),
+    (row, index) => resolveChipId(row, index)
+  );
+
+  const gratingCouplerBlocks = Array.from(propagationGroups.entries()).map(([chipId, rows]) => {
+    const series = buildTransmissionSeries(rows);
+    const reference = series.find((item) => item.waveguideId === "WG1") || series[0] || null;
+    if (!reference?.points?.length) return null;
+    const summary = summarizeDeviceSpectrum(reference.points, targetWavelengthNm);
+    if (!summary) return null;
+    return {
+      chipId,
+      dieX: rows[0].die_x,
+      dieY: rows[0].die_y,
+      blockName: rows[0].waveguide_type || "WG1 reference",
+      insertionLossDb: summary.insertionLossDb,
+      insertionLossAt1550Db: summary.insertionLossAt1550Db,
+      peakWavelengthNm: summary.peakWavelengthNm,
+      bandwidth3dBNm: summary.bandwidth3dBNm,
+      spectralFlatnessDb: summary.spectralFlatnessDb,
+      referenceWaveguideId: reference.waveguideId,
+      samples: reference.points.length,
+      transmissionSeries: [reference],
+      sourceFamily: "propagation-reference",
+      deviceType: "grating-couplers"
+    };
+  }).filter(Boolean);
+
+  const blockMap = new Map();
+  [...explicitBlocks, ...gratingCouplerBlocks].forEach((item) => {
+    const key = `${item.chipId}::${item.blockName}`;
+    if (!blockMap.has(key) || blockMap.get(key).sourceFamily !== "insertion") {
+      blockMap.set(key, item);
+    }
+  });
+
+  const byBlock = Array.from(blockMap.values());
+  const byChip = aggregateDeviceProfiles(byBlock, targetWavelengthNm);
+  const gratingByChip = aggregateDeviceProfiles(gratingCouplerBlocks, targetWavelengthNm);
+  const mmiByChip = aggregateDeviceProfiles(explicitBlocks.filter((item) => item.deviceType === "mmi"), targetWavelengthNm);
+  const otherByChip = aggregateDeviceProfiles(explicitBlocks.filter((item) => item.deviceType === "other-device"), targetWavelengthNm);
+
+  const waferMetric = byChip.map((item) => ({
+    chipId: item.chipId,
+    dieX: item.dieX,
+    dieY: item.dieY,
+    value: item.insertionLossDb,
+    detail: `${item.blockCount} building block${item.blockCount === 1 ? "" : "s"}`
   }));
 
   return {
     metric: "Insertion Loss",
     description: METRIC_DESCRIPTIONS.insertion,
+    targetWavelengthNm,
     byBlock,
-    waferMetric
+    byChip,
+    waferMetric,
+    deviceProfiles: {
+      "grating-couplers": {
+        label: "Grating Couplers",
+        description: "Uses the shortest propagation reference trace, typically WG1, to characterize the coupled grating pair on each chip.",
+        metricOptions: [
+          { value: "insertionLossDb", label: "Insertion Loss At Peak" },
+          { value: "insertionLossAt1550Db", label: "Insertion Loss At 1550 nm" },
+          { value: "peakWavelengthNm", label: "Peak Wavelength" },
+          { value: "bandwidth3dBNm", label: "3 dB Bandwidth" },
+          { value: "spectralFlatnessDb", label: "Spectral Flatness" }
+        ],
+        byChip: gratingByChip
+      },
+      mmi: {
+        label: "MMI",
+        description: "Generic MMI spectral characterization using uploaded insertion-loss traces. FSR is not reported unless the device spectrum is periodic.",
+        metricOptions: [
+          { value: "insertionLossDb", label: "Insertion Loss At Peak" },
+          { value: "insertionLossAt1550Db", label: "Insertion Loss At 1550 nm" },
+          { value: "peakWavelengthNm", label: "Peak Wavelength" },
+          { value: "bandwidth3dBNm", label: "3 dB Bandwidth" },
+          { value: "spectralFlatnessDb", label: "Spectral Flatness" }
+        ],
+        byChip: mmiByChip
+      },
+      "other-device": {
+        label: "Other Device",
+        description: "Generic building-block spectral characterization for uploaded insertion-loss traces that are not tagged as MMI.",
+        metricOptions: [
+          { value: "insertionLossDb", label: "Insertion Loss At Peak" },
+          { value: "insertionLossAt1550Db", label: "Insertion Loss At 1550 nm" },
+          { value: "peakWavelengthNm", label: "Peak Wavelength" },
+          { value: "bandwidth3dBNm", label: "3 dB Bandwidth" },
+          { value: "spectralFlatnessDb", label: "Spectral Flatness" }
+        ],
+        byChip: otherByChip
+      }
+    }
   };
 }
 

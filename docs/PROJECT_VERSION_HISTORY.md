@@ -104,11 +104,20 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 - Upgraded the manual-measurement conversion workflow so exported traces, manifests, and zip archives follow the standardized dataset naming pattern.
 - Added a dedicated dataset and filename standard document to guide future measurement storage and GitHub library population.
 
+### 2026-07-29
+
+#### Current working-tree upgrade
+- Added the new `Spectrum Viewer` workspace for flexible spectrum inspection from TXT, CSV, and Excel uploads.
+- Upgraded insertion-loss analysis so the workspace can characterize one building block across all chips, especially grating couplers using `WG1` or the shortest propagation reference trace.
+- Added richer insertion metrics such as peak wavelength, insertion loss at peak, insertion loss at `1550 nm`, `3 dB` bandwidth, and spectral flatness.
+- Added a wafer-wide insertion-spectrum variation overlay with per-trace show/hide controls.
+- Improved Excel parsing and unit handling for insertion-loss review workflows.
+
 ## Current Development State
 
 Latest recorded working-tree update:
-- Date: `2026-07-06`
-- Theme: `Comparison library, filename standardization, and standardized converted archive exports`
+- Date: `2026-07-29`
+- Theme: `Spectrum Viewer, grating-coupler insertion analysis, and wafer-wide insertion spectrum review`
 
 ## How To Extend This File
 

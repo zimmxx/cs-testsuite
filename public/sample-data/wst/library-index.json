@@ -148,15 +148,15 @@
   {
     "id": "mpw46_slot5_waveguide_manual_data",
     "label": "MPW46 Slot5 Waveguide Manual Raw Data",
-    "projectName": "MPW46_Slot5_Waveguide",
-    "waferName": "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual",
+    "projectName": "MPW46",
+    "waferName": "Slot5",
     "selectedDate": "",
     "folder": "sample-data/wst/MPW46_Slot5_waveguide_manual_data",
     "sourceType": "Automated WST trace set",
-    "measurementMode": "Manual",
+    "measurementMode": "Manual converted",
     "mpw": "MPW46",
     "slot": "Slot5",
-    "waveguideType": "StripWaveguide",
+    "waveguideType": "Waveguide",
     "traceCount": 48,
     "rowCount": 912048,
     "chipCount": 8,
@@ -214,12 +214,44 @@
       "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip64_WG6.txt"
     ],
     "readme": "MPW46_Slot5_waveguide_manual_data/README.md",
-    "source": "github-library",
-    "projectDisplayName": "MPW46",
-    "waferDisplayName": "Slot5",
-    "platformDisplayName": "220nmSOI",
-    "projectCode": "MPW46",
-    "measurementType": "PropagationLoss"
+    "configFile": "MPW46_Slot5_waveguide_manual_data/waveguide-config.json",
+    "waveguideConfig": {
+      "propagationWaveguideCount": 7,
+      "propagationWaveguideStartMm": 1,
+      "propagationWaveguideIntervalMm": 4,
+      "propagationWaveguideManualMode": true,
+      "waveguideLengths": [
+        {
+          "index": 1,
+          "lengthMm": 1
+        },
+        {
+          "index": 2,
+          "lengthMm": 4
+        },
+        {
+          "index": 3,
+          "lengthMm": 8
+        },
+        {
+          "index": 4,
+          "lengthMm": 12
+        },
+        {
+          "index": 5,
+          "lengthMm": 16
+        },
+        {
+          "index": 6,
+          "lengthMm": 20
+        },
+        {
+          "index": 7,
+          "lengthMm": 24
+        }
+      ]
+    },
+    "source": "github-library"
   },
   {
     "id": "mpw47_slot7_waveguide_manual_data",
@@ -229,10 +261,10 @@
     "selectedDate": "",
     "folder": "sample-data/wst/MPW47_Slot7_waveguide_manual_data",
     "sourceType": "Automated WST trace set",
-    "measurementMode": "Manual converted",
+    "measurementMode": "Manual",
     "mpw": "MPW47",
     "slot": "Slot7",
-    "waveguideType": "Waveguide",
+    "waveguideType": "StripWaveguide",
     "traceCount": 49,
     "rowCount": 931049,
     "chipCount": 7,
@@ -328,7 +360,12 @@
         }
       ]
     },
-    "source": "github-library"
+    "source": "github-library",
+    "projectDisplayName": "MPW47",
+    "waferDisplayName": "Slot7",
+    "platformDisplayName": "220nmSOI",
+    "projectCode": "MPW47",
+    "measurementType": "PropagationLoss"
   },
   {
     "id": "mpw47_slot9_waveguide_manual_data",

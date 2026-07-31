@@ -1,16 +1,17 @@
 # MPW47 Slot11 Waveguide Manual Raw Data
 
-This folder contains GitHub-hosted measurement traces for MPWUNDEFINED.
+This folder contains GitHub-hosted measurement traces for MPW47.
 
 ## Dataset Summary
-- Project: MPWUNDEFINED
-- Wafer: SlotUndefined
+- Project: MPW47
+- Wafer: Slot11
 - Measurement mode: Manual converted
 - Source type: Automated WST trace set
-- Date: 2026-07-22
+- Date: 2026-07-31
 - Files: 49
 - Chips: Chip21, Chip25, Chip49, Chip51, Chip53, Chip77, Chip81
 - Waveguides: WG1, WG2, WG3, WG4, WG5, WG6, WG7
+- Waveguide config: waveguide-config.json
 - Normalized rows: 931049
 - Wavelength span: 1525.000 nm to 1620.000 nm
 

@@ -96,6 +96,32 @@ function formatDateLabel(selectedDate) {
   return selectedDate || new Date().toISOString().slice(0, 10);
 }
 
+function sortWaveguideLengthEntries(lengthMap = {}) {
+  return Object.entries(lengthMap || {})
+    .map(([key, value]) => [Number(key), Number(value)])
+    .filter(([key, value]) => Number.isFinite(key) && Number.isFinite(value))
+    .sort((a, b) => a[0] - b[0]);
+}
+
+export function buildWaveguideConfig(sourceMeta = {}) {
+  const waveguideLengths = sortWaveguideLengthEntries(sourceMeta.waveguideLengthByIndex).map(([index, lengthMm]) => ({
+    index,
+    lengthMm
+  }));
+
+  return {
+    propagationWaveguideCount: Number(sourceMeta.propagationWaveguideCount) || waveguideLengths.length || 0,
+    propagationWaveguideStartMm: Number.isFinite(Number(sourceMeta.propagationWaveguideStartMm))
+      ? Number(sourceMeta.propagationWaveguideStartMm)
+      : null,
+    propagationWaveguideIntervalMm: Number.isFinite(Number(sourceMeta.propagationWaveguideIntervalMm))
+      ? Number(sourceMeta.propagationWaveguideIntervalMm)
+      : null,
+    propagationWaveguideManualMode: Boolean(sourceMeta.propagationWaveguideManualMode),
+    waveguideLengths
+  };
+}
+
 function normalizeOutputFileName(sourceName, fallbackPrefix, firstRow, index) {
   const rawName = String(sourceName || "").trim();
   if (rawName && /\.(txt|csv)$/i.test(rawName)) {
@@ -158,6 +184,7 @@ export function buildDatasetReadme(identity, traceFiles) {
     `- Files: ${traceFiles.length}`,
     `- Chips: ${chipList}`,
     `- Waveguides: ${waveguideList}`,
+    `- Waveguide config: waveguide-config.json`,
     `- Normalized rows: ${identity.rowCount}`,
     `- Wavelength span: ${formatNumber(identity.wavelengthMinNm, 3)} nm to ${formatNumber(identity.wavelengthMaxNm, 3)} nm`,
     "",
@@ -170,7 +197,7 @@ export function buildDatasetReadme(identity, traceFiles) {
   ].join("\n");
 }
 
-export function buildDatasetManifestEntry(identity, traceFiles) {
+export function buildDatasetManifestEntry(identity, traceFiles, waveguideConfig) {
   return {
     id: identity.id,
     label: identity.label,
@@ -191,6 +218,8 @@ export function buildDatasetManifestEntry(identity, traceFiles) {
     wavelengthMaxNm: identity.wavelengthMaxNm,
     files: traceFiles.map((file) => file.fileName),
     readme: `${identity.folderName}/README.md`,
+    configFile: `${identity.folderName}/waveguide-config.json`,
+    waveguideConfig,
     source: "github-library"
   };
 }
@@ -294,6 +323,8 @@ export async function publishDatasetPackageToGithub({
     ]),
     { path: `public/sample-data/wst/${packageData.identity.folderName}/README.md`, content: packageData.readme },
     { path: `sample-data/wst/${packageData.identity.folderName}/README.md`, content: packageData.readme },
+    { path: `public/sample-data/wst/${packageData.identity.folderName}/${packageData.configFileName}`, content: packageData.configContent },
+    { path: `sample-data/wst/${packageData.identity.folderName}/${packageData.configFileName}`, content: packageData.configContent },
     { path: manifestPath, content: JSON.stringify(nextManifest, null, 2) + "\n" },
     { path: mirrorManifestPath, content: JSON.stringify(nextManifest, null, 2) + "\n" }
   ];
@@ -332,12 +363,15 @@ export function buildGithubDatasetPackage(dataset) {
   if (!traceFiles.length) {
     throw new Error("This dataset does not contain trace-style wavelength and optical-power rows that can be published to the GitHub measurement library.");
   }
+  const waveguideConfig = buildWaveguideConfig(dataset.sourceMeta);
   const readme = buildDatasetReadme(identity, traceFiles);
-  const manifestEntry = buildDatasetManifestEntry(identity, traceFiles);
+  const manifestEntry = buildDatasetManifestEntry(identity, traceFiles, waveguideConfig);
   return {
     identity,
     traceFiles,
     readme,
-    manifestEntry
+    manifestEntry,
+    configFileName: "waveguide-config.json",
+    configContent: JSON.stringify(waveguideConfig, null, 2) + "\n"
   };
 }

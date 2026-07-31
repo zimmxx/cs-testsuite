@@ -570,6 +570,34 @@ function applyWaveguideSettingsToSourceMeta(previous, patch = {}) {
   };
 }
 
+function buildWaveguideSettingsPatch(values = {}) {
+  const count = Math.max(Math.round(Number(values.propagationWaveguideCount) || DEFAULT_WAVEGUIDE_COUNT), 1);
+  const start = Number.isFinite(Number(values.propagationWaveguideStartMm)) ? Number(values.propagationWaveguideStartMm) : DEFAULT_WAVEGUIDE_START_MM;
+  const interval = Number.isFinite(Number(values.propagationWaveguideIntervalMm)) ? Number(values.propagationWaveguideIntervalMm) : DEFAULT_WAVEGUIDE_INTERVAL_MM;
+  const manualMode = Boolean(values.propagationWaveguideManualMode);
+  const entries = Array.isArray(values.waveguideLengths)
+    ? values.waveguideLengths
+        .map((entry) => [Number(entry?.index), Number(entry?.lengthMm)])
+        .filter(([index, length]) => Number.isFinite(index) && Number.isFinite(length))
+        .sort((a, b) => a[0] - b[0])
+    : Object.entries(values.waveguideLengthByIndex || {})
+        .map(([key, value]) => [Number(key), Number(value)])
+        .filter(([index, length]) => Number.isFinite(index) && Number.isFinite(length))
+        .sort((a, b) => a[0] - b[0]);
+
+  const waveguideLengthByIndex = entries.length
+    ? Object.fromEntries(entries.map(([index, length]) => [String(index), length]))
+    : cloneWaveguideLengthMap({}, count, start, interval, manualMode);
+
+  return {
+    propagationWaveguideCount: count,
+    propagationWaveguideStartMm: start,
+    propagationWaveguideIntervalMm: interval,
+    propagationWaveguideManualMode: manualMode,
+    waveguideLengthByIndex
+  };
+}
+
 function propagationDraftFromSourceMeta(sourceMeta = {}) {
   return {
     launchPowerDbm: String(sourceMeta.launchPowerDbm ?? ""),
@@ -2232,6 +2260,13 @@ export default function App() {
     setLoadingBundledId(definition.id);
     try {
       const fileNames = definition.files?.length ? definition.files : bundledTraceNames(definition);
+      const configPromise = definition.waveguideConfig
+        ? Promise.resolve(definition.waveguideConfig)
+        : definition.configFile
+          ? fetch(bundledAssetUrl(`${definition.folder}/waveguide-config.json`), { cache: "no-store" })
+              .then((response) => (response.ok ? response.json() : null))
+              .catch(() => null)
+          : Promise.resolve(null);
       const rowSets = await Promise.all(
         fileNames.map(async (fileName) => {
           const response = await fetch(bundledAssetUrl(`${definition.folder}/${fileName}`));
@@ -2240,20 +2275,27 @@ export default function App() {
           }
           const text = await response.text();
           return readNamedTextRows(fileName, text, {
-            launchPowerDbm: appSettings.launchPowerDbm,
-            defaultMetricFamily: appSettings.defaultMetricFamily,
-            defaultWavelengthNm: appSettings.defaultWavelengthNm,
-            traceValueUnit: appSettings.traceInputUnit || "watts"
+            launchPowerDbm: sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm,
+            defaultMetricFamily: sourceMeta.defaultMetricFamily ?? appSettings.defaultMetricFamily,
+            defaultWavelengthNm: sourceMeta.defaultWavelengthNm ?? appSettings.defaultWavelengthNm,
+            traceValueUnit: sourceMeta.traceInputUnit || appSettings.traceInputUnit || "watts"
           });
         })
       );
+      const waveguideConfig = await configPromise;
       const rows = rowSets.flat();
-      const nextSourceMeta = {
-        ...buildDefaultSourceMeta(appSettings),
-        name: definition.label,
-        type: definition.sourceType,
-        traceInputUnit: appSettings.traceInputUnit || "watts"
-      };
+      const fallbackSettings = buildWaveguideSettingsPatch(sourceMeta);
+      const configuredSettings = waveguideConfig ? buildWaveguideSettingsPatch(waveguideConfig) : fallbackSettings;
+      const nextSourceMeta = applyWaveguideSettingsToSourceMeta(
+        {
+          ...buildDefaultSourceMeta(appSettings),
+          ...fallbackSettings,
+          name: definition.label,
+          type: definition.sourceType,
+          traceInputUnit: sourceMeta.traceInputUnit || appSettings.traceInputUnit || "watts"
+        },
+        configuredSettings
+      );
       const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
       setProjectName(definition.projectDisplayName || definition.projectName);
       setWaferName(definition.waferDisplayName || definition.waferName);
@@ -2266,7 +2308,13 @@ export default function App() {
       setSelectedChip(rows[0]?.chip_id || "");
       setActiveTab("propagation");
       setStatusMessage(`Loaded bundled sample ${definition.label} from GitHub-hosted files (${fileNames.length} traces).`);
-      pushToast("Dataset loaded", `${definition.label} loaded from the GitHub measurement library.`, "success");
+      pushToast(
+        "Dataset loaded",
+        waveguideConfig
+          ? `${definition.label} loaded with its saved waveguide configuration.`
+          : `${definition.label} loaded with the current page waveguide defaults.`,
+        "success"
+      );
       appendAudit("dataset", "Bundled dataset loaded", `Loaded ${definition.label} from bundled GitHub-hosted files.`);
       if (libraryKind === "project") {
         appendAudit("project", "Bundled project loaded", `Opened ${definition.projectName} from the bundled sample library.`);
@@ -2816,15 +2864,3 @@ export default function App() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-

@@ -45,7 +45,7 @@ function openPlotInWindow({ title, data, layout, config }) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="${PLOTLY_CDN}"></script>
     <style>
-      body { margin: 0; font-family: 'IBM Plex Sans', Arial, sans-serif; background: #f5f8f8; }
+      body { margin: 0; font-family: 'IBM Plex Sans', Arial, sans-serif; background: #ffffff; }
       #plot { width: 100vw; height: 100vh; }
     </style>
   </head>
@@ -71,7 +71,67 @@ function openPlotInWindow({ title, data, layout, config }) {
   popup.document.close();
 }
 
-function PlotlyFigure({ data, layout, config, emptyMessage, windowTitle, height = 360 }) {
+function stripFileExtension(fileName) {
+  return String(fileName || "").replace(/\.[^.]+$/, "");
+}
+
+function sanitizeExportBaseName(fileName, fallback = "plot") {
+  const cleaned = stripFileExtension(fileName)
+    .replace(/[\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || fallback;
+}
+
+function downloadTextFile(content, fileName, mimeType = "text/plain;charset=utf-8") {
+  if (typeof window === "undefined") return;
+  const blob = new Blob([content], { type: mimeType });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  window.URL.revokeObjectURL(url);
+}
+
+function buildStandalonePlotHtml({ title, data, layout, config }) {
+  const encodedData = JSON.stringify(data);
+  const encodedLayout = JSON.stringify({ ...layout, autosize: true, width: undefined, height: undefined });
+  const encodedConfig = JSON.stringify({ ...config, responsive: true });
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="${PLOTLY_CDN}"></script>
+    <style>
+      body { margin: 0; font-family: 'IBM Plex Sans', Arial, sans-serif; background: #ffffff; }
+      #plot { width: 100vw; height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <div id="plot"></div>
+    <script>
+      const data = ${encodedData};
+      const layout = ${encodedLayout};
+      const config = ${encodedConfig};
+      window.addEventListener('load', () => {
+        const render = () => {
+          if (!window.Plotly) {
+            window.setTimeout(render, 50);
+            return;
+          }
+          window.Plotly.newPlot('plot', data, layout, config);
+        };
+        render();
+      });
+    </script>
+  </body>
+</html>`;
+}
+
+function PlotlyFigure({ data, layout, config, emptyMessage, windowTitle, height = 360, exportBaseName, enableHtmlExport = true }) {
   const ref = useRef(null);
   const [error, setError] = useState("");
 
@@ -106,6 +166,33 @@ function PlotlyFigure({ data, layout, config, emptyMessage, windowTitle, height 
       active = false;
     };
   }, [config, data, hasData, layout]);
+
+  const resolveExportName = () => {
+    const requested = typeof exportBaseName === "function" ? exportBaseName() : exportBaseName;
+    if (requested === null) return null;
+    return sanitizeExportBaseName(requested || windowTitle || "plot", "plot");
+  };
+
+  const handleDownloadPng = async () => {
+    if (!ref.current || !hasData) return;
+    const fileName = resolveExportName();
+    if (!fileName) return;
+    try {
+      const Plotly = await loadPlotly();
+      setError("");
+      await Plotly.downloadImage(ref.current, { format: "png", filename: fileName, scale: 2 });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to download PNG.");
+    }
+  };
+
+  const handleDownloadHtml = () => {
+    const fileName = resolveExportName();
+    if (!fileName) return;
+    const html = buildStandalonePlotHtml({ title: windowTitle, data, layout, config });
+    downloadTextFile(html, `${fileName}.html`, "text/html;charset=utf-8");
+  };
+
   if (!hasData) return <div className="chart-empty">{emptyMessage}</div>;
   if (error) return <div className="chart-empty">{error}</div>;
 
@@ -115,6 +202,14 @@ function PlotlyFigure({ data, layout, config, emptyMessage, windowTitle, height 
         <button type="button" className="ghost-action" onClick={() => openPlotInWindow({ title: windowTitle, data, layout, config })}>
           Open Figure
         </button>
+        <button type="button" className="ghost-action" onClick={handleDownloadPng}>
+          Download PNG
+        </button>
+        {enableHtmlExport ? (
+          <button type="button" className="ghost-action" onClick={handleDownloadHtml}>
+            Save Interactive HTML
+          </button>
+        ) : null}
       </div>
       <div ref={ref} className="plotly-figure" style={{ height: `${height}px` }} />
     </div>
@@ -126,12 +221,7 @@ function baseConfig(filename) {
     responsive: true,
     displaylogo: false,
     scrollZoom: true,
-    toImageButtonOptions: {
-      format: "png",
-      filename,
-      scale: 2
-    },
-    modeBarButtonsToRemove: ["select2d", "lasso2d"],
+    modeBarButtonsToRemove: ["select2d", "lasso2d", "toImage"],
     doubleClick: "autosize"
   };
 }
@@ -262,6 +352,7 @@ export function InteractivePropagationPlot({ rows, fit, chipId }) {
           linecolor: "#9db2b8",
           ticks: "outside"
         },
+        showlegend: true,
         legend: { orientation: "h", y: 1.14, x: 0 },
         font: { family: "IBM Plex Sans, Arial, sans-serif", color: "#16323b" }
       },
@@ -356,6 +447,7 @@ export function InteractivePropagationSpectrumPlot({ series, targetWavelengthNm,
             line: { width: 0 }
           }
         ],
+        showlegend: true,
         legend: { orientation: "h", y: 1.14, x: 0 },
         font: { family: "IBM Plex Sans, Arial, sans-serif", color: "#16323b" }
       },
@@ -430,6 +522,7 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
             line: { color: "#7dc6c4", width: 2, dash: "dash" }
           }
         ],
+        showlegend: true,
         legend: { orientation: "h", y: 1.16, x: 0 },
         font: { family: "IBM Plex Sans, Arial, sans-serif", color: "#16323b" }
       },
@@ -450,11 +543,35 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
 }
 
 
-export function InteractiveSpectrumViewerPlot({ series, displayUnit = "db", chipId = "Spectrum Viewer" }) {
+export function InteractiveSpectrumViewerPlot({
+  series,
+  displayUnit = "db",
+  chipId = "Spectrum Viewer",
+  figureTitle = "",
+  onFigureTitleChange,
+  showPeakPosition = false
+}) {
+  const visibleSeries = useMemo(() => series.filter((item) => item.visible !== false), [series]);
+
+  const resolvedFigureTitle = useMemo(() => {
+    if (String(figureTitle || "").trim()) return String(figureTitle).trim();
+    if (visibleSeries.length === 1) return visibleSeries[0]?.label || chipId || "Spectrum Viewer";
+    return `${chipId || "Spectrum Viewer"} Comparison`;
+  }, [chipId, figureTitle, visibleSeries]);
+
+  const exportBaseName = useMemo(() => () => {
+    if (visibleSeries.length === 1) {
+      return visibleSeries[0]?.fileName || visibleSeries[0]?.label || resolvedFigureTitle;
+    }
+    const suggested = sanitizeExportBaseName(resolvedFigureTitle || "spectrum-viewer", "spectrum-viewer");
+    if (typeof window === "undefined") return suggested;
+    const answer = window.prompt("Enter a filename for the exported spectrum figure.", suggested);
+    if (answer === null) return null;
+    return answer.trim() || suggested;
+  }, [resolvedFigureTitle, visibleSeries]);
+
   const plot = useMemo(() => {
     if (!series.length) return null;
-
-    const visibleSeries = series.filter((item) => item.visible !== false);
     if (!visibleSeries.length) return null;
 
     const palette = ["#4f8df3", "#ff8f45", "#0f8a83", "#9d5cf6", "#d6658f", "#2f7d68", "#b94f9d", "#8b6b3f"];
@@ -462,24 +579,118 @@ export function InteractiveSpectrumViewerPlot({ series, displayUnit = "db", chip
     const minWavelength = arrayMin(allWavelengths);
     const yTitle = displayUnit === "watts" ? "Power (W)" : "Loss (dB)";
 
+    const traceSpecs = visibleSeries.map((item, index) => {
+      const color = palette[index % palette.length];
+      const x = item.points.map((point) => point.wavelengthNm);
+      const y = item.points.map((point) => valueForSpectrumUnit(point, displayUnit));
+      const peakPoint = item.points.reduce((best, point) => {
+        const value = valueForSpectrumUnit(point, displayUnit);
+        if (!Number.isFinite(value)) return best;
+        if (!best) return { wavelengthNm: point.wavelengthNm, value };
+        const isBetter = displayUnit === "watts" ? value > best.value : value < best.value;
+        return isBetter ? { wavelengthNm: point.wavelengthNm, value } : best;
+      }, null);
+      return { item, color, x, y, peakPoint };
+    });
+
+    const data = traceSpecs.map(({ item, color, x, y }) => ({
+      type: "scattergl",
+      mode: "lines",
+      name: item.label,
+      x,
+      y,
+      line: { color, width: 2.4 },
+      hovertemplate:
+        displayUnit === "watts"
+          ? `${item.label}<br>Wavelength: %{x:.2f} nm<br>Power: %{y:.4e} W<extra></extra>`
+          : `${item.label}<br>Wavelength: %{x:.2f} nm<br>Loss: %{y:.2f} dB<extra></extra>`
+    }));
+
+    const peakTraces = showPeakPosition
+      ? traceSpecs
+          .filter((item) => item.peakPoint)
+          .map(({ item, color, peakPoint }) => ({
+            type: "scatter",
+            mode: "markers",
+            name: `${item.label} peak`,
+            x: [peakPoint.wavelengthNm],
+            y: [peakPoint.value],
+            marker: { color, size: 10, symbol: "diamond", line: { color: "#ffffff", width: 1.5 } },
+            showlegend: false,
+            hovertemplate:
+              displayUnit === "watts"
+                ? `${item.label} peak<br>Wavelength: %{x:.2f} nm<br>Power: %{y:.4e} W<extra></extra>`
+                : `${item.label} peak<br>Wavelength: %{x:.2f} nm<br>Loss: %{y:.2f} dB<extra></extra>`
+          }))
+      : [];
+
+    const peakShapes = showPeakPosition
+      ? traceSpecs.flatMap(({ color, peakPoint }) => {
+          if (!peakPoint) return [];
+          return [
+            {
+              type: "line",
+              xref: "x",
+              yref: "paper",
+              x0: peakPoint.wavelengthNm,
+              x1: peakPoint.wavelengthNm,
+              y0: 0,
+              y1: 1,
+              line: { color, width: 1.6, dash: "dot" }
+            },
+            {
+              type: "line",
+              xref: "paper",
+              yref: "y",
+              x0: 0,
+              x1: 1,
+              y0: peakPoint.value,
+              y1: peakPoint.value,
+              line: { color, width: 1.2, dash: "dot" }
+            }
+          ];
+        })
+      : [];
+
+    const peakAnnotations = showPeakPosition
+      ? traceSpecs.flatMap(({ item, color, peakPoint }) => {
+          if (!peakPoint) return [];
+          return [{
+            x: peakPoint.wavelengthNm,
+            y: peakPoint.value,
+            xanchor: "left",
+            yanchor: displayUnit === "watts" ? "bottom" : "top",
+            text:
+              displayUnit === "watts"
+                ? `${item.label}: ${peakPoint.wavelengthNm.toFixed(2)} nm, ${peakPoint.value.toExponential(3)} W`
+                : `${item.label}: ${peakPoint.wavelengthNm.toFixed(2)} nm, ${peakPoint.value.toFixed(2)} dB`,
+            bgcolor: "rgba(255,255,255,0.92)",
+            bordercolor: color,
+            borderwidth: 1,
+            font: { color: "#16323b", size: 11 },
+            showarrow: true,
+            arrowcolor: color,
+            arrowsize: 1,
+            arrowwidth: 1.2,
+            ax: 18,
+            ay: displayUnit === "watts" ? -28 : 28
+          }];
+        })
+      : [];
+
     return {
-      data: visibleSeries.map((item, index) => ({
-        type: "scattergl",
-        mode: "lines",
-        name: item.label,
-        x: item.points.map((point) => point.wavelengthNm),
-        y: item.points.map((point) => valueForSpectrumUnit(point, displayUnit)),
-        line: { color: palette[index % palette.length], width: 2.4 },
-        hovertemplate:
-          displayUnit === "watts"
-            ? `${item.label}<br>Wavelength: %{x:.2f} nm<br>Power: %{y:.4e} W<extra></extra>`
-            : `${item.label}<br>Wavelength: %{x:.2f} nm<br>Loss: %{y:.2f} dB<extra></extra>`
-      })),
+      data: [...data, ...peakTraces],
       layout: {
-        margin: { l: 66, r: 24, t: 18, b: 56 },
-        paper_bgcolor: "rgba(0,0,0,0)",
-        plot_bgcolor: "#fbfcfc",
+        margin: { l: 66, r: 24, t: 76, b: 56 },
+        paper_bgcolor: "#ffffff",
+        plot_bgcolor: "#ffffff",
         hovermode: "x unified",
+        title: {
+          text: resolvedFigureTitle,
+          x: 0.5,
+          xanchor: "center",
+          font: { size: 18, color: "#16323b" }
+        },
         xaxis: {
           title: "Wavelength (nm)",
           tickmode: "linear",
@@ -488,34 +699,44 @@ export function InteractiveSpectrumViewerPlot({ series, displayUnit = "db", chip
           zeroline: false,
           gridcolor: "#e3ecef",
           linecolor: "#9db2b8",
-          ticks: "outside"
+          ticks: "outside",
+          mirror: true
         },
         yaxis: {
           title: yTitle,
           autorange: displayUnit === "watts" ? true : "reversed",
+          dtick: displayUnit === "watts" ? undefined : 2,
           zeroline: false,
           gridcolor: "#e3ecef",
           linecolor: "#9db2b8",
-          ticks: "outside"
+          ticks: "outside",
+          mirror: true
         },
+        showlegend: true,
         legend: { orientation: "h", y: 1.16, x: 0 },
+        shapes: peakShapes,
+        annotations: peakAnnotations,
         font: { family: "IBM Plex Sans, Arial, sans-serif", color: "#16323b" }
       },
       config: baseConfig(`${chipId || "viewer"}-spectrum-viewer`)
     };
-  }, [chipId, displayUnit, series]);
+  }, [chipId, displayUnit, resolvedFigureTitle, series, showPeakPosition, visibleSeries]);
 
   return (
     <PlotlyFigure
       data={plot?.data || []}
       layout={plot?.layout || {}}
       config={plot?.config || {}}
-      windowTitle={`${chipId || "Spectrum Viewer"} - Spectrum Viewer`}
+      windowTitle={`${resolvedFigureTitle} - Spectrum Viewer`}
       emptyMessage="Upload one or more files to visualize the spectra."
       height={340}
+      exportBaseName={exportBaseName}
+      enableHtmlExport
     />
   );
 }
+
+
 
 
 

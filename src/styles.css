@@ -1675,6 +1675,8 @@ tbody tr:last-child td {
 .plotly-toolbar {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .plotly-figure {
@@ -2666,9 +2668,52 @@ body {
   padding: 0 12px;
 }
 
+.inline-text-field {
+  display: grid;
+  gap: 6px;
+  min-width: min(100%, 320px);
+  flex: 1 1 260px;
+}
+
+.inline-text-field span,
+.checkbox-inline-field span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.inline-text-field input {
+  min-height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--input-bg);
+  color: var(--text);
+  padding: 0 12px;
+}
+
+.checkbox-inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 2px;
+}
+
+.checkbox-inline-field input {
+  width: 16px;
+  height: 16px;
+}
+
 .spectrum-viewer-card {
   display: grid;
   gap: 14px;
+}
+
+.spectrum-viewer-controls {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: end;
 }
 
 .spectrum-dropzone {

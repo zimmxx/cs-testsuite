@@ -23,6 +23,10 @@ function joinedDatasetText(dataset = {}) {
     dataset.measurementMode,
     dataset.measurementType,
     dataset.sourceType,
+    dataset.platformId,
+    dataset.platformLabel,
+    dataset.buildingBlockId,
+    dataset.buildingBlockLabel,
     dataset.sourceMeta?.name,
     dataset.sourceMeta?.type,
     display.label,
@@ -33,6 +37,7 @@ function joinedDatasetText(dataset = {}) {
     display.waveguideType,
     display.measurementMode,
     display.measurementType,
+    display.platformLabel,
     ...files,
     ...rows.slice(0, 24).map((row) => row?.source_name || "")
   ].filter(Boolean).join(" ");
@@ -40,10 +45,10 @@ function joinedDatasetText(dataset = {}) {
 
 function detectProjectCode(dataset = {}) {
   const existing = compactIdentifier(dataset.mpw || dataset.display?.mpw || dataset.projectName || "");
-  if (/^(MPW|BSPK|DEV)[0-9]+$/i.test(existing)) return existing.toUpperCase();
+  if (/^(MPW|BSPK|DEV)[A-Z0-9_-]+$/i.test(existing)) return existing.toUpperCase();
   const joined = joinedDatasetText(dataset);
-  const match = joined.match(/\b(MPW|BSPK|DEV)\s*([0-9]+)\b/i);
-  return match ? `${match[1].toUpperCase()}${match[2]}` : "MPWUNDEFINED";
+  const match = joined.match(/\b((?:MPW|BSPK|DEV)(?:\s*[_-]?\s*[A-Z0-9]+)+)\b/i);
+  return match ? compactIdentifier(match[1]).replace(/-/g, "_").toUpperCase() : "MPWUNDEFINED";
 }
 
 function detectSlot(dataset = {}) {
@@ -91,10 +96,11 @@ function detectMeasurementType(dataset = {}) {
 function detectPlatform(dataset = {}) {
   const joined = joinedDatasetText(dataset).replace(/\s+/g, "").toLowerCase();
   if (joined.includes("220nmsoiactive")) return "220nmSOIActive";
+  if (joined.includes("220nmsoipassive")) return "220nmSOIPassive";
   if (joined.includes("220nmsoi")) return "220nmSOI";
   if (joined.includes("340nmsoi")) return "340nmSOI";
+  if (joined.includes("500nmsoi")) return "500nmSOI";
   if (joined.includes("300nmsin")) return "300nmSiN";
-  if (joined.includes("500nmsin")) return "500nmSiN";
   if (joined.includes("geonsi")) return "GeonSi";
   return "";
 }

@@ -1,11 +1,12 @@
 export const PLATFORM_OPTIONS = [
   "220nmSOI",
+  "220nmSOIPassive",
   "220nmSOIActive",
   "340nmSOI",
+  "500nmSOI",
   "300nmSiN",
-  "500nmSiN",
   "GeonSi",
-  "other"
+  "Other"
 ];
 
 export const WAVEGUIDE_TYPE_OPTIONS = ["StripWaveguide", "RibWaveguide"];
@@ -26,13 +27,28 @@ function matchToken(source, pattern, formatter) {
   return formatter ? formatter(match) : match[0];
 }
 
+function normalizeMpwToken(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^\d+$/.test(raw)) return `MPW${raw}`;
+
+  const explicitMatch = raw.match(/^(MPW(?:\s*[_-]?\s*[A-Z0-9]+)+)$/i);
+  if (explicitMatch) return cleanToken(explicitMatch[1]).toUpperCase();
+
+  const embeddedMatch = raw.match(/(MPW(?:\s*[_-]?\s*[A-Z0-9]+)+)/i);
+  if (embeddedMatch) return cleanToken(embeddedMatch[1]).toUpperCase();
+
+  return cleanToken(raw).toUpperCase();
+}
+
 function detectPlatform(source) {
   const normalized = String(source || "").toLowerCase().replace(/[_\-\s]+/g, "");
   if (normalized.includes("220nmsoiactive")) return "220nmSOIActive";
+  if (normalized.includes("220nmsoipassive")) return "220nmSOIPassive";
   if (normalized.includes("220nmsoi")) return "220nmSOI";
   if (normalized.includes("340nmsoi")) return "340nmSOI";
+  if (normalized.includes("500nmsoi")) return "500nmSOI";
   if (normalized.includes("300nmsin")) return "300nmSiN";
-  if (normalized.includes("500nmsin")) return "500nmSiN";
   if (normalized.includes("geonsi")) return "GeonSi";
   return "220nmSOI";
 }
@@ -54,7 +70,7 @@ function detectMeasurementMode(source) {
 }
 
 export function normalizeStandardMetadata(meta = {}) {
-  const mpwMatch = matchToken(meta.mpw || "", /(MPW\s*\d+)/i, (match) => cleanToken(match[1]).toUpperCase());
+  const mpwMatch = normalizeMpwToken(meta.mpw);
   const slotNumber = matchToken(meta.slot || "", /(\d+)/, (match) => match[1]);
   const chipNumber = matchToken(meta.chipId || "", /(\d+)/, (match) => match[1]);
   const waveguideNumber = matchToken(meta.waveguideId || "", /(\d+)/, (match) => match[1]);
@@ -82,7 +98,7 @@ export function detectStandardFilenameMetadata(pathOrName, overrides = {}) {
   const source = String(pathOrName || "");
   const combined = `${source} ${JSON.stringify(overrides)}`;
   return normalizeStandardMetadata({
-    mpw: overrides.mpw || matchToken(combined, /(MPW\s*\d+)/i, (match) => cleanToken(match[1]).toUpperCase()),
+    mpw: overrides.mpw || normalizeMpwToken(matchToken(combined, /(MPW(?:\s*[_-]?\s*[A-Z0-9]+)+)/i)),
     platform: overrides.platform || detectPlatform(combined),
     slot: overrides.slot || matchToken(combined, /(?:^|[\\/_\-\s])slot\s*[_\-\s]*(\d+)/i, (match) => `Slot${match[1]}`),
     waveguideDescriptor: overrides.waveguideDescriptor || detectWaveguideType(combined),
@@ -166,4 +182,3 @@ export function buildFilenameConversionManifest(entries = []) {
   ].map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","));
   return [header.join(","), ...lines].join("\n");
 }
-

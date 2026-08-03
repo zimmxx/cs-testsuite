@@ -27,6 +27,8 @@ function safeDatasetDisplay(dataset = {}) {
     waveguideType: presented.waveguideType || "WaveguideUndefined",
     waferName: presented.waferDisplayName || dataset.waferName || display.waferName || "--",
     sourceLabel: display.sourceLabel || `${rawSourceCount} file${rawSourceCount === 1 ? "" : "s"}`,
+    platformLabel: dataset.platformLabel || display.platformLabel || presented.platformDisplayName || "--",
+    buildingBlockLabel: dataset.buildingBlockLabel || display.buildingBlockLabel || "--",
     rowText: Number.isFinite(summaryRows)
       ? summaryRows.toLocaleString()
       : Number.isFinite(displayRows)
@@ -102,6 +104,8 @@ export default function DatasetLibraryPanel({
           <div><strong>{currentDatasetMeta?.folderName || "--"}</strong><span>GitHub folder name</span></div>
           <div><strong>{currentDatasetMeta?.projectName || "--"}</strong><span>Project / MPW</span></div>
           <div><strong>{currentDatasetMeta?.slot || "--"}</strong><span>Detected slot</span></div>
+          <div><strong>{currentDatasetMeta?.platformLabel || currentDatasetMeta?.platformDisplayName || "--"}</strong><span>Platform</span></div>
+          <div><strong>{currentDatasetMeta?.buildingBlockLabel || "--"}</strong><span>Building block</span></div>
         </div>
       </article>
 
@@ -153,6 +157,8 @@ export default function DatasetLibraryPanel({
                 <th>Waveguide Type</th>
                 <th>Measurement Mode</th>
                 <th>Measurement Type</th>
+                <th>Platform</th>
+                <th>Building Block</th>
                 <th>Files</th>
                 <th>Rows</th>
                 <th>Actions</th>
@@ -170,6 +176,8 @@ export default function DatasetLibraryPanel({
                   <td>{dataset.waveguideType || "WaveguideUndefined"}</td>
                   <td>{dataset.measurementMode || dataset.sourceType || "--"}</td>
                   <td>{dataset.measurementType || "MeasurementTypeUndefined"}</td>
+                  <td>{dataset.platformLabel || dataset.platformDisplayName || "--"}</td>
+                  <td>{dataset.buildingBlockLabel || "--"}</td>
                   <td>{dataset.traceCount ?? dataset.files?.length ?? "--"}</td>
                   <td>{dataset.rowCount ? Number(dataset.rowCount).toLocaleString() : `${dataset.traceCount ?? 0} raw traces`}</td>
                   <td className="library-table-actions">
@@ -178,7 +186,7 @@ export default function DatasetLibraryPanel({
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="9"><div className="chart-empty compact">No GitHub library datasets found yet.</div></td>
+                  <td colSpan="11"><div className="chart-empty compact">No GitHub library datasets found yet.</div></td>
                 </tr>
               )}
             </tbody>
@@ -203,6 +211,8 @@ export default function DatasetLibraryPanel({
                 <th>Waveguide Type</th>
                 <th>Measurement Mode</th>
                 <th>Measurement Type</th>
+                <th>Platform</th>
+                <th>Building Block</th>
                 <th>Files</th>
                 <th>Rows</th>
                 <th>Saved</th>
@@ -224,6 +234,8 @@ export default function DatasetLibraryPanel({
                     <td>{info.waveguideType}</td>
                     <td>{info.measurementMode}</td>
                     <td>{info.measurementType}</td>
+                    <td>{info.platformLabel}</td>
+                    <td>{info.buildingBlockLabel}</td>
                     <td>{info.sourceLabel}</td>
                     <td>{info.rowText}</td>
                     <td>{info.savedDisplay}</td>
@@ -237,7 +249,7 @@ export default function DatasetLibraryPanel({
                 );
               }) : (
                 <tr>
-                  <td colSpan="11"><div className="chart-empty compact">No local dataset snapshots are available yet.</div></td>
+                  <td colSpan="13"><div className="chart-empty compact">No local dataset snapshots are available yet.</div></td>
                 </tr>
               )}
             </tbody>

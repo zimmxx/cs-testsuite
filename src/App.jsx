@@ -151,6 +151,8 @@ function resolveThemePreference(preference, prefersDark = false) {
 const REPO_DOC_BASE = "https://github.com/zimmxx/cs-testsuite/blob/main/";
 const GITHUB_LIBRARY_MANIFEST_PATH = "public/sample-data/wst/library-index.json";
 const GITHUB_LIBRARY_MANIFEST_MIRROR_PATH = "sample-data/wst/library-index.json";
+const GITHUB_LIBRARY_MANIFEST_V2_PATH = "public/sample-data/wst/library-index-v2.json";
+const GITHUB_LIBRARY_MANIFEST_V2_MIRROR_PATH = "sample-data/wst/library-index-v2.json";
 const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "main", token: "" };
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
@@ -191,9 +193,11 @@ function normalizeLibraryDataset(definition) {
   const display = getDatasetPresentation({ ...definition, files });
   return {
     ...definition,
+    id: definition.id || definition.datasetId || definition.label,
     ...display,
     files,
-    source: definition.source || "github-library"
+    source: definition.source || "github-library",
+    librarySchemaVersion: definition.librarySchemaVersion || definition.schemaVersion || 1
   };
 }
 const DEMO_ROWS = [];
@@ -2516,12 +2520,20 @@ export default function App() {
   async function refreshRemoteLibrary(silent = false) {
     setRemoteLibraryStatus("Refreshing GitHub measurement library...");
     try {
-      const response = await fetch(bundledAssetUrl("sample-data/wst/library-index.json"), { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const catalog = await response.json();
+      let catalog = [];
+      let schemaVersion = 1;
+      const v2Response = await fetch(bundledAssetUrl("sample-data/wst/library-index-v2.json"), { cache: "no-store" });
+      if (v2Response.ok) {
+        catalog = await v2Response.json();
+        schemaVersion = 2;
+      } else {
+        const response = await fetch(bundledAssetUrl("sample-data/wst/library-index.json"), { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        catalog = await response.json();
+      }
       const normalized = Array.isArray(catalog) ? catalog.map(normalizeLibraryDataset) : [];
       setRemoteLibraryDatasets(normalized.length ? normalized : BUNDLED_LIBRARY_DATASETS.map(normalizeLibraryDataset));
-      setRemoteLibraryStatus(`GitHub measurement library refreshed. ${normalized.length} dataset folder(s) are currently published.`);
+      setRemoteLibraryStatus(`GitHub measurement library refreshed. ${normalized.length} dataset folder(s) are currently published${schemaVersion >= 2 ? " with v2 metadata" : ""}.`);
       if (!silent) pushToast("Library refreshed", `${normalized.length} GitHub measurement dataset${normalized.length === 1 ? "" : "s"} ready.`, "success");
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Unknown error";
@@ -2556,13 +2568,16 @@ export default function App() {
         token: githubConfig.token,
         manifestPath: GITHUB_LIBRARY_MANIFEST_PATH,
         mirrorManifestPath: GITHUB_LIBRARY_MANIFEST_MIRROR_PATH,
+        manifestPathV2: GITHUB_LIBRARY_MANIFEST_V2_PATH,
+        mirrorManifestPathV2: GITHUB_LIBRARY_MANIFEST_V2_MIRROR_PATH,
         packageData,
         existingManifest: remoteLibraryDatasets,
+        existingManifestV2: remoteLibraryDatasets,
         onProgress: ({ completed, total, path }) => {
           setRemoteLibraryStatus(`Publishing to GitHub: ${completed}/${total} files processed. Latest: ${path}`);
         }
       });
-      setRemoteLibraryDatasets(result.manifest.map(normalizeLibraryDataset));
+      setRemoteLibraryDatasets((result.manifestV2 || result.manifest).map(normalizeLibraryDataset));
       setSavedDatasets((previous) => previous.map((item) => item.id === dataset.id ? { ...item, githubSync: { status: "published", publishedAt: new Date().toISOString(), folderUrl: result.folderUrl } } : item));
       setStatusMessage(`Saved ${packageData.identity.label} to GitHub successfully.`);
       setRemoteLibraryStatus(`GitHub publish complete. ${packageData.identity.folderName} is now in the shared measurement-data library.`);

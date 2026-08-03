@@ -36,11 +36,11 @@ function measurementLabel(value) {
 export default function FilenameConversionPanel() {
   const folderInputRef = useRef(null);
   const [entries, setEntries] = useState([]);
-  const [statusMessage, setStatusMessage] = useState("Upload measurement folders or files to preview standardized filenames before saving them into GitHub datasets.");
+  const [statusMessage, setStatusMessage] = useState("Upload propagation-measurement folders or files to preview standardized filenames before saving them into GitHub datasets. Use this first on older MPW folders so strip/rib propagation files follow one consistent format.");
   const [batchMeta, setBatchMeta] = useState(() =>
     normalizeStandardMetadata({
       mpw: "MPWUNDEFINED",
-      platform: "220nmSOI",
+      platform: "220nmSOIPassive",
       slot: "SlotUndefined",
       waveguideDescriptor: "StripWaveguide",
       measurementType: "PropagationLoss",
@@ -143,7 +143,7 @@ export default function FilenameConversionPanel() {
         <div className="analysis-card-head">
           <div>
             <h2>Filename Conversion</h2>
-            <p>Standardize wafer-measurement filenames before publishing them to the GitHub library. The converter detects keywords such as <code>MPW</code>, <code>Slot</code>, <code>Chip</code>, and <code>WG</code>, then lets you correct missing metadata before downloading a renamed archive.</p>
+            <p>Standardize wafer-measurement filenames before publishing them to the GitHub library. For legacy propagation datasets, start by choosing the correct platform, slot, waveguide type, and mode, then let the converter normalize <code>MPW</code>, <code>Slot</code>, <code>Chip</code>, and <code>WG</code> into one reusable naming format.</p>
           </div>
           <div className="library-action-row">
             <button type="button" onClick={exportZip} disabled={!readyEntries.length}>Download ZIP</button>
@@ -154,10 +154,10 @@ export default function FilenameConversionPanel() {
         <div className="settings-grid settings-grid-extended">
           <label className="mapping-field">
             <span>MPW batch</span>
-            <input value={batchMeta.mpw} onChange={(event) => updateBatchMeta("mpw", event.target.value)} placeholder="MPW46" />
+            <input value={batchMeta.mpw} onChange={(event) => updateBatchMeta("mpw", event.target.value)} placeholder="MPW43 or MPW47_DTU" />
           </label>
           <label className="mapping-field">
-            <span>Platform</span>
+            <span>Platform / PDK tab</span>
             <select value={batchMeta.platform} onChange={(event) => updateBatchMeta("platform", event.target.value)}>
               {PLATFORM_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
@@ -167,7 +167,7 @@ export default function FilenameConversionPanel() {
             <input value={batchMeta.slot} onChange={(event) => updateBatchMeta("slot", event.target.value)} placeholder="Slot5" />
           </label>
           <label className="mapping-field">
-            <span>Waveguide type</span>
+            <span>Propagation waveguide</span>
             <select value={batchMeta.waveguideDescriptor} onChange={(event) => updateBatchMeta("waveguideDescriptor", event.target.value)}>
               {WAVEGUIDE_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
@@ -202,6 +202,7 @@ export default function FilenameConversionPanel() {
         <div className="translator-metrics manual-conversion-summary filename-summary-grid">
           <div><strong>{readyEntries.length}</strong><span>Files prepared</span></div>
           <div><strong>{measurementLabel(batchMeta.measurementType)}</strong><span>Detected measurement</span></div>
+          <div><strong>{batchMeta.platform}</strong><span>Normalized platform</span></div>
           <div className="archive-name-card"><strong>{archiveBaseName}</strong><span>Archive base name</span></div>
         </div>
       </article>

@@ -36,9 +36,24 @@ function summarizeWavelength(rows) {
   return { min: arrayMin(values), max: arrayMax(values) };
 }
 
+function joinedDatasetText(projectName, waferName, sourceMeta = {}, rows = []) {
+  return [
+    projectName,
+    waferName,
+    sourceMeta.name,
+    sourceMeta.type,
+    sourceMeta.platform,
+    sourceMeta.platformId,
+    sourceMeta.buildingBlock,
+    sourceMeta.buildingBlockId,
+    sourceMeta.notes,
+    ...rows.slice(0, 24).map((row) => row.source_name || "")
+  ].filter(Boolean).join(" ");
+}
+
 function inferDatasetTokens(projectName, waferName, sourceMeta = {}, rows = []) {
-  const joined = [projectName, waferName, sourceMeta.name, sourceMeta.type, ...rows.slice(0, 24).map((row) => row.source_name || "")].join(" ");
-  const mpwMatch = joined.match(/MPW\s*([0-9]+)/i);
+  const joined = joinedDatasetText(projectName, waferName, sourceMeta, rows);
+  const mpwMatch = joined.match(/\b(MPW(?:\s*[_-]?\s*[A-Z0-9]+)+)\b/i);
   const slotMatch = joined.match(/Slot\s*([0-9]+)/i);
   const typeMatch = joined.match(/\b(rib|strip|slot)\b/i);
   const modeMatch = /manual/i.test(joined)
@@ -48,11 +63,74 @@ function inferDatasetTokens(projectName, waferName, sourceMeta = {}, rows = []) 
       : "measurement";
 
   return {
-    mpw: mpwMatch ? `MPW${mpwMatch[1]}` : "Measurement",
+    mpw: mpwMatch ? slugify(mpwMatch[1]).toUpperCase() : "Measurement",
     slot: slotMatch ? `Slot${slotMatch[1]}` : "SlotUndefined",
     waveguideType: typeMatch ? typeMatch[1].toLowerCase() : "waveguide",
     mode: modeMatch
   };
+}
+
+function inferPlatform(sourceMeta = {}, rows = [], projectName = "", waferName = "") {
+  const explicit = String(sourceMeta.platformId || sourceMeta.platform || "").replace(/[_\s-]+/g, "").toLowerCase();
+  const joined = joinedDatasetText(projectName, waferName, sourceMeta, rows).replace(/[_\s-]+/g, "").toLowerCase();
+  const normalized = explicit || joined;
+
+  if (normalized.includes("220nmsoiactive")) return { id: "220nm_soi_active", label: "220nm SOI Active" };
+  if (normalized.includes("220nmsoipassive")) return { id: "220nm_soi_passive", label: "220nm SOI Passive" };
+  if (normalized.includes("220nmsoi")) return { id: "220nm_soi", label: "220nm SOI" };
+  if (normalized.includes("340nmsoi")) return { id: "340nm_soi", label: "340nm SOI" };
+  if (normalized.includes("500nmsoi")) return { id: "500nm_soi", label: "500nm SOI" };
+  if (normalized.includes("300nmsin")) return { id: "300nm_sin", label: "300nm SiN" };
+  if (normalized.includes("geonsi")) return { id: "ge_on_si", label: "Ge-on-Si" };
+  return { id: "platform_undefined", label: "Platform Undefined" };
+}
+
+function inferMeasurementType(sourceMeta = {}, rows = [], projectName = "", waferName = "") {
+  const explicit = String(sourceMeta.measurementType || "");
+  if (/heater|mzi/i.test(explicit)) return "HeaterEfficiency";
+  if (/insertion|\bil\b/i.test(explicit)) return "InsertionLoss";
+  if (/propagation/i.test(explicit)) return "PropagationLoss";
+
+  const joined = joinedDatasetText(projectName, waferName, sourceMeta, rows);
+  if (/heater|mzi/i.test(joined)) return "HeaterEfficiency";
+  if (/insertion|\bil\b/i.test(joined)) return "InsertionLoss";
+  return "PropagationLoss";
+}
+
+function inferWaveguideType(sourceMeta = {}, rows = [], projectName = "", waferName = "") {
+  const explicit = String(sourceMeta.waveguideType || sourceMeta.waveguideDescriptor || "");
+  if (/rib/i.test(explicit)) return { id: "rib", label: "Rib" };
+  if (/strip/i.test(explicit)) return { id: "strip", label: "Strip" };
+
+  const joined = joinedDatasetText(projectName, waferName, sourceMeta, rows);
+  if (/rib/i.test(joined)) return { id: "rib", label: "Rib" };
+  if (/strip/i.test(joined)) return { id: "strip", label: "Strip" };
+  return { id: "waveguide", label: "Waveguide" };
+}
+
+function inferBuildingBlock(sourceMeta = {}, rows = [], projectName = "", waferName = "") {
+  const explicit = String(sourceMeta.buildingBlockId || sourceMeta.buildingBlock || "").trim();
+  if (explicit) {
+    return {
+      id: slugify(explicit).toLowerCase(),
+      label: titleizeToken(explicit)
+    };
+  }
+
+  const measurementType = inferMeasurementType(sourceMeta, rows, projectName, waferName);
+  const waveguideType = inferWaveguideType(sourceMeta, rows, projectName, waferName);
+  const joined = joinedDatasetText(projectName, waferName, sourceMeta, rows).toLowerCase();
+
+  if (measurementType === "PropagationLoss") {
+    if (waveguideType.id === "rib") return { id: "propagation_loss_rib", label: "Propagation Loss Rib" };
+    if (waveguideType.id === "strip") return { id: "propagation_loss_strip", label: "Propagation Loss Strip" };
+    return { id: "propagation_loss_waveguide", label: "Propagation Loss Waveguide" };
+  }
+  if (/mmi/i.test(joined)) return { id: "mmi", label: "MMI" };
+  if (/cross/i.test(joined)) return { id: "crossing", label: "Crossing" };
+  if (/grating|\bgc\b/i.test(joined)) return { id: "grating_coupler", label: "Grating Coupler" };
+  if (/mzi/i.test(joined)) return { id: "mzi", label: "MZI" };
+  return { id: slugify(measurementType).toLowerCase() || "measurement_block", label: titleizeToken(measurementType) || "Measurement Block" };
 }
 
 export function inferDatasetIdentity({ projectName = "", waferName = "", sourceMeta = {}, rows = [], selectedDate = "" }) {
@@ -65,6 +143,10 @@ export function inferDatasetIdentity({ projectName = "", waferName = "", sourceM
   const folderName = `${tokens.mpw}_${tokens.slot}_${tokens.waveguideType}_${tokens.mode}_data`;
   const projectLabel = projectName || `${tokens.mpw}_${tokens.slot}_${titleizeToken(tokens.waveguideType).replace(/\s+/g, "_")}`;
   const waferLabel = waferName || unique(rows.map((row) => row.wafer_label))[0] || `${tokens.mpw}_${tokens.slot}_${tokens.waveguideType}`;
+  const platform = inferPlatform(sourceMeta, rows, projectName, waferName);
+  const measurementType = inferMeasurementType(sourceMeta, rows, projectName, waferName);
+  const waveguideType = inferWaveguideType(sourceMeta, rows, projectName, waferName);
+  const buildingBlock = inferBuildingBlock(sourceMeta, rows, projectName, waferName);
 
   return {
     id: slugify(folderName).toLowerCase(),
@@ -84,7 +166,14 @@ export function inferDatasetIdentity({ projectName = "", waferName = "", sourceM
     waveguideCount: waveguides.length,
     rowCount: rows.length,
     wavelengthMinNm: wavelength.min,
-    wavelengthMaxNm: wavelength.max
+    wavelengthMaxNm: wavelength.max,
+    platformId: platform.id,
+    platformLabel: platform.label,
+    buildingBlockId: buildingBlock.id,
+    buildingBlockLabel: buildingBlock.label,
+    measurementType,
+    waveguideFamily: waveguideType.label,
+    legacyFolder: `sample-data/wst/${folderName}`
   };
 }
 
@@ -94,6 +183,48 @@ function formatNumber(value, digits = 1) {
 
 function formatDateLabel(selectedDate) {
   return selectedDate || new Date().toISOString().slice(0, 10);
+}
+
+function upgradeManifestEntryToV2(entry = {}) {
+  if ((entry.schemaVersion || entry.librarySchemaVersion) >= 2) return entry;
+  return {
+    schemaVersion: 2,
+    datasetId: entry.datasetId || entry.id,
+    id: entry.id || entry.datasetId || entry.label,
+    label: entry.label,
+    projectName: entry.projectName,
+    waferName: entry.waferName,
+    selectedDate: entry.selectedDate,
+    folder: entry.folder,
+    traceFolder: entry.folder,
+    sourceType: entry.sourceType,
+    measurementMode: entry.measurementMode,
+    measurementType: entry.measurementType || "PropagationLoss",
+    mpw: entry.mpw,
+    slot: entry.slot,
+    waveguideType: entry.waveguideType,
+    waveguideFamily: entry.waveguideFamily || entry.waveguideType,
+    platformId: entry.platformId || "platform_undefined",
+    platformLabel: entry.platformLabel || "Platform Undefined",
+    buildingBlockId: entry.buildingBlockId || "measurement_block",
+    buildingBlockLabel: entry.buildingBlockLabel || "Measurement Block",
+    traceCount: entry.traceCount,
+    rowCount: entry.rowCount,
+    chipCount: entry.chipCount,
+    waveguideCount: entry.waveguideCount,
+    wavelengthMinNm: entry.wavelengthMinNm,
+    wavelengthMaxNm: entry.wavelengthMaxNm,
+    files: entry.files || [],
+    readme: entry.readme,
+    metadataFile: entry.metadataFile || "",
+    configFile: entry.configFile || "",
+    waveguideConfig: entry.waveguideConfig || null,
+    copiedToFolder: true,
+    processedInTestingSuite: true,
+    notes: entry.notes || "",
+    source: entry.source || "github-library",
+    librarySchemaVersion: 2
+  };
 }
 
 function sortWaveguideLengthEntries(lengthMap = {}) {
@@ -119,6 +250,43 @@ export function buildWaveguideConfig(sourceMeta = {}) {
       : null,
     propagationWaveguideManualMode: Boolean(sourceMeta.propagationWaveguideManualMode),
     waveguideLengths
+  };
+}
+
+export function buildDatasetMetadata(dataset, identity, traceFiles, waveguideConfig) {
+  const sourceMeta = dataset?.sourceMeta || {};
+  return {
+    schemaVersion: 2,
+    datasetId: identity.id,
+    label: identity.label,
+    projectName: identity.projectName,
+    waferName: identity.waferName,
+    selectedDate: identity.selectedDate,
+    mpwRun: identity.mpw,
+    slot: identity.slot,
+    platform: identity.platformLabel,
+    platformId: identity.platformId,
+    buildingBlock: identity.buildingBlockLabel,
+    buildingBlockId: identity.buildingBlockId,
+    measurementType: identity.measurementType,
+    measurementMode: identity.measurementMode,
+    waveguideType: identity.waveguideFamily,
+    sourceType: identity.sourceType,
+    traceCount: traceFiles.length,
+    rowCount: identity.rowCount,
+    chipCount: identity.chipCount,
+    waveguideCount: identity.waveguideCount,
+    wavelengthMinNm: identity.wavelengthMinNm,
+    wavelengthMaxNm: identity.wavelengthMaxNm,
+    copiedToFolder: true,
+    processedInTestingSuite: true,
+    notes: sourceMeta.notes || "",
+    sourceNames: identity.sourceNames,
+    traceFiles: traceFiles.map((file) => file.fileName),
+    waveguideConfig,
+    legacyFolder: identity.legacyFolder,
+    metadataFile: `${identity.folderName}/metadata.json`,
+    configFile: `${identity.folderName}/waveguide-config.json`
   };
 }
 
@@ -167,7 +335,7 @@ export function buildDatasetTraceFiles(rows, identity) {
   }).filter(Boolean);
 }
 
-export function buildDatasetReadme(identity, traceFiles) {
+export function buildDatasetReadme(identity, traceFiles, metadata) {
   const chipList = unique(traceFiles.map((file) => file.chipId)).join(", ") || "--";
   const waveguideList = unique(traceFiles.map((file) => file.waveguideId)).join(", ") || "--";
   return [
@@ -178,15 +346,20 @@ export function buildDatasetReadme(identity, traceFiles) {
     "## Dataset Summary",
     `- Project: ${identity.projectName}`,
     `- Wafer: ${identity.waferName}`,
+    `- Platform: ${identity.platformLabel}`,
+    `- Building block: ${identity.buildingBlockLabel}`,
     `- Measurement mode: ${identity.measurementMode}`,
-    `- Source type: ${identity.sourceType}`,
+    `- Measurement type: ${identity.measurementType}`,
+    `- Waveguide type: ${identity.waveguideFamily}`,
     `- Date: ${formatDateLabel(identity.selectedDate)}`,
     `- Files: ${traceFiles.length}`,
     `- Chips: ${chipList}`,
     `- Waveguides: ${waveguideList}`,
+    `- Metadata: metadata.json`,
     `- Waveguide config: waveguide-config.json`,
     `- Normalized rows: ${identity.rowCount}`,
     `- Wavelength span: ${formatNumber(identity.wavelengthMinNm, 3)} nm to ${formatNumber(identity.wavelengthMaxNm, 3)} nm`,
+    metadata?.notes ? `- Notes: ${metadata.notes}` : null,
     "",
     "## Filename Pattern",
     "Each trace is saved as a two-column text file:",
@@ -194,10 +367,10 @@ export function buildDatasetReadme(identity, traceFiles) {
     "2. optical power in W",
     "",
     "This folder was prepared for the Wafer Post-Processing Suite GitHub measurement-data library."
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
-export function buildDatasetManifestEntry(identity, traceFiles, waveguideConfig) {
+export function buildDatasetManifestEntry(identity, traceFiles, waveguideConfig, metadata) {
   return {
     id: identity.id,
     label: identity.label,
@@ -207,9 +380,14 @@ export function buildDatasetManifestEntry(identity, traceFiles, waveguideConfig)
     folder: `sample-data/wst/${identity.folderName}`,
     sourceType: identity.sourceType,
     measurementMode: identity.measurementMode,
+    measurementType: identity.measurementType,
     mpw: identity.mpw,
     slot: identity.slot,
     waveguideType: identity.waveguideType,
+    platformId: identity.platformId,
+    platformLabel: identity.platformLabel,
+    buildingBlockId: identity.buildingBlockId,
+    buildingBlockLabel: identity.buildingBlockLabel,
     traceCount: traceFiles.length,
     rowCount: identity.rowCount,
     chipCount: identity.chipCount,
@@ -218,9 +396,53 @@ export function buildDatasetManifestEntry(identity, traceFiles, waveguideConfig)
     wavelengthMaxNm: identity.wavelengthMaxNm,
     files: traceFiles.map((file) => file.fileName),
     readme: `${identity.folderName}/README.md`,
+    metadataFile: `${identity.folderName}/metadata.json`,
     configFile: `${identity.folderName}/waveguide-config.json`,
     waveguideConfig,
-    source: "github-library"
+    notes: metadata?.notes || "",
+    source: "github-library",
+    librarySchemaVersion: 1
+  };
+}
+
+export function buildDatasetManifestEntryV2(identity, traceFiles, waveguideConfig, metadata) {
+  return {
+    schemaVersion: 2,
+    datasetId: identity.id,
+    id: identity.id,
+    label: identity.label,
+    projectName: identity.projectName,
+    waferName: identity.waferName,
+    selectedDate: identity.selectedDate,
+    folder: `sample-data/wst/${identity.folderName}`,
+    traceFolder: `sample-data/wst/${identity.folderName}`,
+    sourceType: identity.sourceType,
+    measurementMode: identity.measurementMode,
+    measurementType: identity.measurementType,
+    mpw: identity.mpw,
+    slot: identity.slot,
+    waveguideType: identity.waveguideType,
+    waveguideFamily: identity.waveguideFamily,
+    platformId: identity.platformId,
+    platformLabel: identity.platformLabel,
+    buildingBlockId: identity.buildingBlockId,
+    buildingBlockLabel: identity.buildingBlockLabel,
+    traceCount: traceFiles.length,
+    rowCount: identity.rowCount,
+    chipCount: identity.chipCount,
+    waveguideCount: identity.waveguideCount,
+    wavelengthMinNm: identity.wavelengthMinNm,
+    wavelengthMaxNm: identity.wavelengthMaxNm,
+    files: traceFiles.map((file) => file.fileName),
+    readme: `${identity.folderName}/README.md`,
+    metadataFile: `${identity.folderName}/metadata.json`,
+    configFile: `${identity.folderName}/waveguide-config.json`,
+    waveguideConfig,
+    copiedToFolder: metadata?.copiedToFolder ?? true,
+    processedInTestingSuite: metadata?.processedInTestingSuite ?? true,
+    notes: metadata?.notes || "",
+    source: "github-library-v2",
+    librarySchemaVersion: 2
   };
 }
 
@@ -307,13 +529,23 @@ export async function publishDatasetPackageToGithub({
   token,
   manifestPath,
   mirrorManifestPath,
+  manifestPathV2,
+  mirrorManifestPathV2,
   packageData,
   existingManifest = [],
+  existingManifestV2 = [],
   onProgress
 }) {
   const nextManifest = [
     packageData.manifestEntry,
     ...existingManifest.filter((entry) => entry.id !== packageData.manifestEntry.id)
+  ].sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
+
+  const nextManifestV2 = [
+    packageData.manifestEntryV2,
+    ...existingManifestV2
+      .map((entry) => upgradeManifestEntryToV2(entry))
+      .filter((entry) => entry.id !== packageData.manifestEntryV2.id)
   ].sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
 
   const filesToWrite = [
@@ -323,10 +555,18 @@ export async function publishDatasetPackageToGithub({
     ]),
     { path: `public/sample-data/wst/${packageData.identity.folderName}/README.md`, content: packageData.readme },
     { path: `sample-data/wst/${packageData.identity.folderName}/README.md`, content: packageData.readme },
+    { path: `public/sample-data/wst/${packageData.identity.folderName}/${packageData.metadataFileName}`, content: packageData.metadataContent },
+    { path: `sample-data/wst/${packageData.identity.folderName}/${packageData.metadataFileName}`, content: packageData.metadataContent },
     { path: `public/sample-data/wst/${packageData.identity.folderName}/${packageData.configFileName}`, content: packageData.configContent },
     { path: `sample-data/wst/${packageData.identity.folderName}/${packageData.configFileName}`, content: packageData.configContent },
     { path: manifestPath, content: JSON.stringify(nextManifest, null, 2) + "\n" },
-    { path: mirrorManifestPath, content: JSON.stringify(nextManifest, null, 2) + "\n" }
+    { path: mirrorManifestPath, content: JSON.stringify(nextManifest, null, 2) + "\n" },
+    ...(manifestPathV2 && mirrorManifestPathV2
+      ? [
+          { path: manifestPathV2, content: JSON.stringify(nextManifestV2, null, 2) + "\n" },
+          { path: mirrorManifestPathV2, content: JSON.stringify(nextManifestV2, null, 2) + "\n" }
+        ]
+      : [])
   ];
 
   let completed = 0;
@@ -347,6 +587,7 @@ export async function publishDatasetPackageToGithub({
 
   return {
     manifest: nextManifest,
+    manifestV2: nextManifestV2,
     folderUrl: `https://github.com/${owner}/${repo}/tree/${branch}/public/sample-data/wst/${packageData.identity.folderName}`
   };
 }
@@ -364,13 +605,19 @@ export function buildGithubDatasetPackage(dataset) {
     throw new Error("This dataset does not contain trace-style wavelength and optical-power rows that can be published to the GitHub measurement library.");
   }
   const waveguideConfig = buildWaveguideConfig(dataset.sourceMeta);
-  const readme = buildDatasetReadme(identity, traceFiles);
-  const manifestEntry = buildDatasetManifestEntry(identity, traceFiles, waveguideConfig);
+  const metadata = buildDatasetMetadata(dataset, identity, traceFiles, waveguideConfig);
+  const readme = buildDatasetReadme(identity, traceFiles, metadata);
+  const manifestEntry = buildDatasetManifestEntry(identity, traceFiles, waveguideConfig, metadata);
+  const manifestEntryV2 = buildDatasetManifestEntryV2(identity, traceFiles, waveguideConfig, metadata);
   return {
     identity,
     traceFiles,
     readme,
+    metadata,
     manifestEntry,
+    manifestEntryV2,
+    metadataFileName: "metadata.json",
+    metadataContent: JSON.stringify(metadata, null, 2) + "\n",
     configFileName: "waveguide-config.json",
     configContent: JSON.stringify(waveguideConfig, null, 2) + "\n"
   };

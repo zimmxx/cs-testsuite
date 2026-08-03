@@ -232,6 +232,22 @@ function inferSpectrumWavelengthScale(header, sampleValue) {
   return 1;
 }
 
+function detectSpectrumValueColumn(columns, wavelengthColumn) {
+  const aliasMatch = columns.find((column) =>
+    scoreAlias(column, COLUMN_ALIASES.optical_power_w) ||
+    scoreAlias(column, COLUMN_ALIASES.optical_power_dbm) ||
+    scoreAlias(column, COLUMN_ALIASES.transmission_db) ||
+    scoreAlias(column, COLUMN_ALIASES.loss_db) ||
+    scoreAlias(column, COLUMN_ALIASES.insertion_loss_db)
+  );
+  if (aliasMatch) return aliasMatch;
+
+  return columns.find((column) => {
+    if (column === wavelengthColumn) return false;
+    const normalized = normalizeHeader(column);
+    return /^ch(?:annel)?\s*[_-]?\d+$/i.test(normalized);
+  });
+}
 function extractSpectrumRowsFromWorkbook(buffer) {
   const workbook = XLSX.read(buffer, { type: "array" });
   const preferredSheetName = workbook.SheetNames.find((name) => String(name).trim().toLowerCase() === "il") || workbook.SheetNames[0];
@@ -252,7 +268,7 @@ function normalizeSpectrumRows(rows, fileName, options = {}) {
     loss_db: columns.find((column) => scoreAlias(column, COLUMN_ALIASES.loss_db)),
     insertion_loss_db: columns.find((column) => scoreAlias(column, COLUMN_ALIASES.insertion_loss_db))
   };
-  const valueColumn = mapping.optical_power_w || mapping.optical_power_dbm || mapping.transmission_db || mapping.loss_db || mapping.insertion_loss_db;
+  const valueColumn = detectSpectrumValueColumn(columns, mapping.wavelength_nm);
 
   if (!mapping.wavelength_nm || !valueColumn) {
     throw new Error(`Unable to identify wavelength and measurement columns in ${fileName}.`);
@@ -462,6 +478,7 @@ export function sourceTypeLabel(fileName) {
 export function requiredColumns() {
   return REQUIRED_EXPORT_COLUMNS;
 }
+
 
 
 

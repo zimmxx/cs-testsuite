@@ -22,9 +22,11 @@ import {
 import { createCenterFilledWaferTemplate, defaultWaferTemplateId, getBuiltInWaferTemplates, getWaferTemplateLayout, shortChipLabel } from "./lib/waferTemplates";
 import { buildDatasetSnapshotMetadata, buildGithubDatasetPackage, publishDatasetPackageToGithub } from "./lib/githubLibrary";
 import { getDatasetPresentation } from "./lib/datasetPresentation";
+import { parseHeaterMeasurementFiles } from "./lib/heaterMeasurement";
 import { generatePostProcessedArchive } from "./lib/postProcessingExport";
 import { generatePowerPointReport } from "./lib/reportGenerator";
 import {
+  InteractiveHeaterTuningPlot,
   InteractivePropagationPlot,
   InteractivePropagationSpectrumPlot,
   InteractiveSpectrumViewerPlot,
@@ -33,6 +35,7 @@ import {
 import ManualConversionPanel from "./components/ManualConversionPanel";
 import DatasetLibraryPanel from "./components/DatasetLibraryPanel";
 import ComparisonLibraryPanel from "./components/ComparisonLibraryPanel";
+import HeaterEfficiencyPanel from "./components/HeaterEfficiencyPanel";
 import FilenameConversionPanel from "./components/FilenameConversionPanel";
 import ReportGeneratorPanel from "./components/ReportGeneratorPanel";
 import ToastTray from "./components/ToastTray";
@@ -1804,6 +1807,7 @@ export default function App() {
   const [githubConfig, setGithubConfig] = useState(() => ({ ...DEFAULT_GITHUB_CONFIG, ...readStoredJson(STORAGE_KEYS.github, {}) }));
   const [toastItems, setToastItems] = useState([]);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [isUploadingHeaterFiles, setIsUploadingHeaterFiles] = useState(false);
   const [waferMapDisplayMode, setWaferMapDisplayMode] = useState("all");
   const [waferMapOverlayMode, setWaferMapOverlayMode] = useState("none");
   const [isPropagationSettingsExpanded, setIsPropagationSettingsExpanded] = useState(true);
@@ -1982,6 +1986,11 @@ export default function App() {
   const propagationLead = metrics.propagation.byChip.find((item) => item.chipId === selectedChip) || metrics.propagation.byChip[0] || null;
   const insertionLead = insertionByChip.find((item) => item.chipId === selectedChip) || insertionByChip[0] || null;
   const heaterLead = metrics.heater.byChip.find((item) => item.chipId === selectedChip) || metrics.heater.byChip[0] || null;
+  const heaterTraceSeries = useMemo(() => (heaterLead?.traceSeries || []).map((item) => ({
+    label: item.label,
+    waveguideId: item.label,
+    points: (item.points || []).map((point) => ({ wavelengthNm: point.wavelengthNm, transmissionDb: point.lossDb }))
+  })), [heaterLead]);
   const selectedMetricDetail = selectedWaferMetric === "heater" ? heaterLead : selectedWaferMetric === "insertion" ? insertionLead : propagationLead;
   const propagationMean = average(metrics.propagation.byChip.map((item) => item.lossDbPerCm).filter((value) => value !== null));
   const insertionMean = average(insertionByChip.map((item) => item[insertionMetricField]).filter((value) => value !== null && value !== undefined));
@@ -2283,6 +2292,62 @@ export default function App() {
       pushToast("Upload failed", detail, "danger");
     } finally {
       setIsUploadingFiles(false);
+      if (event.target) event.target.value = "";
+    }
+  }
+  async function handleHeaterUpload(event) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length || isUploadingHeaterFiles) return;
+    setIsUploadingHeaterFiles(true);
+    try {
+      setStatusMessage(`Reading heater measurement files... ${files.length} selected.`);
+      const result = await parseHeaterMeasurementFiles(files, {
+        targetWavelengthNm: sourceMeta.heaterTrackingWavelengthNm ?? sourceMeta.propagationTargetWavelengthNm ?? 1550,
+        minimumProminenceDb: sourceMeta.heaterPeakProminenceDb ?? 5,
+        currentUnit: sourceMeta.heaterCurrentUnit || "auto",
+        shiftDirection: sourceMeta.heaterShiftDirection || "increasing"
+      });
+      if (!result.rows.length) {
+        setStatusMessage("The selected heater files did not produce readable heater rows.");
+        return;
+      }
+      const inferredMap = inferColumnMap(Object.keys(result.rows[0] || {}));
+      const nextSourceMeta = {
+        ...sourceMeta,
+        ...result.sourceMetaPatch,
+        heaterTrackingWavelengthNm: sourceMeta.heaterTrackingWavelengthNm ?? sourceMeta.propagationTargetWavelengthNm ?? 1550,
+        heaterPeakProminenceDb: sourceMeta.heaterPeakProminenceDb ?? 5,
+        heaterCurrentUnit: sourceMeta.heaterCurrentUnit || "auto",
+        heaterShiftDirection: sourceMeta.heaterShiftDirection || "increasing"
+      };
+      const nextPresentation = getDatasetPresentation({ projectName: "", waferName: "", sourceMeta: nextSourceMeta, rawRows: result.rows, files: files.map((file) => file.name) });
+      setProjectName(nextPresentation.projectDisplayName);
+      setWaferName(nextPresentation.waferDisplayName);
+      setRawRows(result.rows);
+      setColumnMap(inferredMap);
+      setSourceMeta(nextSourceMeta);
+      setDatasetNamingDraft(createDatasetNamingDraft({
+        projectName: nextPresentation.projectDisplayName,
+        waferName: nextPresentation.waferDisplayName,
+        selectedDate: "",
+        rawRows: result.rows,
+        sourceMeta: nextSourceMeta,
+        files: files.map((file) => file.name)
+      }));
+      setQuickDatasetSelection("");
+      setSelectedChip(result.rows[0]?.chip_id || "");
+      setSelectedWaferMetric("heater");
+      setActiveTab("heater");
+      setStatusMessage(`Loaded ${result.rows.length} normalized heater rows across ${result.groups} heater group(s).`);
+      appendAudit("upload", "Heater folder uploaded", `Loaded ${result.rows.length} heater rows from ${files.length} file(s).`);
+      pushToast("Heater workspace updated", `${result.groups} heater group${result.groups === 1 ? "" : "s"} loaded successfully.`, "success");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown heater upload error.";
+      setStatusMessage(`Heater upload failed: ${detail}`);
+      appendAudit("upload", "Heater upload failed", detail);
+      pushToast("Heater upload failed", detail, "danger");
+    } finally {
+      setIsUploadingHeaterFiles(false);
       if (event.target) event.target.value = "";
     }
   }
@@ -2805,7 +2870,8 @@ export default function App() {
 
             {activeTab === "propagation" ? <MatlabSummaryPanel summary={reportState.matlabSummary} /> : null}
 
-            <section className={activeTab === "propagation" ? "analysis-top-grid propagation-overview-grid" : "analysis-top-grid"}>
+{activeTab === "heater" ? <HeaterEfficiencyPanel sourceMeta={sourceMeta} heaterMetrics={metrics.heater} statusMessage={statusMessage} isUploading={isUploadingHeaterFiles} onFolderUpload={handleHeaterUpload} onFileUpload={handleHeaterUpload} onConfigChange={(field, value) => setSourceMeta((previous) => ({ ...previous, [field]: value }))} /> : null}
+                        <section className={activeTab === "propagation" ? "analysis-top-grid propagation-overview-grid" : "analysis-top-grid"}>
               <article className="analysis-card analysis-chart-card overview-fit-card">
                 <div className="analysis-card-head">
                   <div>
@@ -2902,6 +2968,36 @@ export default function App() {
                     </div>
                   </div>
                   <InteractiveTransmissionSpectrumPlot series={propagationLead?.transmissionSeries ?? []} targetWavelengthNm={sourceMeta.propagationTargetWavelengthNm} chipId={propagationLead?.chipId || selectedChip} />
+                </article>
+              </section>
+            ) : activeTab === "heater" ? (
+              <section className="analysis-spectrum-grid analysis-spectrum-grid-dual overview-spectra-grid">
+                <article className="analysis-card wide-span">
+                  <div className="analysis-card-head">
+                    <div>
+                      <h2>Phase Shift vs Power</h2>
+                      <p>Tracks the extracted MZI fringe phase against electrical power so users can inspect the linear fit used to estimate <code>Ppi</code>.</p>
+                    </div>
+                  </div>
+                  <InteractiveHeaterTuningPlot series={heaterLead?.powerSeries ?? []} fit={heaterLead?.phaseFit ?? null} chipId={heaterLead?.chipId || selectedChip} metric="phase" targetWavelengthNm={heaterLead?.targetWavelengthNm || sourceMeta.heaterTrackingWavelengthNm || sourceMeta.propagationTargetWavelengthNm} />
+                </article>
+                <article className="analysis-card wide-span">
+                  <div className="analysis-card-head">
+                    <div>
+                      <h2>Wavelength Shift vs Power</h2>
+                      <p>Shows the raw fringe shift trend before the <code>FSR/2</code> phase conversion, which is useful for checking tracking stability and heater linearity.</p>
+                    </div>
+                  </div>
+                  <InteractiveHeaterTuningPlot series={heaterLead?.powerSeries ?? []} fit={heaterLead?.wavelengthFit ?? null} chipId={heaterLead?.chipId || selectedChip} metric="wavelength" targetWavelengthNm={heaterLead?.targetWavelengthNm || sourceMeta.heaterTrackingWavelengthNm || sourceMeta.propagationTargetWavelengthNm} />
+                </article>
+                <article className="analysis-card wide-span">
+                  <div className="analysis-card-head">
+                    <div>
+                      <h2>Heater Transmission Overlay</h2>
+                      <p>Overlay of all uploaded heater-bias spectra for the selected chip so the tracked fringe motion can be inspected directly against the raw measurement.</p>
+                    </div>
+                  </div>
+                  <InteractiveTransmissionSpectrumPlot series={heaterTraceSeries} targetWavelengthNm={heaterLead?.targetWavelengthNm || sourceMeta.heaterTrackingWavelengthNm || sourceMeta.propagationTargetWavelengthNm} chipId={heaterLead?.chipId || selectedChip} />
                 </article>
               </section>
             ) : activeTab === "insertion" ? (

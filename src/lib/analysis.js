@@ -72,6 +72,26 @@ function average(values) {
   return clean.reduce((acc, value) => acc + value, 0) / clean.length;
 }
 
+
+function interpolateAtX(points, targetX) {
+  const clean = points
+    .filter((point) => point?.x !== null && point?.x !== undefined && point?.y !== null && point?.y !== undefined)
+    .sort((a, b) => a.x - b.x);
+  if (!clean.length || targetX === null || targetX === undefined) return null;
+  if (targetX <= clean[0].x) return clean[0].y;
+  if (targetX >= clean[clean.length - 1].x) return clean[clean.length - 1].y;
+
+  for (let index = 0; index < clean.length - 1; index += 1) {
+    const left = clean[index];
+    const right = clean[index + 1];
+    if (targetX < left.x || targetX > right.x) continue;
+    if (right.x === left.x) return left.y;
+    const fraction = (targetX - left.x) / (right.x - left.x);
+    return left.y + fraction * (right.y - left.y);
+  }
+
+  return null;
+}
 function buildWindowAveragedSamples(rows, targetWavelengthNm, windowNm) {
   const filtered = rows.filter((row) => {
     const wavelength = toNumber(row.wavelength_nm);
@@ -490,24 +510,82 @@ export function computeHeaterEfficiency(normalizedRows) {
   );
 
   const byChip = Array.from(groups.entries()).map(([chipId, rows]) => {
-    const values = rows
+    const summaryRows = rows.filter((row) => row.pi_power_mw !== null && row.pi_power_mw !== undefined);
+    const sweepRows = rows
+      .filter((row) => row.heater_power_mw !== null || row.phase_shift_pi !== null || row.wavelength_shift_nm !== null)
+      .sort((a, b) => (a.heater_power_mw ?? 0) - (b.heater_power_mw ?? 0));
+    const directRatioValues = rows
       .map((row) => {
-        if (row.pi_power_mw !== null) return row.pi_power_mw;
         if (row.heater_power_mw !== null && row.phase_shift_pi !== null && row.phase_shift_pi !== 0) {
           return row.heater_power_mw / row.phase_shift_pi;
         }
         return null;
       })
       .filter((value) => value !== null);
+    const phaseFit = linearRegression(
+      sweepRows
+        .filter((row) => row.heater_power_mw !== null && row.phase_shift_pi !== null)
+        .map((row) => ({ x: row.heater_power_mw, y: row.phase_shift_pi }))
+    );
+    const wavelengthFit = linearRegression(
+      sweepRows
+        .filter((row) => row.heater_power_mw !== null && row.wavelength_shift_nm !== null)
+        .map((row) => ({ x: row.heater_power_mw, y: row.wavelength_shift_nm }))
+    );
+    const fsrNm = average(rows.map((row) => toNumber(row.fsr_nm)));
+    const fitPiPowerMw = phaseFit?.slope ? 1 / phaseFit.slope : wavelengthFit?.slope && fsrNm ? fsrNm / (2 * wavelengthFit.slope) : null;
+    const summaryPiPowerMw = average(summaryRows.map((row) => toNumber(row.pi_power_mw)));
+    const ratioPiPowerMw = average(directRatioValues);
+    const efficiencyMwPerPi = fitPiPowerMw ?? summaryPiPowerMw ?? ratioPiPowerMw;
 
-    if (!values.length) return null;
-    const avg = values.reduce((acc, value) => acc + value, 0) / values.length;
+    if (efficiencyMwPerPi === null || efficiencyMwPerPi === undefined) return null;
+
+    const currentAtPiMa = interpolateAtX(
+      sweepRows.map((row) => ({ x: row.heater_power_mw, y: row.current_ma })),
+      efficiencyMwPerPi
+    ) ?? average(summaryRows.map((row) => toNumber(row.current_ma)));
+    const voltageAtPiV = currentAtPiMa ? efficiencyMwPerPi / currentAtPiMa : average(summaryRows.map((row) => toNumber(row.voltage_v)));
+    const traceCarrier = rows.find((row) => Array.isArray(row.heater_trace_series)) || summaryRows[0] || null;
+    const maxPhaseShiftPi = average(summaryRows.map((row) => toNumber(row.heater_max_phase_shift_pi)))
+      ?? Math.max(...sweepRows.map((row) => toNumber(row.phase_shift_pi)).filter((value) => value !== null), Number.NEGATIVE_INFINITY);
+    const safeMaxPhaseShiftPi = Number.isFinite(maxPhaseShiftPi) ? maxPhaseShiftPi : null;
+    const targetLossValues = sweepRows.map((row) => toNumber(row.loss_at_target_db)).filter((value) => value !== null);
+    const lossDriftDb = targetLossValues.length ? targetLossValues[targetLossValues.length - 1] - targetLossValues[0] : null;
+
     return {
       chipId,
       dieX: rows[0].die_x,
       dieY: rows[0].die_y,
-      efficiencyMwPerPi: avg,
-      samples: rows.length
+      efficiencyMwPerPi,
+      piPowerMw: efficiencyMwPerPi,
+      voltageAtPiV: voltageAtPiV ?? average(summaryRows.map((row) => toNumber(row.heater_vpi_v))),
+      currentAtPiMa: currentAtPiMa ?? average(summaryRows.map((row) => toNumber(row.heater_ipi_ma))),
+      fsrNm,
+      referencePeakWavelengthNm: average(rows.map((row) => toNumber(row.tracked_peak_wavelength_nm))),
+      wavelengthShiftSlopeNmPerMw: wavelengthFit?.slope ?? null,
+      phaseSlopePiPerMw: phaseFit?.slope ?? null,
+      phaseFit,
+      wavelengthFit,
+      fitMse: phaseFit?.mse ?? wavelengthFit?.mse ?? null,
+      fitRSquared: phaseFit?.rSquared ?? wavelengthFit?.rSquared ?? null,
+      samples: sweepRows.length || rows.length,
+      maxPhaseShiftPi: safeMaxPhaseShiftPi,
+      meanResistanceOhm: average(rows.map((row) => toNumber(row.resistance_ohm))),
+      lossDriftDb,
+      powerSeries: sweepRows.map((row) => ({
+        powerMw: toNumber(row.heater_power_mw),
+        phaseShiftPi: toNumber(row.phase_shift_pi),
+        wavelengthShiftNm: toNumber(row.wavelength_shift_nm),
+        currentMa: toNumber(row.current_ma),
+        voltageV: toNumber(row.voltage_v),
+        trackedPeakWavelengthNm: toNumber(row.tracked_peak_wavelength_nm),
+        lossAtTargetDb: toNumber(row.loss_at_target_db),
+        lossAtTrackedPeakDb: toNumber(row.loss_at_tracked_peak_db)
+      })),
+      traceSeries: traceCarrier?.heater_trace_series || [],
+      targetWavelengthNm: average(rows.map((row) => toNumber(row.heater_target_wavelength_nm))),
+      peakProminenceDb: average(rows.map((row) => toNumber(row.heater_peak_prominence_db))),
+      shiftDirection: traceCarrier?.heater_shift_direction || "increasing"
     };
   }).filter(Boolean);
 
@@ -520,11 +598,10 @@ export function computeHeaterEfficiency(normalizedRows) {
       dieX: item.dieX,
       dieY: item.dieY,
       value: item.efficiencyMwPerPi,
-      detail: `${item.efficiencyMwPerPi.toFixed(2)} mW/pi`
+      detail: item.voltageAtPiV !== null && item.voltageAtPiV !== undefined ? `${item.efficiencyMwPerPi.toFixed(2)} mW/pi | Vpi ${item.voltageAtPiV.toFixed(2)} V` : `${item.efficiencyMwPerPi.toFixed(2)} mW/pi`
     }))
   };
 }
-
 export function summarizeDataset(normalizedRows) {
   const chips = new Set();
   const families = new Set();

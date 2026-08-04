@@ -543,6 +543,73 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
 }
 
 
+export function InteractiveHeaterTuningPlot({
+  series,
+  fit = null,
+  chipId,
+  metric = "phase",
+  targetWavelengthNm = 1550
+}) {
+  const plot = useMemo(() => {
+    const usable = (series || []).filter((point) => point?.powerMw !== null && point?.powerMw !== undefined);
+    if (!usable.length) return null;
+    const yKey = metric === "wavelength" ? "wavelengthShiftNm" : "phaseShiftPi";
+    const filtered = usable.filter((point) => point?.[yKey] !== null && point?.[yKey] !== undefined);
+    if (!filtered.length) return null;
+    const x = filtered.map((point) => point.powerMw);
+    const y = filtered.map((point) => point[yKey]);
+    const yTitle = metric === "wavelength" ? "Wavelength shift (nm)" : "Phase shift (pi)";
+    const plotTitle = metric === "wavelength" ? "Wavelength shift vs power" : "Phase shift vs power";
+    const fitX = fit && Number.isFinite(fit.slope) ? [arrayMin(x), arrayMax(x)] : [];
+    const fitY = fitX.length ? fitX.map((value) => fit.slope * value + fit.intercept) : [];
+    return {
+      data: [
+        {
+          type: "scatter",
+          mode: "markers",
+          name: plotTitle,
+          x,
+          y,
+          marker: { color: metric === "wavelength" ? "#ff8f45" : "#c87736", size: 9, line: { color: "#ffffff", width: 1.5 } },
+          hovertemplate: metric === "wavelength" ? "Power: %{x:.2f} mW<br>Shift: %{y:.4f} nm<extra></extra>" : "Power: %{x:.2f} mW<br>Phase: %{y:.4f} pi<extra></extra>"
+        },
+        ...(fitX.length ? [{
+          type: "scatter",
+          mode: "lines",
+          name: "Linear fit",
+          x: fitX,
+          y: fitY,
+          line: { color: "#0f8a83", width: 3 },
+          hovertemplate: metric === "wavelength" ? "Fit shift: %{y:.4f} nm<extra></extra>" : "Fit phase: %{y:.4f} pi<extra></extra>"
+        }] : [])
+      ],
+      layout: {
+        margin: { l: 66, r: 24, t: 18, b: 56 },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "#fbfcfc",
+        hovermode: "closest",
+        xaxis: { title: "Electrical power (mW)", zeroline: false, gridcolor: "#e3ecef", linecolor: "#9db2b8", ticks: "outside" },
+        yaxis: { title: yTitle, zeroline: false, gridcolor: "#e3ecef", linecolor: "#9db2b8", ticks: "outside" },
+        showlegend: true,
+        legend: { orientation: "h", y: 1.14, x: 0 },
+        annotations: [{ xref: "paper", yref: "paper", x: 1, y: 1.14, text: `Target ${targetWavelengthNm} nm`, showarrow: false, font: { size: 11, color: "#5a6d74" } }],
+        font: { family: "IBM Plex Sans, Arial, sans-serif", color: "#16323b" }
+      },
+      config: baseConfig(`${chipId || "chip"}-heater-${metric}`)
+    };
+  }, [chipId, fit, metric, series, targetWavelengthNm]);
+
+  return (
+    <PlotlyFigure
+      data={plot?.data || []}
+      layout={plot?.layout || {}}
+      config={plot?.config || {}}
+      windowTitle={`${metric === "wavelength" ? "Wavelength Shift" : "Phase Shift"} - ${chipId || "Chip"}`}
+      emptyMessage="No heater tuning data are available for the selected chip."
+      height={240}
+    />
+  );
+}
 export function InteractiveSpectrumViewerPlot({
   series,
   displayUnit = "db",

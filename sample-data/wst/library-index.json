@@ -55,7 +55,174 @@
     "waferDisplayName": "Slot5",
     "platformDisplayName": "",
     "projectCode": "MPWUNDEFINED",
-    "measurementType": "MeasurementTypeUndefined"
+    "measurementType": "MeasurementTypeUndefined",
+    "librarySchemaVersion": 1
+  },
+  {
+    "id": "mit_220nmsoipassive_slot14_ribwaveguide_propagationloss_manuala",
+    "label": "MIT_220NMSOIPASSIVE_SLOT14_RIBWAVEGUIDE_PROPAGATIONLOSS_MANUAL",
+    "projectName": "MIT",
+    "waferName": "SlotUndefined",
+    "selectedDate": "",
+    "folder": "sample-data/wst/MIT_220NMSOIPASSIVE_SLOT14_RIBWAVEGUIDE_PROPAGATIONLOSS_MANUALa",
+    "sourceType": "Automated WST trace set",
+    "measurementMode": "Manual converted",
+    "measurementType": "PropagationLoss",
+    "mpw": "MIT",
+    "slot": "Slot14",
+    "waveguideType": "Waveguide",
+    "platformId": "220nm_soi_passive",
+    "platformLabel": "220nm SOI Passive",
+    "buildingBlockId": "propagation_loss_rib",
+    "buildingBlockLabel": "Propagation Loss Rib",
+    "traceCount": 102,
+    "rowCount": 1938102,
+    "chipCount": 17,
+    "waveguideCount": 6,
+    "wavelengthMinNm": 1525,
+    "wavelengthMaxNm": 1620,
+    "files": [
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip13_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip13_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip13_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip13_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip13_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip13_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip25_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip25_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip25_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip25_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip25_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip25_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip35_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip35_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip35_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip35_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip35_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip35_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip38_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip38_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip38_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip38_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip38_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip38_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip41_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip41_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip41_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip41_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip41_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip41_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip45_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip45_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip45_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip45_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip45_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip45_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip49_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip49_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip49_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip49_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip49_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip49_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip50_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip50_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip50_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip50_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip50_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip50_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip51_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip51_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip51_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip51_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip51_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip51_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip52_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip52_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip52_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip52_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip52_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip52_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip53_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip53_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip53_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip53_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip53_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip53_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip57_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip57_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip57_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip57_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip57_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip57_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip61_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip61_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip61_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip61_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip61_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip61_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip64_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip64_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip64_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip64_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip64_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip64_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip67_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip67_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip67_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip67_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip67_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip67_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip77_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip77_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip77_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip77_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip77_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip77_WG6.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip89_WG1.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip89_WG2.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip89_WG3.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip89_WG4.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip89_WG5.txt",
+      "MIT_220nmSOIPassive_Slot14_RibWaveguide_PropagationLoss_Manual_Chip89_WG6.txt"
+    ],
+    "readme": "MIT_220NMSOIPASSIVE_SLOT14_RIBWAVEGUIDE_PROPAGATIONLOSS_MANUALa/README.md",
+    "metadataFile": "MIT_220NMSOIPASSIVE_SLOT14_RIBWAVEGUIDE_PROPAGATIONLOSS_MANUALa/metadata.json",
+    "configFile": "MIT_220NMSOIPASSIVE_SLOT14_RIBWAVEGUIDE_PROPAGATIONLOSS_MANUALa/waveguide-config.json",
+    "waveguideConfig": {
+      "propagationWaveguideCount": 6,
+      "propagationWaveguideStartMm": 0,
+      "propagationWaveguideIntervalMm": 4,
+      "propagationWaveguideManualMode": false,
+      "waveguideLengths": [
+        {
+          "index": 1,
+          "lengthMm": 0
+        },
+        {
+          "index": 2,
+          "lengthMm": 4
+        },
+        {
+          "index": 3,
+          "lengthMm": 8
+        },
+        {
+          "index": 4,
+          "lengthMm": 12
+        },
+        {
+          "index": 5,
+          "lengthMm": 16
+        },
+        {
+          "index": 6,
+          "lengthMm": 20
+        }
+      ]
+    },
+    "notes": "",
+    "source": "github-library",
+    "librarySchemaVersion": 1
   },
   {
     "id": "mpw30_slot13_rib_data",
@@ -143,7 +310,8 @@
     "waferDisplayName": "Slot13",
     "platformDisplayName": "",
     "projectCode": "MPW30",
-    "measurementType": "MeasurementTypeUndefined"
+    "measurementType": "MeasurementTypeUndefined",
+    "librarySchemaVersion": 1
   },
   {
     "id": "mpw46_slot5_waveguide_manual_data",
@@ -153,10 +321,10 @@
     "selectedDate": "",
     "folder": "sample-data/wst/MPW46_Slot5_waveguide_manual_data",
     "sourceType": "Automated WST trace set",
-    "measurementMode": "Manual converted",
+    "measurementMode": "Manual",
     "mpw": "MPW46",
     "slot": "Slot5",
-    "waveguideType": "Waveguide",
+    "waveguideType": "StripWaveguide",
     "traceCount": 48,
     "rowCount": 912048,
     "chipCount": 8,
@@ -247,7 +415,13 @@
         }
       ]
     },
-    "source": "github-library"
+    "source": "github-library",
+    "projectDisplayName": "MPW46",
+    "waferDisplayName": "Slot5",
+    "platformDisplayName": "220nmSOI",
+    "projectCode": "MPW46",
+    "measurementType": "PropagationLoss",
+    "librarySchemaVersion": 1
   },
   {
     "id": "mpw47_slot5_waveguide_manual_data",
@@ -361,7 +535,8 @@
     "waferDisplayName": "Slot5",
     "platformDisplayName": "220nmSOI",
     "projectCode": "MPW47",
-    "measurementType": "PropagationLoss"
+    "measurementType": "PropagationLoss",
+    "librarySchemaVersion": 1
   },
   {
     "id": "mpw47_slot7_waveguide_manual_data",
@@ -475,7 +650,8 @@
     "waferDisplayName": "Slot7",
     "platformDisplayName": "220nmSOI",
     "projectCode": "MPW47",
-    "measurementType": "PropagationLoss"
+    "measurementType": "PropagationLoss",
+    "librarySchemaVersion": 1
   },
   {
     "id": "mpw47_slot9_waveguide_manual_data",
@@ -589,7 +765,8 @@
     "waferDisplayName": "Slot9",
     "platformDisplayName": "220nmSOI",
     "projectCode": "MPW47",
-    "measurementType": "PropagationLoss"
+    "measurementType": "PropagationLoss",
+    "librarySchemaVersion": 1
   },
   {
     "id": "mpw47_slot11_waveguide_manual_data",
@@ -703,6 +880,7 @@
     "waferDisplayName": "Slot11",
     "platformDisplayName": "220nmSOI",
     "projectCode": "MPW47",
-    "measurementType": "PropagationLoss"
+    "measurementType": "PropagationLoss",
+    "librarySchemaVersion": 1
   }
 ]

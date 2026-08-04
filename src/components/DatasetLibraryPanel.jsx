@@ -19,16 +19,16 @@ function safeDatasetDisplay(dataset = {}) {
 
   return {
     shortLabel: display.shortLabel || dataset.label || "Dataset snapshot",
-    fullLabel: dataset.label || display.label || display.shortLabel || "Dataset snapshot",
-        measurementMode: presented.measurementMode || display.measurementMode || dataset.sourceMeta?.type || "Measurement",
-    measurementType: presented.measurementType || display.measurementType || "MeasurementTypeUndefined",
-    projectName: presented.projectDisplayName || dataset.projectName || display.projectName || "--",
-    slot: presented.slot || "SlotUndefined",
-    waveguideType: presented.waveguideType || "WaveguideUndefined",
-    waferName: presented.waferDisplayName || dataset.waferName || display.waferName || "--",
+    fullLabel: display.label || dataset.label || display.shortLabel || "Dataset snapshot",
+    measurementMode: display.measurementMode || presented.measurementMode || dataset.sourceMeta?.type || "Measurement",
+    measurementType: display.measurementType || presented.measurementType || "MeasurementTypeUndefined",
+    projectName: display.projectName || presented.projectDisplayName || dataset.projectName || "--",
+    slot: display.slot || presented.slot || "SlotUndefined",
+    waveguideType: display.waveguideType || presented.waveguideType || "WaveguideUndefined",
+    waferName: display.waferName || presented.waferDisplayName || dataset.waferName || "--",
     sourceLabel: display.sourceLabel || `${rawSourceCount} file${rawSourceCount === 1 ? "" : "s"}`,
-    platformLabel: dataset.platformLabel || display.platformLabel || presented.platformDisplayName || "--",
-    buildingBlockLabel: dataset.buildingBlockLabel || display.buildingBlockLabel || "--",
+    platformLabel: display.platformLabel || dataset.platformLabel || presented.platformDisplayName || "--",
+    buildingBlockLabel: display.buildingBlockLabel || dataset.buildingBlockLabel || "--",
     rowText: Number.isFinite(summaryRows)
       ? summaryRows.toLocaleString()
       : Number.isFinite(displayRows)
@@ -41,8 +41,12 @@ function safeDatasetDisplay(dataset = {}) {
 
 export default function DatasetLibraryPanel({
   sourceMeta,
-  appSettings,
   currentDatasetMeta,
+  currentDatasetNamingDraft,
+  onCurrentDatasetNamingChange,
+  onResetCurrentDatasetNaming,
+  onApplyCurrentNamingToLoadedSnapshot,
+  canApplyCurrentNamingToLoadedSnapshot,
   statusMessage,
   githubConfig,
   onGithubConfigChange,
@@ -75,7 +79,7 @@ export default function DatasetLibraryPanel({
         <div className="analysis-card-head">
           <div>
             <h2>Dataset Snapshots and GitHub Publish</h2>
-            <p>Use this flow for uploaded measurement files: save a local dataset snapshot, review the generated naming, then publish that snapshot to the GitHub measurement-data library when it looks correct.</p>
+            <p>Use this flow for uploaded measurement files: save a local dataset snapshot, review or rewrite the naming, then publish that snapshot to the GitHub measurement-data library when it looks correct.</p>
           </div>
           <div className="library-action-row">
             <button type="button" onClick={() => onSaveCurrentDataset(false)} disabled={!currentDatasetMeta?.rowCount}>Save Dataset Snapshot</button>
@@ -96,20 +100,50 @@ export default function DatasetLibraryPanel({
         <div className="analysis-card-head stacked">
           <div>
             <h2>Current Publish Preview</h2>
-            <p>This is the naming that will carry through your local dataset snapshot and the GitHub publish package for the current workspace dataset.</p>
+            <p>This naming now stays editable before you save a local snapshot or push that snapshot to GitHub.</p>
           </div>
+          <div className="library-action-row">
+            <button type="button" className="ghost-action" onClick={onResetCurrentDatasetNaming} disabled={!currentDatasetMeta?.rowCount}>Reset Detected Naming</button>
+            <button type="button" className="secondary-action" onClick={onApplyCurrentNamingToLoadedSnapshot} disabled={!canApplyCurrentNamingToLoadedSnapshot}>Apply to Loaded Snapshot</button>
+          </div>
+        </div>
+        <div className="settings-grid settings-grid-extended">
+          <label className="mapping-field">
+            <span>Dataset label</span>
+            <input value={currentDatasetNamingDraft?.label || ""} onChange={(event) => onCurrentDatasetNamingChange("label", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
+          </label>
+          <label className="mapping-field">
+            <span>GitHub folder name</span>
+            <input value={currentDatasetNamingDraft?.folderName || ""} onChange={(event) => onCurrentDatasetNamingChange("folderName", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
+          </label>
+          <label className="mapping-field">
+            <span>Project / MPW</span>
+            <input value={currentDatasetNamingDraft?.projectName || ""} onChange={(event) => onCurrentDatasetNamingChange("projectName", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
+          </label>
+          <label className="mapping-field">
+            <span>Slot</span>
+            <input value={currentDatasetNamingDraft?.slot || ""} onChange={(event) => onCurrentDatasetNamingChange("slot", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
+          </label>
+          <label className="mapping-field">
+            <span>Platform</span>
+            <input value={currentDatasetNamingDraft?.platformLabel || ""} onChange={(event) => onCurrentDatasetNamingChange("platformLabel", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
+          </label>
+          <label className="mapping-field">
+            <span>Building block</span>
+            <input value={currentDatasetNamingDraft?.buildingBlockLabel || ""} onChange={(event) => onCurrentDatasetNamingChange("buildingBlockLabel", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
+          </label>
         </div>
         <div className="translator-metrics github-library-metrics">
           <div><strong>{currentDatasetMeta?.label || "No dataset loaded"}</strong><span>Dataset label</span></div>
           <div><strong>{currentDatasetMeta?.folderName || "--"}</strong><span>GitHub folder name</span></div>
           <div><strong>{currentDatasetMeta?.projectName || "--"}</strong><span>Project / MPW</span></div>
-          <div><strong>{currentDatasetMeta?.slot || "--"}</strong><span>Detected slot</span></div>
+          <div><strong>{currentDatasetMeta?.slot || "--"}</strong><span>Slot</span></div>
           <div><strong>{currentDatasetMeta?.platformLabel || currentDatasetMeta?.platformDisplayName || "--"}</strong><span>Platform</span></div>
           <div><strong>{currentDatasetMeta?.buildingBlockLabel || "--"}</strong><span>Building block</span></div>
         </div>
       </article>
 
-      <article className="analysis-card github-sync-card"> 
+      <article className="analysis-card github-sync-card">
         <div className="analysis-card-head stacked">
           <div>
             <h2>GitHub Measurement Data Sync</h2>
@@ -151,7 +185,7 @@ export default function DatasetLibraryPanel({
           <table>
             <thead>
               <tr>
-                                <th>Dataset</th>
+                <th>Dataset</th>
                 <th>Project</th>
                 <th>Slot</th>
                 <th>Waveguide Type</th>
@@ -171,7 +205,7 @@ export default function DatasetLibraryPanel({
                     <strong>{dataset.label || "Measurement dataset"}</strong>
                     <div className="dataset-subcopy">{dataset.mpw || "--"} - {dataset.slot || "--"} - {dataset.waveguideType || "--"}</div>
                   </td>
-                                    <td>{dataset.projectDisplayName || dataset.projectName || "--"}</td>
+                  <td>{dataset.projectDisplayName || dataset.projectName || "--"}</td>
                   <td>{dataset.slot || "SlotUndefined"}</td>
                   <td>{dataset.waveguideType || "WaveguideUndefined"}</td>
                   <td>{dataset.measurementMode || dataset.sourceType || "--"}</td>
@@ -198,14 +232,14 @@ export default function DatasetLibraryPanel({
         <div className="analysis-card-head">
           <div>
             <h2>Saved Dataset Snapshots</h2>
-            <p>These are local browser snapshots. Review the naming here first, then click <strong>Save to GitHub</strong> on the snapshot you want to publish into the shared library.</p>
+            <p>These are local browser snapshots. Load one if you want to revise its naming, then apply the current naming before publishing to GitHub.</p>
           </div>
         </div>
         <div className="dashboard-table-wrap">
           <table>
             <thead>
               <tr>
-                                <th>Dataset</th>
+                <th>Dataset</th>
                 <th>Project</th>
                 <th>Slot</th>
                 <th>Waveguide Type</th>
@@ -229,7 +263,7 @@ export default function DatasetLibraryPanel({
                       <strong>{info.shortLabel}</strong>
                       <div className="dataset-subcopy">{info.fullLabel}</div>
                     </td>
-                                        <td>{info.projectName}</td>
+                    <td>{info.projectName}</td>
                     <td>{info.slot}</td>
                     <td>{info.waveguideType}</td>
                     <td>{info.measurementMode}</td>
@@ -268,4 +302,3 @@ export default function DatasetLibraryPanel({
     </section>
   );
 }
-

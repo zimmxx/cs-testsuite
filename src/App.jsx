@@ -737,10 +737,35 @@ function normalizeStoredDatasets(value) {
 }
 
 function presentDataset(dataset) {
+  const presented = getDatasetPresentation(dataset);
+  const display = dataset?.display || {};
   return {
     ...dataset,
-    ...getDatasetPresentation(dataset)
+    ...presented,
+    projectDisplayName: display.projectName || presented.projectDisplayName,
+    waferDisplayName: display.slot || presented.waferDisplayName,
+    slot: display.slot || presented.slot,
+    waveguideType: display.waveguideType || presented.waveguideType,
+    measurementMode: display.measurementMode || presented.measurementMode,
+    measurementType: display.measurementType || presented.measurementType,
+    platformDisplayName: display.platformLabel || presented.platformDisplayName
   };
+}
+
+function createDatasetNamingDraft(dataset = {}) {
+  const display = buildDatasetSnapshotMetadata(dataset);
+  return {
+    label: display.label || "",
+    folderName: display.folderName || "",
+    projectName: display.projectName || "",
+    slot: display.slot || "",
+    platformLabel: display.platformLabel || "",
+    buildingBlockLabel: display.buildingBlockLabel || ""
+  };
+}
+
+function selectedLocalDatasetId(value = "") {
+  return String(value || "").startsWith("local:") ? String(value).slice(6) : "";
 }
 
 function mergeWaferTemplates(...groups) {
@@ -1763,6 +1788,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState("");
   const [savedProjects, setSavedProjects] = useState(() => readStoredJson(STORAGE_KEYS.projects, []));
   const [savedDatasets, setSavedDatasets] = useState(() => normalizeStoredDatasets(readStoredJson(STORAGE_KEYS.datasets, [])));
+  const [datasetNamingDraft, setDatasetNamingDraft] = useState(() => createDatasetNamingDraft({ sourceMeta: buildDefaultSourceMeta(initialSettings), rawRows: [] }));
   const [persistentCollectionsReady, setPersistentCollectionsReady] = useState(() => !supportsIndexedDbPersistence());
   const [savedWaferTemplates, setSavedWaferTemplates] = useState(() => readStoredJson(STORAGE_KEYS.waferTemplates, []));
   const [auditLog, setAuditLog] = useState(() => readStoredJson(STORAGE_KEYS.audit, []));
@@ -2153,11 +2179,54 @@ export default function App() {
   function rememberDatasetSnapshot(autoSaved, nextRows, nextMap, nextSourceMeta, sourceLabel, nextProjectName = projectName, nextWaferName = waferName, nextDate = selectedDate) {
     const snapshotRows = nextRows;
     const snapshotSummary = summarizeDataset(buildNormalizedRows(snapshotRows, nextMap, nextSourceMeta));
-    const baseSnapshot = { id: createId("dataset"), label: sourceLabel, projectName: nextProjectName, waferName: nextWaferName, selectedDate: nextDate, rawRows: snapshotRows, columnMap: nextMap, sourceMeta: nextSourceMeta, summary: snapshotSummary, autoSaved, savedAt: new Date().toISOString() };
+    const baseSnapshot = {
+      id: createId("dataset"),
+      label: sourceLabel,
+      projectName: nextProjectName,
+      waferName: nextWaferName,
+      selectedDate: nextDate,
+      rawRows: snapshotRows,
+      columnMap: nextMap,
+      sourceMeta: nextSourceMeta,
+      summary: snapshotSummary,
+      namingOverrides: { ...datasetNamingDraft },
+      autoSaved,
+      savedAt: new Date().toISOString()
+    };
     const display = buildDatasetSnapshotMetadata(baseSnapshot);
     const snapshot = { ...baseSnapshot, label: display.label, display, githubSync: { status: "local" } };
     setSavedDatasets((previous) => [snapshot, ...previous].slice(0, 40));
     return snapshot;
+  }
+  function updateCurrentDatasetNaming(field, value) {
+    setDatasetNamingDraft((previous) => ({ ...previous, [field]: value }));
+  }
+  function resetCurrentDatasetNaming(dataset = { projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta }) {
+    setDatasetNamingDraft(createDatasetNamingDraft(dataset));
+  }
+  function applyCurrentNamingToLoadedSnapshot() {
+    const datasetId = selectedLocalDatasetId(quickDatasetSelection);
+    if (!datasetId) return;
+    let appliedLabel = "";
+    setSavedDatasets((previous) => previous.map((dataset) => {
+      if (String(dataset.id) !== datasetId) return dataset;
+      const nextDataset = {
+        ...dataset,
+        projectName: projectName || dataset.projectName,
+        waferName: waferName || dataset.waferName,
+        selectedDate: selectedDate || dataset.selectedDate,
+        rawRows: currentRows.length ? currentRows : dataset.rawRows,
+        columnMap: Object.keys(currentMap).length ? currentMap : dataset.columnMap,
+        sourceMeta: sourceMeta || dataset.sourceMeta,
+        namingOverrides: { ...datasetNamingDraft }
+      };
+      const display = buildDatasetSnapshotMetadata(nextDataset);
+      appliedLabel = display.label;
+      return { ...nextDataset, label: display.label, display };
+    }));
+    setStatusMessage(`Updated naming for the loaded dataset snapshot${appliedLabel ? ` ${appliedLabel}` : ""}.`);
+    appendAudit("dataset", "Dataset naming updated", `Updated naming for local dataset snapshot ${datasetId}.`);
+    pushToast("Dataset naming updated", "The loaded snapshot now uses the current publish preview naming.", "success");
   }
   async function handleFileUpload(event) {
     const files = Array.from(event.target.files || []);
@@ -2260,8 +2329,10 @@ export default function App() {
     await loadSpectrumViewerFiles(files);
   }
   function clearWorkspace() {
+    const nextSourceMeta = buildDefaultSourceMeta(appSettings);
     setProjectName(""); setWaferName(""); setSelectedDate(""); setRawRows([]); setColumnMap({}); setSelectedChip(""); setQuickDatasetSelection("");
-    setSourceMeta(buildDefaultSourceMeta(appSettings));
+    setSourceMeta(nextSourceMeta);
+    setDatasetNamingDraft(createDatasetNamingDraft({ sourceMeta: nextSourceMeta, rawRows: [] }));
     setStatusMessage("Workspace cleared. Upload a measurement set or load a saved project to begin.");
     setActiveTab("propagation");
     appendAudit("workspace", "Workspace cleared", "Cleared the current wafer analysis workspace.");
@@ -2307,12 +2378,21 @@ export default function App() {
         configuredSettings
       );
       const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
-      setProjectName(definition.projectDisplayName || definition.projectName);
-      setWaferName(definition.waferDisplayName || definition.waferName);
-      setSelectedDate(definition.selectedDate);
+      const nextProjectName = definition.projectDisplayName || definition.projectName;
+      const nextWaferName = definition.waferDisplayName || definition.waferName;
+      setProjectName(nextProjectName);
+      setWaferName(nextWaferName);
       setRawRows(rows);
       setColumnMap(inferredMap);
       setSourceMeta(nextSourceMeta);
+      setDatasetNamingDraft(createDatasetNamingDraft({
+        ...definition,
+        projectName: nextProjectName,
+        waferName: nextWaferName,
+        selectedDate: definition.selectedDate,
+        rawRows: rows,
+        sourceMeta: nextSourceMeta
+      }));
       setQuickDatasetSelection(`github:${definition.id}`);
       setSelectedWaferMetric("propagation");
       setSelectedChip(rows[0]?.chip_id || "");
@@ -2505,7 +2585,7 @@ export default function App() {
   function loadProject(project) { const presented = presentDataset(project); setProjectName(presented.projectDisplayName); setWaferName(presented.waferDisplayName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setQuickDatasetSelection(""); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${presented.projectDisplayName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${presented.projectDisplayName} for wafer run ${presented.waferDisplayName}.`); }
   function deleteProject(projectId) { const target = savedProjects.find((project) => project.id === projectId); setSavedProjects((previous) => previous.filter((project) => project.id !== projectId)); appendAudit("project", "Project deleted", `Deleted saved project ${target?.projectName || projectId}.`); }
   function saveCurrentDataset(autoSaved = false) { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Dataset save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("dataset", autoSaved ? "Dataset auto-save skipped" : "Dataset save skipped", detail); pushToast(autoSaved ? "Auto-save skipped" : "Dataset save skipped", "This dataset is too large for reliable browser storage.", "progress"); return; } const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
-  function loadDataset(dataset) { const presented = presentDataset(dataset); const rows = dataset.rawRows || []; setProjectName(presented.projectDisplayName || projectName); setWaferName(presented.waferDisplayName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(rows); setColumnMap(dataset.columnMap || {}); setSourceMeta(dataset.sourceMeta || buildDefaultSourceMeta(appSettings)); setQuickDatasetSelection(`local:${dataset.id}`); setSelectedChip(rows[0]?.chip_id || ""); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${presented.projectDisplayName}.`); }
+  function loadDataset(dataset) { const presented = presentDataset(dataset); const rows = dataset.rawRows || []; const nextSourceMeta = dataset.sourceMeta || buildDefaultSourceMeta(appSettings); setProjectName(presented.projectDisplayName || projectName); setWaferName(presented.waferDisplayName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(rows); setColumnMap(dataset.columnMap || {}); setSourceMeta(nextSourceMeta); setDatasetNamingDraft(createDatasetNamingDraft({ ...dataset, projectName: presented.projectDisplayName || dataset.projectName, waferName: presented.waferDisplayName || dataset.waferName, selectedDate: dataset.selectedDate || selectedDate, rawRows: rows, sourceMeta: nextSourceMeta })); setQuickDatasetSelection(`local:${dataset.id}`); setSelectedChip(rows[0]?.chip_id || ""); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${presented.projectDisplayName}.`); }
   async function handleQuickDatasetLoad(value) {
     if (!value) return;
     setQuickDatasetSelection(value);
@@ -2623,6 +2703,7 @@ export default function App() {
   function resetSettings() { const reset = hydrateSettings(DEFAULT_SETTINGS); setSettingsDraft(reset); setAppSettings(reset); setSourceMeta(buildDefaultSourceMeta(reset)); appendAudit("settings", "Settings reset", "Restored the default application settings for operator, metric family, propagation window, and launch power."); setStatusMessage("Application settings were reset to the default values."); }
   function clearAuditLog() { setAuditLog([]); setStatusMessage("Audit log cleared from local browser storage."); }
 
+  const currentDatasetMeta = currentRows.length ? buildDatasetSnapshotMetadata({ projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta, namingOverrides: datasetNamingDraft }) : null;
   const currentDatasetRows = normalizeStoredDatasets(savedDatasets).map((dataset) => ({
     ...dataset,
     display: dataset.display || buildDatasetSnapshotMetadata(dataset),
@@ -2870,7 +2951,7 @@ export default function App() {
 </> : null}
 
           {activeTab === "projects" ? <section className="library-stack workspace-fit-view"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Workspace Snapshots</h2><p>Save the current wafer analysis context so you can reopen the same workspace state later, including selected views and analysis settings.</p></div><div className="library-action-row"><button type="button" onClick={saveCurrentProject}>Save Workspace Snapshot</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Back To Analysis</button></div></div><div className="translator-metrics"><div><strong>{projectName}</strong><span>Project</span></div><div><strong>{getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }).slot}</strong><span>Slot</span></div><div><strong>{datasetSummary.rows}</strong><span>Rows</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Workspace Snapshots</h2><p>Stored locally in this browser for reopening the same workspace state.</p></div></div><LibraryTable columns={["Project", "Slot", "Waveguide Type", "Measurement Mode", "Measurement Type", "Dataset", "Rows", "Saved", "Actions"]} rows={[...bundledProjectRows, ...currentProjectRows]} emptyMessage="No bundled or saved projects are available yet." /></article></section> : null}
-          {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} appSettings={appSettings} currentDatasetMeta={currentRows.length ? { ...buildDatasetSnapshotMetadata({ projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta }), ...getDatasetPresentation({ projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta }) } : null} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={refreshRemoteLibrary} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
+          {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} currentDatasetMeta={currentDatasetMeta} currentDatasetNamingDraft={datasetNamingDraft} onCurrentDatasetNamingChange={updateCurrentDatasetNaming} onResetCurrentDatasetNaming={() => resetCurrentDatasetNaming()} onApplyCurrentNamingToLoadedSnapshot={applyCurrentNamingToLoadedSnapshot} canApplyCurrentNamingToLoadedSnapshot={Boolean(selectedLocalDatasetId(quickDatasetSelection))} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={refreshRemoteLibrary} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}
           {activeTab === "spectrum-viewer" ? <section className="library-stack"><article className="analysis-card spectrum-viewer-card"><div className="analysis-card-head"><div><h2>Spectrum Viewer</h2><p>Upload any insertion-loss or transmission trace and compare devices instantly. TXT is preferred if you plan to publish the data to the GitHub library later, while Excel is supported for quick review.</p></div><div className="library-action-row"><label className="inline-select-field"><span>Input unit</span><select value={spectrumViewerInputUnit} onChange={(event) => setSpectrumViewerInputUnit(event.target.value)}><option value="watts">Watts (W)</option><option value="db">dB / dBm</option></select></label><label className="inline-select-field"><span>Display</span><select value={spectrumViewerDisplayUnit} onChange={(event) => setSpectrumViewerDisplayUnit(event.target.value)}><option value="db">dB / dBm</option><option value="watts">Watts (W)</option></select></label></div></div><div className={isSpectrumViewerDragging ? "spectrum-dropzone active" : "spectrum-dropzone"} onDragEnter={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(true); }} onDragOver={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(true); }} onDragLeave={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(false); }} onDrop={handleSpectrumViewerDrop}><strong>{isUploadingSpectrumViewerFiles ? "Reading uploaded spectra..." : "Upload Files"}</strong><p>Drag and drop `.txt`, `.csv`, `.xlsx`, or `.xls` files here, or browse from a folder. Excel files are read from the `IL` sheet using wavelength in metres and IL in dB.</p><label className="upload-measurement-button secondary-upload"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleSpectrumViewerUpload} disabled={isUploadingSpectrumViewerFiles} /><span>{isUploadingSpectrumViewerFiles ? "Processing Files..." : "Choose Files"}</span></label></div><div className="spectrum-viewer-controls"><label className="inline-text-field"><span>Figure title</span><input value={spectrumViewerTitle} onChange={(event) => setSpectrumViewerTitle(event.target.value)} placeholder="Spectrum Viewer" /></label><label className="checkbox-inline-field"><input type="checkbox" checked={showSpectrumViewerPeakPosition} onChange={(event) => setShowSpectrumViewerPeakPosition(event.target.checked)} /><span>Show peak position guides</span></label></div><div className="spectrum-viewer-grid insertion-overlay-grid"><div className="spectrum-series-panel"><div className="spectrum-series-toolbar"><button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: true })))} disabled={!spectrumViewerSeries.length}>Show All</button><button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: false })))} disabled={!spectrumViewerSeries.length}>Hide All</button><button type="button" className="secondary-action compact-inline-action" onClick={() => { setSpectrumViewerSeries([]); setSpectrumViewerTitle(""); setShowSpectrumViewerPeakPosition(false); }} disabled={!spectrumViewerSeries.length}>Clear</button></div><div className="spectrum-series-list">{spectrumViewerSeries.length ? spectrumViewerSeries.map((item) => <label key={item.id} className="spectrum-series-item"><input type="checkbox" checked={item.visible !== false} onChange={() => setSpectrumViewerSeries((previous) => previous.map((entry) => entry.id === item.id ? { ...entry, visible: entry.visible === false } : entry))} /><div><strong>{item.label}</strong><span>{item.pointCount} points | {item.wavelengthMinNm.toFixed(1)}-{item.wavelengthMaxNm.toFixed(1)} nm</span></div></label>) : <div className="chart-empty compact">No traces loaded yet.</div>}</div></div><InteractiveSpectrumViewerPlot series={spectrumViewerSeries} displayUnit={spectrumViewerDisplayUnit} chipId="Spectrum Viewer" figureTitle={spectrumViewerTitle} onFigureTitleChange={setSpectrumViewerTitle} showPeakPosition={showSpectrumViewerPeakPosition} /></div></article></section> : null}
@@ -2885,3 +2966,5 @@ export default function App() {
     </div>
   );
 }
+
+

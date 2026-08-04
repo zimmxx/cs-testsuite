@@ -12,6 +12,11 @@ function titleizeToken(value) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function normalizeOverrideText(value, fallback = "") {
+  const text = String(value || "").trim();
+  return text || fallback;
+}
+
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
@@ -174,6 +179,31 @@ export function inferDatasetIdentity({ projectName = "", waferName = "", sourceM
     measurementType,
     waveguideFamily: waveguideType.label,
     legacyFolder: `sample-data/wst/${folderName}`
+  };
+}
+
+export function applyDatasetNamingOverrides(identity, namingOverrides = {}) {
+  if (!namingOverrides || typeof namingOverrides !== "object") return identity;
+
+  const nextLabel = normalizeOverrideText(namingOverrides.label, identity.label);
+  const nextFolderName = slugify(normalizeOverrideText(namingOverrides.folderName, identity.folderName)) || identity.folderName;
+  const nextProjectName = normalizeOverrideText(namingOverrides.projectName, identity.projectName);
+  const nextSlot = normalizeOverrideText(namingOverrides.slot, identity.slot);
+  const nextPlatformLabel = normalizeOverrideText(namingOverrides.platformLabel, identity.platformLabel);
+  const nextBuildingBlockLabel = normalizeOverrideText(namingOverrides.buildingBlockLabel, identity.buildingBlockLabel);
+
+  return {
+    ...identity,
+    label: nextLabel,
+    folderName: nextFolderName,
+    id: slugify(nextFolderName).toLowerCase() || identity.id,
+    projectName: nextProjectName,
+    waferName: normalizeOverrideText(namingOverrides.waferName, identity.waferName),
+    mpw: normalizeOverrideText(namingOverrides.mpw, identity.mpw),
+    slot: nextSlot,
+    platformLabel: nextPlatformLabel,
+    buildingBlockLabel: nextBuildingBlockLabel,
+    legacyFolder: `sample-data/wst/${nextFolderName}`
   };
 }
 
@@ -447,13 +477,14 @@ export function buildDatasetManifestEntryV2(identity, traceFiles, waveguideConfi
 }
 
 export function buildDatasetSnapshotMetadata(dataset) {
-  const identity = inferDatasetIdentity({
+  const detectedIdentity = inferDatasetIdentity({
     projectName: dataset.projectName,
     waferName: dataset.waferName,
     sourceMeta: dataset.sourceMeta,
     rows: dataset.rawRows || [],
     selectedDate: dataset.selectedDate
   });
+  const identity = applyDatasetNamingOverrides(detectedIdentity, dataset.namingOverrides);
 
   return {
     ...identity,
@@ -593,13 +624,14 @@ export async function publishDatasetPackageToGithub({
 }
 
 export function buildGithubDatasetPackage(dataset) {
-  const identity = inferDatasetIdentity({
+  const detectedIdentity = inferDatasetIdentity({
     projectName: dataset.projectName,
     waferName: dataset.waferName,
     sourceMeta: dataset.sourceMeta,
     rows: dataset.rawRows || [],
     selectedDate: dataset.selectedDate
   });
+  const identity = applyDatasetNamingOverrides(detectedIdentity, dataset.namingOverrides);
   const traceFiles = buildDatasetTraceFiles(dataset.rawRows || [], identity);
   if (!traceFiles.length) {
     throw new Error("This dataset does not contain trace-style wavelength and optical-power rows that can be published to the GitHub measurement library.");
@@ -622,3 +654,4 @@ export function buildGithubDatasetPackage(dataset) {
     configContent: JSON.stringify(waveguideConfig, null, 2) + "\n"
   };
 }
+

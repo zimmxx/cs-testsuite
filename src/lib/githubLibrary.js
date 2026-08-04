@@ -199,7 +199,7 @@ export function applyDatasetNamingOverrides(identity, namingOverrides = {}) {
     id: slugify(nextFolderName).toLowerCase() || identity.id,
     projectName: nextProjectName,
     waferName: normalizeOverrideText(namingOverrides.waferName, identity.waferName),
-    mpw: normalizeOverrideText(namingOverrides.mpw, identity.mpw),
+    mpw: normalizeOverrideText(namingOverrides.mpw || namingOverrides.projectName, identity.mpw),
     slot: nextSlot,
     platformLabel: nextPlatformLabel,
     buildingBlockLabel: nextBuildingBlockLabel,
@@ -488,7 +488,7 @@ export function buildDatasetSnapshotMetadata(dataset) {
 
   return {
     ...identity,
-    shortLabel: `${identity.mpw} ${identity.slot} ${identity.waveguideType}`,
+    shortLabel: identity.label || `${identity.mpw} ${identity.slot} ${identity.waveguideType}`,
     rowLabel: `${identity.rowCount.toLocaleString()} normalized rows`,
     sourceLabel: `${identity.sourceCount} file${identity.sourceCount === 1 ? "" : "s"}`
   };
@@ -654,4 +654,5 @@ export function buildGithubDatasetPackage(dataset) {
     configContent: JSON.stringify(waveguideConfig, null, 2) + "\n"
   };
 }
+
 

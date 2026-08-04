@@ -2263,6 +2263,14 @@ export default function App() {
       setRawRows(rows);
       setColumnMap(inferredMap);
       setSourceMeta(nextSourceMeta);
+      setDatasetNamingDraft(createDatasetNamingDraft({
+        projectName: nextPresentation.projectDisplayName,
+        waferName: nextPresentation.waferDisplayName,
+        selectedDate: "",
+        rawRows: rows,
+        sourceMeta: nextSourceMeta,
+        files: files.map((file) => file.name)
+      }));
       setQuickDatasetSelection("");
       setStatusMessage(files.length === 1 ? `Loaded ${rows.length} rows from ${files[0].name}.` : `Loaded ${rows.length} rows from ${files.length} uploaded measurement files.`);
       appendAudit("upload", "Measurement file uploaded", `Loaded ${rows.length} rows from ${files.length} file(s) as ${sharedType}.`);
@@ -2966,5 +2974,6 @@ export default function App() {
     </div>
   );
 }
+
 
 

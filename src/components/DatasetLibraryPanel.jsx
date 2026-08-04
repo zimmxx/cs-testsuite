@@ -89,7 +89,7 @@ export default function DatasetLibraryPanel({
         </div>
 
         <div className="translator-metrics github-library-metrics">
-          <div><strong>{currentDatasetMeta?.shortLabel || "No dataset"}</strong><span>Current dataset</span></div>
+          <div><strong>{currentDatasetMeta?.label || currentDatasetMeta?.shortLabel || "No dataset"}</strong><span>Current dataset</span></div>
           <div><strong>{currentDatasetMeta?.measurementMode || sourceMeta?.type || "Measurement"}</strong><span>Measurement mode</span></div>
           <div><strong>{safeRemoteDatasets.length}</strong><span>GitHub library sets</span></div>
           <div><strong>Snapshot to Review to Publish</strong><span>Recommended workflow</span></div>
@@ -302,3 +302,4 @@ export default function DatasetLibraryPanel({
     </section>
   );
 }
+

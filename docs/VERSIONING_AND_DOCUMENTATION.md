@@ -22,6 +22,10 @@ Version-specific docs:
 
 - `docs/releases/v0.1.0/FEATURES.md`
 - `docs/releases/v0.1.0/CHANGELOG.md`
+- `docs/releases/v0.2.0/FEATURES.md`
+- `docs/releases/v0.2.0/CHANGELOG.md`
+- `docs/releases/v0.2.1/FEATURES.md`
+- `docs/releases/v0.2.1/CHANGELOG.md`
 
 Templates for future versions:
 
@@ -29,12 +33,12 @@ Templates for future versions:
 
 ## How To Document A New Upgrade
 
-When the app is upgraded from `v0.1.0` to a later version:
+When the app is upgraded from one documented version to a later version:
 
 1. Create a new folder:
 
 ```text
-docs/releases/v0.1.1/
+docs/releases/v0.2.1/
 ```
 
 2. Copy the template or previous files into the new version folder
@@ -48,6 +52,7 @@ docs/releases/v0.1.1/
 - dataset naming guidance if the GitHub measurement-data workflow changed
 
 4. Add a short summary to `README.md`
+5. Update any in-app documentation links so the Help section points to the latest release notes
 
 ## Suggested Version Number Format
 
@@ -56,6 +61,7 @@ Use:
 - `v0.1.0` for current baseline release
 - `v0.1.1` for small fixes
 - `v0.2.0` for medium feature expansions
+- `v0.2.1` for patch improvements on top of the current feature release
 - `v1.0.0` for a more complete stable release
 
 ## What Belongs In Each File

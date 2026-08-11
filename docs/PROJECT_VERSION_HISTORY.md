@@ -61,7 +61,7 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 
 #### `de1038c` Add bundled WST sample loader
 - Added a sample dataset loader so GitHub-hosted raw traces could be loaded directly into the UI.
-- Improved the app’s usability for demonstration and verification.
+- Improved the app's usability for demonstration and verification.
 
 ### 2026-06-30
 
@@ -113,11 +113,19 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 - Added a wafer-wide insertion-spectrum variation overlay with per-trace show/hide controls.
 - Improved Excel parsing and unit handling for insertion-loss review workflows.
 
+### 2026-08-11
+
+#### `39c98ca` Fix manual conversion filenames
+- Fixed manual-conversion waveguide-family detection so `RIB` folders no longer inherit strip-style output names.
+- Prevented slot identifiers such as `SLOT7` from being mistaken for the waveguide-family folder token.
+- Added editable output filenames in the `Manual Conversion` results table.
+- Applied edited filenames consistently to individual downloads, ZIP export, and manifest export.
+
 ## Current Development State
 
 Latest recorded working-tree update:
-- Date: `2026-07-29`
-- Theme: `Spectrum Viewer, grating-coupler insertion analysis, and wafer-wide insertion spectrum review`
+- Date: `2026-08-11`
+- Theme: `Manual conversion filename correction and editable export naming`
 
 ## How To Extend This File
 

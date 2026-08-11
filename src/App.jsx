@@ -160,8 +160,8 @@ const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
-  { label: "Feature Guide v0.2.0", path: "docs/releases/v0.2.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.2.0/FEATURES.md` },
-  { label: "Change Log v0.2.0", path: "docs/releases/v0.2.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.2.0/CHANGELOG.md` },
+  { label: "Feature Guide v0.2.1", path: "docs/releases/v0.2.1/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.2.1/FEATURES.md` },
+  { label: "Change Log v0.2.1", path: "docs/releases/v0.2.1/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.2.1/CHANGELOG.md` },
   { label: "Dataset Filename Standard", path: "docs/DATASET_FILENAME_STANDARD.md", href: `${REPO_DOC_BASE}docs/DATASET_FILENAME_STANDARD.md` }
 ];
 

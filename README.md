@@ -20,6 +20,7 @@ The app translates uploaded measurement data into a normalized internal schema, 
 - Filename and manual-measurement conversion into standardized trace names
 - Spectrum Viewer for flexible uploaded trace inspection
 - Device-aware insertion-loss characterization across all chips on the wafer
+- Editable manual-conversion output filenames with corrected rib-versus-strip trace naming
 
 Live deployment:
 - [https://zimmxx.github.io/cs-testsuite/](https://zimmxx.github.io/cs-testsuite/)
@@ -103,8 +104,8 @@ On push to `main`, GitHub Actions:
 - [Local Git And GitHub Workflow](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\LOCAL_GIT_GITHUB_WORKFLOW.md)
 - [Versioning And Documentation Guide](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\VERSIONING_AND_DOCUMENTATION.md)
 - [Dataset And Filename Standard](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\DATASET_FILENAME_STANDARD.md)
-- [Release Features: v0.2.0](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.2.0\FEATURES.md)
-- [Release Changelog: v0.2.0](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.2.0\CHANGELOG.md)
+- [Release Features: v0.2.1](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.2.1\FEATURES.md)
+- [Release Changelog: v0.2.1](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.2.1\CHANGELOG.md)
 - [Full Project Version History](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\PROJECT_VERSION_HISTORY.md)
 
 ## Recommended Repository Hygiene

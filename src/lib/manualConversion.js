@@ -139,7 +139,7 @@ export function parseManualMeasurementPath(file) {
   const projectSegment = parts[0] || "ManualMeasurement";
   const slotSegment = parts.find((part) => /slot\s*\d+/i.test(part)) || "";
   const chipSegment = parts.find((part) => /chip\s*\d+/i.test(part)) || "";
-  const flavorSegment = parts.find((part) => /rib|strip|slot/i.test(part)) || "";
+  const flavorSegment = parts.find((part) => /^rib$/i.test(part) || /^strip$/i.test(part) || /^slot$/i.test(part) || /ribwaveguide|stripwaveguide|slotwaveguide/i.test(part)) || "";
   const waveguideMatch = fileName.match(/^WG(\d+)\.(xlsx|xls)$/i);
   const chipMatch = chipSegment.match(/chip\s*(\d+)/i);
   const slotMatch = slotSegment.match(/slot\s*(\d+)/i);
@@ -437,3 +437,4 @@ export function buildManualConversionArchiveName(entries = [], dateValue = new D
     dateValue
   );
 }
+

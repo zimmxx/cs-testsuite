@@ -19,6 +19,11 @@ function downloadText(content, fileName, mimeType = "text/plain;charset=utf-8") 
   downloadBlob(new Blob([content], { type: mimeType }), fileName);
 }
 
+function resolveOutputFileName(entry) {
+  const trimmed = String(entry?.outputFileName || "").trim();
+  return trimmed || "converted_trace.txt";
+}
+
 export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10 }) {
   const folderInputRef = useRef(null);
   const [launchPowerDbm, setLaunchPowerDbm] = useState(defaultLaunchPowerDbm);
@@ -37,6 +42,14 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10 }) {
   }), [convertedEntries, failedEntries, ignoredPaths]);
 
   const archiveBaseName = useMemo(() => buildManualConversionArchiveName(convertedEntries), [convertedEntries]);
+
+  function updateOutputFileName(index, value) {
+    setConvertedEntries((previous) => previous.map((entry, entryIndex) => (
+      entryIndex === index
+        ? { ...entry, outputFileName: value }
+        : entry
+    )));
+  }
 
   async function handleSelection(event) {
     const files = Array.from(event.target.files || []);
@@ -60,13 +73,21 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10 }) {
 
   function exportZip() {
     if (!convertedEntries.length) return;
-    const zip = buildStoredZip(convertedEntries, { rootFolderName: archiveBaseName });
+    const zipEntries = convertedEntries.map((entry) => ({
+      ...entry,
+      outputFileName: resolveOutputFileName(entry)
+    }));
+    const zip = buildStoredZip(zipEntries, { rootFolderName: archiveBaseName });
     downloadBlob(zip, `${archiveBaseName}.zip`);
   }
 
   function exportManifest() {
     if (!convertedEntries.length) return;
-    downloadText(buildManualConversionManifestCsv(convertedEntries), `${archiveBaseName}_manifest.csv`, "text/csv;charset=utf-8");
+    const manifestEntries = convertedEntries.map((entry) => ({
+      ...entry,
+      outputFileName: resolveOutputFileName(entry)
+    }));
+    downloadText(buildManualConversionManifestCsv(manifestEntries), `${archiveBaseName}_manifest.csv`, "text/csv;charset=utf-8");
   }
 
   return (
@@ -97,7 +118,7 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10 }) {
           </label>
           <div className="mapping-field manual-conversion-note">
             <span>Input mode</span>
-            <p>Upload the folder directly from Edge/Chrome so the app can read subfolders. The exported archive now uses the standardized dataset name so the converted folder is ready for GitHub library storage.</p>
+            <p>Upload the folder directly from Edge/Chrome so the app can read subfolders. You can edit each output filename before downloading individual files, the manifest, or the ZIP.</p>
           </div>
         </div>
 
@@ -143,15 +164,21 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10 }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {convertedEntries.map((entry) => (
-                      <tr key={entry.outputFileName}>
-                        <td>{entry.outputFileName}</td>
+                    {convertedEntries.map((entry, index) => (
+                      <tr key={`${entry.sourcePath}-${index}`}>
+                        <td>
+                          <input
+                            type="text"
+                            value={entry.outputFileName}
+                            onChange={(event) => updateOutputFileName(index, event.target.value)}
+                          />
+                        </td>
                         <td>{entry.sourcePath}</td>
                         <td>{entry.chipId || "--"}</td>
                         <td>{entry.waveguideId || "--"}</td>
                         <td>{entry.rowCount}</td>
                         <td className="library-table-actions">
-                          <button type="button" onClick={() => downloadText(entry.content, entry.outputFileName, entry.outputFormat === "csv" ? "text/csv;charset=utf-8" : "text/plain;charset=utf-8")}>Download</button>
+                          <button type="button" onClick={() => downloadText(entry.content, resolveOutputFileName(entry), entry.outputFormat === "csv" ? "text/csv;charset=utf-8" : "text/plain;charset=utf-8")}>Download</button>
                         </td>
                       </tr>
                     ))}
@@ -179,3 +206,4 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10 }) {
     </section>
   );
 }
+

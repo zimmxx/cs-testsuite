@@ -577,50 +577,65 @@ label.upload-measurement-button {
   align-items: center;
 }
 
-.wafer-outline {
-  position: relative;
-  aspect-ratio: 1 / 1;
-  padding: 28px;
-  border-radius: 50%;
-  border: 2px solid #a9b9bf;
-  background: radial-gradient(circle at center, #ffffff, #fbfcfc);
-  overflow: hidden;
+.wafermap-svg {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
-.wafer-notch {
-  position: absolute;
-  left: 50%;
-  bottom: -10px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--panel);
-  border: 2px solid #a9b9bf;
-  transform: translateX(-50%);
+.wafermap-circle {
+  fill: #fbfcfc;
+  stroke: #a9b9bf;
+  stroke-width: 0.45;
 }
 
-.wafer-grid {
-  display: grid;
-  gap: 3px;
-  height: 100%;
-  align-content: center;
+.wafermap-notch-stroke {
+  fill: none;
+  stroke: #a9b9bf;
+  stroke-width: 0.4;
 }
 
-.wafer-grid-cell {
-  aspect-ratio: 1 / 1;
-  border: none;
-  border-radius: 2px;
-  padding: 0;
-  min-width: 0;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.58);
+.wafermap-notch-fill {
+  fill: #fbfcfc;
+  stroke: #a9b9bf;
+  stroke-width: 0.4;
 }
 
-.wafer-grid-cell.selected {
-  outline: 2px solid #102d38;
+.wafermap-axis-label {
+  fill: #6e8792;
+  font-size: 2.94px;
+  font-weight: 600;
 }
 
-.wafer-grid-cell span {
-  display: inline-flex;
+.wafermap-slot {
+  fill: #eef2f4;
+  stroke: rgba(255, 255, 255, 0.78);
+  stroke-width: 0.28;
+}
+
+.wafermap-slot.active {
+  cursor: pointer;
+}
+
+.wafermap-slot-group.selected .wafermap-slot {
+  stroke: #102d38;
+  stroke-width: 0.45;
+}
+
+.wafermap-slot-group.excluded {
+  opacity: 0.42;
+}
+
+.wafermap-slot-label {
+  fill: #12333d;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+.wafermap-slot-label.muted {
+  fill: #7f9097;
+  font-weight: 600;
 }
 
 .wafer-side-scale {
@@ -661,6 +676,15 @@ label.upload-measurement-button {
   gap: 14px;
 }
 
+.analysis-chip-summary-section {
+  margin-top: 14px;
+}
+
+.analysis-bottom-grid-secondary {
+  grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.05fr);
+  margin-top: 14px;
+}
+
 .wide-span {
   min-width: 0;
 }
@@ -683,6 +707,77 @@ label.upload-measurement-button {
   color: white;
   padding: 0 14px;
   font-weight: 600;
+}
+
+.chip-summary-grid {
+  margin-bottom: 14px;
+}
+
+.chip-summary-card {
+  width: 100%;
+}
+
+.chip-summary-card .dashboard-table-wrap {
+  overflow-x: visible;
+}
+
+.chip-summary-card table {
+  table-layout: fixed;
+}
+
+.chip-summary-card th,
+.chip-summary-card td {
+  padding: 9px 10px;
+  white-space: normal;
+  font-size: 0.92rem;
+  vertical-align: middle;
+}
+
+.chip-summary-row-excluded {
+  opacity: 0.6;
+}
+
+.chip-summary-averages {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.chip-summary-average-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.chip-link-button {
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: #0f4f57;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.status-pill.pass {
+  background: #dff3ea;
+  color: #17795f;
+}
+
+.status-pill.fail {
+  background: #fde5e5;
+  color: #b54242;
 }
 
 .dashboard-table-wrap {
@@ -1010,6 +1105,7 @@ tbody tr:last-child td {
   .dashboard-header,
   .analysis-top-grid,
   .analysis-bottom-grid,
+  .analysis-bottom-grid-secondary,
   .hero-stats-row,
   .mapping-grid {
     grid-template-columns: 1fr;

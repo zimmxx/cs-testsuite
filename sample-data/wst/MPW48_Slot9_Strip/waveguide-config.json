@@ -1,0 +1,24 @@
+{
+  "propagationWaveguideCount": 4,
+  "propagationWaveguideStartMm": 0.1,
+  "propagationWaveguideIntervalMm": 0.4,
+  "propagationWaveguideManualMode": false,
+  "waveguideLengths": [
+    {
+      "index": 1,
+      "lengthMm": 0.1
+    },
+    {
+      "index": 2,
+      "lengthMm": 0.5
+    },
+    {
+      "index": 3,
+      "lengthMm": 0.9
+    },
+    {
+      "index": 4,
+      "lengthMm": 1.3000000000000003
+    }
+  ]
+}

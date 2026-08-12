@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState, startTransition } from "react";
+import { useEffect, useMemo, useState, startTransition } from "react";
 import {
   buildHtmlReport,
   buildReportState,
@@ -67,7 +67,6 @@ const RAIL_SECTIONS = [
 ];
 
 const DEFAULT_MAPPING_OPTIONS = ["propagation", "insertion", "heater"];
-const DATASET_PREVIEW_LIMIT = 12;
 const DEFAULT_WAVEGUIDE_COUNT = 6;
 const DEFAULT_WAVEGUIDE_START_MM = 0;
 const DEFAULT_WAVEGUIDE_INTERVAL_MM = 4;
@@ -1066,11 +1065,31 @@ function WaferMapPanel({
   }
 
   const range = resolveWaferColorRange(cells, colorScaleMin, colorScaleMid, colorScaleMax);
-  const cols = Math.max(arrayMax(cells.map((cell) => cell.dieX || 0), 0), 1);
-  const rowValues = Array.from(new Set(cells.map((cell) => cell.dieY).filter((value) => value !== null && value !== undefined)))
-    .sort((a, b) => b - a);
-  const rows = rowValues.length;
-  const cellLookup = new Map(cells.map((cell) => [`${cell.dieX}-${cell.dieY}`, cell]));
+  const layoutCells = cells.filter((cell) => cell.dieX !== null && cell.dieX !== undefined && cell.dieY !== null && cell.dieY !== undefined);
+  const colValues = Array.from(new Set(layoutCells.map((cell) => cell.dieX))).sort((a, b) => a - b);
+  const rowValues = Array.from(new Set(layoutCells.map((cell) => cell.dieY))).sort((a, b) => b - a);
+  const minCol = colValues.length ? colValues[0] : 1;
+  const maxCol = colValues.length ? colValues[colValues.length - 1] : 1;
+  const minRow = rowValues.length ? rowValues[rowValues.length - 1] : 1;
+  const maxRow = rowValues.length ? rowValues[0] : 1;
+  const colCount = Math.max(maxCol - minCol + 1, 1);
+  const rowCount = Math.max(maxRow - minRow + 1, 1);
+  const svgWidth = 100;
+  const svgHeight = 108;
+  const waferCenterX = 52;
+  const waferCenterY = 58.5;
+  const waferRadius = 43.8;
+  const mapWidth = 73.2;
+  const mapHeight = 73.2;
+  const stepX = mapWidth / colCount;
+  const stepY = mapHeight / rowCount;
+  const cellWidth = Math.min(stepX * 1.08, 5.64);
+  const cellHeight = Math.min(stepY * 1.08, 5.64);
+  const labelFontSize = overlayMode === "chip" ? (layoutCells.length > 90 ? 2.16 : 2.52) : 2.7;
+  const centreChipX = layoutCells.find((cell) => shortChipLabel(cell.chipId) === "51")?.dieX ?? ((minCol + maxCol) / 2);
+  const centreChipY = layoutCells.find((cell) => shortChipLabel(cell.chipId) === "51")?.dieY ?? ((minRow + maxRow) / 2);
+  const mapLeft = waferCenterX - ((centreChipX - minCol) + 0.5) * stepX;
+  const mapTop = waferCenterY - ((maxRow - centreChipY) + 0.5) * stepY;
 
   const labelFor = (cell) => {
     if (!cell.isVisible || overlayMode === "none") return "";
@@ -1081,38 +1100,84 @@ function WaferMapPanel({
     }
     return overlayMode === "chip" ? shortChipLabel(cell.chipId) : "";
   };
+  const positionedCells = layoutCells.map((cell) => ({
+    ...cell,
+    x: mapLeft + (cell.dieX - minCol) * stepX + (stepX - cellWidth) / 2,
+    y: mapTop + (maxRow - cell.dieY) * stepY + (stepY - cellHeight) / 2
+  }));
+  const visibleCells = positionedCells.filter((cell) => cell.isVisible);
+  const orderedCells = [
+    ...visibleCells.filter((cell) => cell.chipId !== selectedChip),
+    ...visibleCells.filter((cell) => cell.chipId === selectedChip)
+  ];
 
   return (
     <div className="wafer-card-layout">
       <div className="wafer-outline-shell">
         {templateName ? <div className="wafer-template-badge">{templateName}</div> : null}
-        <div className="wafer-outline">
-          <div className={`wafer-notch notch-${notchOrientation || "south"}`} />
-          <div className="wafer-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-            {Array.from({ length: rows * cols }, (_, index) => {
-              const x = (index % cols) + 1;
-              const rowIndex = Math.floor(index / cols);
-              const y = rowValues[rowIndex];
-              const cell = cellLookup.get(`${x}-${y}`);
-              const selected = Boolean(cell?.isVisible && selectedChip === cell?.chipId);
-              const cellLabel = cell ? labelFor(cell) : "";
-              const interactive = Boolean(cell?.isVisible && cell?.hasMeasurement);
-              const visibleValue = interactive ? cell.value : null;
-              return (
-                <button
-                  key={`${x}-${y ?? rowIndex}`}
-                  type="button"
-                  className={selected ? "wafer-grid-cell selected" : "wafer-grid-cell"}
-                  style={cell ? { background: waferColorForValue(visibleValue, range) } : undefined}
-                  onClick={() => interactive && onSelect(cell.chipId)}
-                  title={cell?.isVisible ? `${cell.chipId}: ${cell.detail || (cell.value !== null && cell.value !== undefined ? formatMetric(metricKey, cell.value) : "No measurement loaded")}` : `Hidden chip (${x}, ${y ?? "NA"})`}
+        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="wafermap-svg" role="img" aria-label={`Wafermap for ${metricLabel(metricKey)}`}>
+          <circle cx={waferCenterX} cy={waferCenterY} r={waferRadius} className="wafermap-circle" />
+          <path d={`M ${waferCenterX - 2.16} ${waferCenterY + waferRadius - 1.32} A 2.16 2.16 0 0 1 ${waferCenterX + 2.16} ${waferCenterY + waferRadius - 1.32}`} className="wafermap-notch-stroke" />
+          {colValues.map((column) => (
+            <text
+              key={`column-label-${column}`}
+              x={mapLeft + (column - minCol) * stepX + stepX / 2}
+              y={10.8}
+              textAnchor="middle"
+              className="wafermap-axis-label"
+            >
+              {column}
+            </text>
+          ))}
+          {rowValues.map((row) => (
+            <text
+              key={`row-label-${row}`}
+              x={5}
+              y={mapTop + (maxRow - row) * stepY + stepY / 2 + 0.4}
+              textAnchor="middle"
+              className="wafermap-axis-label"
+            >
+              {row}
+            </text>
+          ))}
+          {orderedCells.map((cell) => {
+            const selected = Boolean(selectedChip === cell.chipId);
+            const interactive = Boolean(cell.hasMeasurement);
+            const cellLabel = labelFor(cell);
+            const visibleValue = interactive ? cell.value : null;
+            const fill = interactive ? waferColorForValue(visibleValue, range) : undefined;
+            return (
+              <g
+                key={cell.chipId}
+                className={selected ? "wafermap-slot-group selected" : cell.excluded ? "wafermap-slot-group excluded" : "wafermap-slot-group"}
+                onClick={() => interactive && onSelect(cell.chipId)}
+              >
+                <rect
+                  x={cell.x}
+                  y={cell.y}
+                  width={cellWidth}
+                  height={cellHeight}
+                  rx="0.35"
+                  className={interactive ? "wafermap-slot active" : "wafermap-slot"}
+                  style={fill ? { fill } : undefined}
                 >
-                  {cellLabel ? <span className={interactive ? "wafer-cell-label" : "wafer-cell-label muted"}>{cellLabel}</span> : null}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+                  <title>{`${cell.chipId}: ${cell.detail || (cell.value !== null && cell.value !== undefined ? formatMetric(metricKey, cell.value) : "No measurement loaded")}${cell.excluded ? " | Excluded from chip summary averages" : ""}`}</title>
+                </rect>
+                {cellLabel ? (
+                  <text
+                    x={cell.x + cellWidth / 2}
+                    y={cell.y + cellHeight / 2 + labelFontSize * 0.32}
+                    textAnchor="middle"
+                    className={interactive ? "wafermap-slot-label" : "wafermap-slot-label muted"}
+                    style={{ fontSize: `${labelFontSize}px` }}
+                  >
+                    {cellLabel}
+                  </text>
+                ) : null}
+              </g>
+            );
+          })}
+        </svg>
       </div>
       <div className="wafer-side-scale">
         <span className="wafer-scale-caption high">High</span>
@@ -1125,6 +1190,116 @@ function WaferMapPanel({
         <span className="wafer-scale-caption low">Low</span>
       </div>
     </div>
+  );
+}
+
+function ChipSelectionTable({
+  rows,
+  summary,
+  onToggleChip,
+  onSelectAll,
+  onClearAll,
+  onSelectPassingOnly,
+  onOpenChip,
+  onExportNormalizedCsv
+}) {
+  const formatValue = (value, digits, suffix = "") => (
+    value === null || value === undefined || Number.isNaN(value) ? "--" : `${Number(value).toFixed(digits)}${suffix}`
+  );
+
+  return (
+    <article className="analysis-card wide-span chip-summary-card">
+      <div className="analysis-card-head">
+        <div>
+          <h2>Chip Summary Table</h2>
+          <p>Choose which chips contribute to the wafer-level averages and exported HTML summary.</p>
+        </div>
+        <div className="dataset-toolbar">
+          <button type="button" className="secondary-action" onClick={onSelectAll}>Select All</button>
+          <button type="button" className="secondary-action" onClick={onSelectPassingOnly}>Passing Only</button>
+          <button type="button" className="secondary-action" onClick={onClearAll}>Clear All</button>
+          <button type="button" onClick={onExportNormalizedCsv}>Export CSV</button>
+        </div>
+      </div>
+      <div className="report-summary-grid chip-summary-grid">
+        <div>
+          <small>Selected chips</small>
+          <span>{rows.filter((row) => row.included).length}</span>
+        </div>
+        <div>
+          <small>Passing selected</small>
+          <span>{rows.filter((row) => row.included && row.passMse).length}</span>
+        </div>
+        <div>
+          <small>Excluded chips</small>
+          <span>{rows.filter((row) => !row.included).length}</span>
+        </div>
+      </div>
+      <div className="dashboard-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Use</th>
+              <th>Chip</th>
+              <th>Column (X)</th>
+              <th>Row (Y)</th>
+              <th>Status</th>
+              <th>Prop Loss</th>
+              <th>MSE</th>
+              <th>Peak WL</th>
+              <th>Insertion</th>
+              <th>3 dB BW</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={`chip-summary-${row.chipId}`} className={row.included ? "" : "chip-summary-row-excluded"}>
+                <td><input type="checkbox" checked={row.included} onChange={() => onToggleChip(row.chipId)} aria-label={`Include ${row.chipId}`} /></td>
+                <td><button type="button" className="chip-link-button" onClick={() => onOpenChip(row.chipId)}>{row.chipId}</button></td>
+                <td>{row.dieX ?? "--"}</td>
+                <td>{row.dieY ?? "--"}</td>
+                <td><span className={row.passMse ? "status-pill pass" : "status-pill fail"}>{row.passMse ? "PASS" : "FAIL"}</span></td>
+                <td>{row.lossDbPerCm !== null && row.lossDbPerCm !== undefined ? `${row.lossDbPerCm.toFixed(2)} dB/cm` : "--"}</td>
+                <td>{row.mse !== null && row.mse !== undefined ? row.mse.toFixed(4) : "--"}</td>
+                <td>{row.peakWavelengthNm !== null && row.peakWavelengthNm !== undefined ? `${row.peakWavelengthNm.toFixed(1)} nm` : "--"}</td>
+                <td>{row.insertionLossDb !== null && row.insertionLossDb !== undefined ? `${row.insertionLossDb.toFixed(2)} dB` : "--"}</td>
+                <td>{row.bandwidth3dBNm !== null && row.bandwidth3dBNm !== undefined ? `${row.bandwidth3dBNm.toFixed(1)} nm` : "--"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="chip-summary-averages">
+        <div className="analysis-card-head stacked">
+          <div>
+            <h3>Average Values</h3>
+            <p>These values update immediately from the chips currently included in the table.</p>
+          </div>
+        </div>
+        <div className="report-summary-grid chip-summary-average-grid">
+          <div>
+            <small>Selected chips</small>
+            <span>{summary?.selectedChipCount ?? rows.filter((row) => row.included).length}</span>
+          </div>
+          <div>
+            <small>Avg prop loss</small>
+            <span>{formatValue(summary?.matlabSummary?.avgPropagationLossDbPerCm, 2, " dB/cm")}</span>
+          </div>
+          <div>
+            <small>Avg peak WL</small>
+            <span>{formatValue(summary?.matlabSummary?.avgPeakWavelengthNm, 1, " nm")}</span>
+          </div>
+          <div>
+            <small>Avg insertion</small>
+            <span>{formatValue(summary?.matlabSummary?.avgInsertionLossDb, 2, " dB")}</span>
+          </div>
+          <div>
+            <small>Avg 3 dB BW</small>
+            <span>{formatValue(summary?.matlabSummary?.avgBandwidth3dBNm, 1, " nm")}</span>
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }
 function MetricComparisonPlot({ metricKey, items, selectedKey, onSelect, emptyMessage, insertionMetricField = "insertionLossDb" }) {
@@ -1779,10 +1954,9 @@ export default function App() {
   const [propagationDraft, setPropagationDraft] = useState(() => propagationDraftFromSourceMeta(buildDefaultSourceMeta(initialSettings)));
   const [pendingPropagationFingerprint, setPendingPropagationFingerprint] = useState("");
   const [statusMessage, setStatusMessage] = useState("Workspace ready. Load a project or upload measurement files to begin.");
-  const [search, setSearch] = useState("");
-  const [datasetPreviewMode, setDatasetPreviewMode] = useState("all-chips");
   const [selectedWaferMetric, setSelectedWaferMetric] = useState("propagation");
   const [selectedChip, setSelectedChip] = useState("");
+  const [excludedPropagationChipIds, setExcludedPropagationChipIds] = useState({});
   const [insertionDeviceType, setInsertionDeviceType] = useState("grating-couplers");
   const [insertionMetricField, setInsertionMetricField] = useState("insertionLossDb");
   const [insertionOverlayVisibility, setInsertionOverlayVisibility] = useState({});
@@ -1820,8 +1994,6 @@ export default function App() {
   const [showSpectrumViewerPeakPosition, setShowSpectrumViewerPeakPosition] = useState(false);
   const [isUploadingSpectrumViewerFiles, setIsUploadingSpectrumViewerFiles] = useState(false);
   const [isSpectrumViewerDragging, setIsSpectrumViewerDragging] = useState(false);
-
-  const deferredSearch = useDeferredValue(search);
   const builtInWaferTemplates = useMemo(() => getBuiltInWaferTemplates(), []);
   const allWaferTemplates = useMemo(() => mergeWaferTemplates(builtInWaferTemplates, savedWaferTemplates), [builtInWaferTemplates, savedWaferTemplates]);
   const currentWaferTemplate = useMemo(() => {
@@ -1910,7 +2082,15 @@ export default function App() {
   const propagationHasChanges = draftPropagationFingerprint !== appliedPropagationFingerprint;
   const isApplyingPropagation = Boolean(pendingPropagationFingerprint);
   const datasetSummary = useMemo(() => summarizeDataset(normalizedRows), [normalizedRows]);
-  const reportState = useMemo(() => buildReportState(metrics, datasetSummary), [metrics, datasetSummary]);
+  const propagationChipIds = useMemo(() => metrics.propagation.byChip.map((item) => item.chipId), [metrics.propagation.byChip]);
+  const includedPropagationChipIds = useMemo(
+    () => propagationChipIds.filter((chipId) => excludedPropagationChipIds[chipId] !== true),
+    [excludedPropagationChipIds, propagationChipIds]
+  );
+  const reportState = useMemo(
+    () => buildReportState(metrics, datasetSummary, { includedChipIds: includedPropagationChipIds }),
+    [datasetSummary, includedPropagationChipIds, metrics]
+  );
   const propagationAllWaferCells = useMemo(
     () => metrics.propagation.byChip
       .filter((item) => item.lossDbPerCm !== null && item.lossDbPerCm !== undefined)
@@ -1979,10 +2159,11 @@ export default function App() {
         detail: metricCell?.detail ?? "No measurement loaded for this chip.",
         hasMeasurement,
         propagationStatus,
-        isVisible
+        isVisible,
+        excluded: excludedPropagationChipIds[slot.chipId] === true
       };
     });
-  }, [insertionByChip, insertionMetricField, insertionProfile.label, metrics, propagationAllWaferCells, selectedWaferMetric, waferMapDisplayMode, waferTemplateLayout]);
+  }, [excludedPropagationChipIds, insertionByChip, insertionMetricField, insertionProfile.label, metrics, propagationAllWaferCells, selectedWaferMetric, waferMapDisplayMode, waferTemplateLayout]);
   const propagationLead = metrics.propagation.byChip.find((item) => item.chipId === selectedChip) || metrics.propagation.byChip[0] || null;
   const insertionLead = insertionByChip.find((item) => item.chipId === selectedChip) || insertionByChip[0] || null;
   const heaterLead = metrics.heater.byChip.find((item) => item.chipId === selectedChip) || metrics.heater.byChip[0] || null;
@@ -2000,17 +2181,31 @@ export default function App() {
   const unmatchedDevices = datasetSummary.rows - matchedDevices;
   const isWorkspaceTab = APP_TABS.some((tab) => tab.id === activeTab);
   const railAvatar = useMemo(() => initialsFromName(appSettings.operatorName), [appSettings.operatorName]);
-  const filteredRows = useMemo(() => {
-    if (deferredSearch.trim()) {
-      return normalizedRows.filter((row) => JSON.stringify(row).toLowerCase().includes(deferredSearch.toLowerCase())).slice(0, DATASET_PREVIEW_LIMIT);
-    }
-
-    if (datasetPreviewMode === "selected-chip") {
-      return normalizedRows.filter((row) => row.chip_id === selectedChip).slice(0, DATASET_PREVIEW_LIMIT);
-    }
-
-    return buildCrossChipSample(normalizedRows, DATASET_PREVIEW_LIMIT);
-  }, [normalizedRows, deferredSearch, datasetPreviewMode, selectedChip]);
+  const chipSelectionRows = useMemo(
+    () => metrics.propagation.byChip
+      .map((item) => ({
+        chipId: item.chipId,
+        dieX: item.dieX,
+        dieY: item.dieY,
+        passMse: item.passMse,
+        lossDbPerCm: item.lossDbPerCm,
+        mse: item.mse,
+        peakWavelengthNm: item.transmissionSummary?.peakWavelengthNm ?? null,
+        insertionLossDb: item.transmissionSummary?.insertionLossDb ?? null,
+        bandwidth3dBNm: item.transmissionSummary?.bandwidth3dBNm ?? null,
+        included: excludedPropagationChipIds[item.chipId] !== true
+      }))
+      .sort((left, right) => {
+        const leftRow = left.dieY ?? -Infinity;
+        const rightRow = right.dieY ?? -Infinity;
+        if (leftRow !== rightRow) return rightRow - leftRow;
+        const leftCol = left.dieX ?? Infinity;
+        const rightCol = right.dieX ?? Infinity;
+        if (leftCol !== rightCol) return leftCol - rightCol;
+        return String(left.chipId).localeCompare(String(right.chipId), undefined, { numeric: true });
+      }),
+    [excludedPropagationChipIds, metrics.propagation.byChip]
+  );
   const primaryMetric = activeTab === "heater"
     ? { key: "heater", value: heaterMean, title: "Mean Heater Efficiency", icon: "Thermal" }
     : activeTab === "insertion"
@@ -2162,6 +2357,12 @@ export default function App() {
   }, [activeChipOptions, selectedChip]);
 
   useEffect(() => {
+    setExcludedPropagationChipIds((previous) => Object.fromEntries(
+      Object.entries(previous).filter(([chipId]) => propagationChipIds.includes(chipId))
+    ));
+  }, [propagationChipIds]);
+
+  useEffect(() => {
     if (insertionMetricOptions.length && !insertionMetricOptions.some((option) => option.value === insertionMetricField)) {
       setInsertionMetricField(insertionMetricOptions[0].value);
     }
@@ -2169,6 +2370,28 @@ export default function App() {
 
   function appendAudit(kind, title, detail) {
     setAuditLog((previous) => [{ id: createId("audit"), kind, title, detail, timestamp: new Date().toISOString() }, ...previous].slice(0, 120));
+  }
+  function togglePropagationChipInclusion(chipId) {
+    setExcludedPropagationChipIds((previous) => (
+      previous[chipId]
+        ? Object.fromEntries(Object.entries(previous).filter(([key]) => key !== chipId))
+        : { ...previous, [chipId]: true }
+    ));
+  }
+  function selectAllPropagationChips() {
+    setExcludedPropagationChipIds({});
+  }
+  function clearAllPropagationChips() {
+    setExcludedPropagationChipIds(Object.fromEntries(propagationChipIds.map((chipId) => [chipId, true])));
+  }
+  function selectPassingPropagationChips() {
+    setExcludedPropagationChipIds(
+      Object.fromEntries(
+        metrics.propagation.byChip
+          .filter((item) => !item.passMse)
+          .map((item) => [item.chipId, true])
+      )
+    );
   }
   function pushToast(title, message, tone = "info") {
     const id = createId("toast");
@@ -2269,6 +2492,7 @@ export default function App() {
       const nextPresentation = getDatasetPresentation({ projectName: "", waferName: "", sourceMeta: nextSourceMeta, rawRows: rows, files: files.map((file) => file.name) });
       setProjectName(nextPresentation.projectDisplayName);
       setWaferName(nextPresentation.waferDisplayName);
+      setExcludedPropagationChipIds({});
       setRawRows(rows);
       setColumnMap(inferredMap);
       setSourceMeta(nextSourceMeta);
@@ -2323,6 +2547,7 @@ export default function App() {
       const nextPresentation = getDatasetPresentation({ projectName: "", waferName: "", sourceMeta: nextSourceMeta, rawRows: result.rows, files: files.map((file) => file.name) });
       setProjectName(nextPresentation.projectDisplayName);
       setWaferName(nextPresentation.waferDisplayName);
+      setExcludedPropagationChipIds({});
       setRawRows(result.rows);
       setColumnMap(inferredMap);
       setSourceMeta(nextSourceMeta);
@@ -2403,7 +2628,7 @@ export default function App() {
   }
   function clearWorkspace() {
     const nextSourceMeta = buildDefaultSourceMeta(appSettings);
-    setProjectName(""); setWaferName(""); setSelectedDate(""); setRawRows([]); setColumnMap({}); setSelectedChip(""); setQuickDatasetSelection("");
+    setProjectName(""); setWaferName(""); setSelectedDate(""); setRawRows([]); setColumnMap({}); setSelectedChip(""); setQuickDatasetSelection(""); setExcludedPropagationChipIds({});
     setSourceMeta(nextSourceMeta);
     setDatasetNamingDraft(createDatasetNamingDraft({ sourceMeta: nextSourceMeta, rawRows: [] }));
     setStatusMessage("Workspace cleared. Upload a measurement set or load a saved project to begin.");
@@ -2455,6 +2680,7 @@ export default function App() {
       const nextWaferName = definition.waferDisplayName || definition.waferName;
       setProjectName(nextProjectName);
       setWaferName(nextWaferName);
+      setExcludedPropagationChipIds({});
       setRawRows(rows);
       setColumnMap(inferredMap);
       setSourceMeta(nextSourceMeta);
@@ -2654,11 +2880,11 @@ export default function App() {
       setIsGeneratingPptReport(false);
     }
   }
-  function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const currentPresentation = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }); const projectRecord = { id: createId("project"), projectName: currentPresentation.projectDisplayName, waferName: currentPresentation.waferDisplayName, slot: currentPresentation.slot, waveguideType: currentPresentation.waveguideType, measurementMode: currentPresentation.measurementMode, measurementType: currentPresentation.measurementType, datasetLabel: sourceMeta?.name || `${currentPresentation.projectDisplayName} ${currentPresentation.slot}`, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${currentPresentation.projectDisplayName} for slot ${currentPresentation.slot}.`); setStatusMessage(`Saved project ${currentPresentation.projectDisplayName}. You can reopen it later from the Projects section.`); }
-  function loadProject(project) { const presented = presentDataset(project); setProjectName(presented.projectDisplayName); setWaferName(presented.waferDisplayName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setQuickDatasetSelection(""); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${presented.projectDisplayName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${presented.projectDisplayName} for wafer run ${presented.waferDisplayName}.`); }
+  function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const currentPresentation = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }); const projectRecord = { id: createId("project"), projectName: currentPresentation.projectDisplayName, waferName: currentPresentation.waferDisplayName, slot: currentPresentation.slot, waveguideType: currentPresentation.waveguideType, measurementMode: currentPresentation.measurementMode, measurementType: currentPresentation.measurementType, datasetLabel: sourceMeta?.name || `${currentPresentation.projectDisplayName} ${currentPresentation.slot}`, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, excludedPropagationChipIds, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${currentPresentation.projectDisplayName} for slot ${currentPresentation.slot}.`); setStatusMessage(`Saved project ${currentPresentation.projectDisplayName}. You can reopen it later from the Projects section.`); }
+  function loadProject(project) { const presented = presentDataset(project); setProjectName(presented.projectDisplayName); setWaferName(presented.waferDisplayName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setQuickDatasetSelection(""); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setExcludedPropagationChipIds(project.excludedPropagationChipIds || {}); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${presented.projectDisplayName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${presented.projectDisplayName} for wafer run ${presented.waferDisplayName}.`); }
   function deleteProject(projectId) { const target = savedProjects.find((project) => project.id === projectId); setSavedProjects((previous) => previous.filter((project) => project.id !== projectId)); appendAudit("project", "Project deleted", `Deleted saved project ${target?.projectName || projectId}.`); }
   function saveCurrentDataset(autoSaved = false) { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Dataset save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("dataset", autoSaved ? "Dataset auto-save skipped" : "Dataset save skipped", detail); pushToast(autoSaved ? "Auto-save skipped" : "Dataset save skipped", "This dataset is too large for reliable browser storage.", "progress"); return; } const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
-  function loadDataset(dataset) { const presented = presentDataset(dataset); const rows = dataset.rawRows || []; const nextSourceMeta = dataset.sourceMeta || buildDefaultSourceMeta(appSettings); setProjectName(presented.projectDisplayName || projectName); setWaferName(presented.waferDisplayName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(rows); setColumnMap(dataset.columnMap || {}); setSourceMeta(nextSourceMeta); setDatasetNamingDraft(createDatasetNamingDraft({ ...dataset, projectName: presented.projectDisplayName || dataset.projectName, waferName: presented.waferDisplayName || dataset.waferName, selectedDate: dataset.selectedDate || selectedDate, rawRows: rows, sourceMeta: nextSourceMeta })); setQuickDatasetSelection(`local:${dataset.id}`); setSelectedChip(rows[0]?.chip_id || ""); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${presented.projectDisplayName}.`); }
+  function loadDataset(dataset) { const presented = presentDataset(dataset); const rows = dataset.rawRows || []; const nextSourceMeta = dataset.sourceMeta || buildDefaultSourceMeta(appSettings); setProjectName(presented.projectDisplayName || projectName); setWaferName(presented.waferDisplayName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(rows); setColumnMap(dataset.columnMap || {}); setSourceMeta(nextSourceMeta); setDatasetNamingDraft(createDatasetNamingDraft({ ...dataset, projectName: presented.projectDisplayName || dataset.projectName, waferName: presented.waferDisplayName || dataset.waferName, selectedDate: dataset.selectedDate || selectedDate, rawRows: rows, sourceMeta: nextSourceMeta })); setQuickDatasetSelection(`local:${dataset.id}`); setSelectedChip(rows[0]?.chip_id || ""); setExcludedPropagationChipIds({}); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${presented.projectDisplayName}.`); }
   async function handleQuickDatasetLoad(value) {
     if (!value) return;
     setQuickDatasetSelection(value);
@@ -3044,11 +3270,19 @@ export default function App() {
             ) : null}
             </section>
 
-            <section className="analysis-bottom-grid">
-              <article className="analysis-card wide-span">
-                <div className="analysis-card-head"><div><h2>Normalized Dataset</h2><p>Unified CSV-ready rows from the shared translation layer.</p></div><div className="dataset-toolbar"><select value={datasetPreviewMode} onChange={(event) => setDatasetPreviewMode(event.target.value)}><option value="all-chips">All-chip sample</option><option value="selected-chip">Selected chip</option></select><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search rows, chips, or devices" /><button type="button" onClick={exportNormalizedCsv}>Export CSV</button></div></div>
-                <div className="dashboard-table-wrap"><table><thead><tr><th>Device ID</th><th>Wafer</th><th>X</th><th>Y</th><th>Source</th><th>Rel. Length (mm)</th><th>Loss / Transmission (dB)</th><th>Propagation Loss</th><th>Wavelength</th></tr></thead><tbody>{filteredRows.map((row) => { const chipMetric = metrics.propagation.byChip.find((item) => item.chipId === row.chip_id); return <tr key={`${row.source_name}-${row.row_index}`}><td>{row.chip_id || row.waveguide_id || "--"}</td><td>{row.wafer_label || waferName}</td><td>{row.die_x ?? "--"}</td><td>{row.die_y ?? "--"}</td><td>{row.source_type.includes("excel") ? "XLSX" : row.source_type.includes("Automated") ? row.waveguide_id || "TXT trace" : row.source_type}</td><td>{row.relative_length_mm ?? "--"}</td><td>{measurementDisplay(row) ?? "--"}</td><td>{chipMetric?.lossDbPerCm !== null && chipMetric?.lossDbPerCm !== undefined ? chipMetric.lossDbPerCm.toFixed(2) : "--"}</td><td>{row.wavelength_nm ?? sourceMeta.defaultWavelengthNm}</td></tr>; })}</tbody></table></div>
-              </article>
+            <section className="analysis-chip-summary-section">
+              <ChipSelectionTable
+                rows={chipSelectionRows}
+                summary={reportState}
+                onToggleChip={togglePropagationChipInclusion}
+                onSelectAll={selectAllPropagationChips}
+                onClearAll={clearAllPropagationChips}
+                onSelectPassingOnly={selectPassingPropagationChips}
+                onOpenChip={setSelectedChip}
+                onExportNormalizedCsv={exportNormalizedCsv}
+              />
+            </section>
+            <section className="analysis-bottom-grid analysis-bottom-grid-secondary">
               <article className="analysis-card"><div className="analysis-card-head stacked"><div><h2>File Translator Status</h2><p>{statusMessage}</p></div></div><TranslationStatus sourceName={sourceMeta.name} sourceType={sourceMeta.type} totalRows={datasetSummary.rows} matchedDevices={matchedDevices} unmatchedDevices={unmatchedDevices} /><button type="button" className="secondary-action" onClick={() => updateTab("audit")}>Open Audit Log</button></article>
               <article className="analysis-card"><div className="analysis-card-head"><div><h2>Report Preview</h2><p>Export-ready representation of wafer quality.</p></div><button type="button" onClick={exportReportJson}>Open Report</button></div><ReportPreviewCard reportState={reportState} selectedMetricLabel={metricLabel(selectedWaferMetric)} onOpenReport={exportReportJson} /></article>
             </section>

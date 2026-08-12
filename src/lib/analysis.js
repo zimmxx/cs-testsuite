@@ -626,18 +626,28 @@ export function calculateAllMetrics(normalizedRows, options = {}) {
   };
 }
 
-export function buildReportState(metrics, datasetSummary) {
-  const propagationTop = [...metrics.propagation.validByChip]
+export function buildReportState(metrics, datasetSummary, options = {}) {
+  const hasIncludedChipFilter = Array.isArray(options.includedChipIds);
+  const includedChipIds = new Set((options.includedChipIds || []).map((chipId) => String(chipId)));
+  const isIncludedChip = (chipId) => !hasIncludedChipFilter || includedChipIds.has(String(chipId));
+  const selectedPropagation = metrics.propagation.byChip.filter((item) => isIncludedChip(item.chipId));
+  const selectedValidPropagation = selectedPropagation.filter((item) => item.passMse && item.lossDbPerCm !== null);
+  const selectedInsertionByBlock = (metrics.insertion.byBlock || []).filter((item) => isIncludedChip(item.chipId));
+  const selectedHeater = metrics.heater.byChip.filter((item) => isIncludedChip(item.chipId));
+
+  const propagationTop = [...selectedValidPropagation]
     .sort((a, b) => a.lossDbPerCm - b.lossDbPerCm)
     .slice(0, 5);
-  const heaterTop = [...metrics.heater.byChip]
+  const heaterTop = [...selectedHeater]
     .sort((a, b) => a.efficiencyMwPerPi - b.efficiencyMwPerPi)
     .slice(0, 5);
-  const insertionTop = [...metrics.insertion.byBlock]
+  const insertionTop = [...selectedInsertionByBlock]
     .sort((a, b) => a.insertionLossDb - b.insertionLossDb)
     .slice(0, 5);
-  const chipTable = metrics.propagation.byChip.map((item) => ({
+  const chipTable = selectedPropagation.map((item) => ({
     chipId: item.chipId,
+    dieX: item.dieX,
+    dieY: item.dieY,
     lossDbPerCm: item.lossDbPerCm,
     mse: item.mse,
     passMse: item.passMse,
@@ -645,29 +655,47 @@ export function buildReportState(metrics, datasetSummary) {
     insertionLossDb: item.transmissionSummary?.insertionLossDb ?? null,
     bandwidth3dBNm: item.transmissionSummary?.bandwidth3dBNm ?? null
   }));
+  const selectedChipCount = chipTable.length;
+  const totalChipCount = metrics.propagation.byChip.length;
+  const excludedChipCount = Math.max(totalChipCount - selectedChipCount, 0);
+  const avgPropagationLossDbPerCm = average(selectedValidPropagation.map((item) => item.lossDbPerCm));
+  const avgPeakWavelengthNm = average(selectedValidPropagation.map((item) => item.transmissionSummary?.peakWavelengthNm ?? null));
+  const avgInsertionLossDb = average(selectedValidPropagation.map((item) => item.transmissionSummary?.insertionLossDb ?? null));
+  const avgBandwidth3dBNm = average(selectedValidPropagation.map((item) => item.transmissionSummary?.bandwidth3dBNm ?? null));
 
   return {
     generatedAt: new Date().toLocaleString(),
     summary: datasetSummary,
     highlights: [
       `Processed ${datasetSummary.rows} normalized records across ${datasetSummary.chips} chip locations.`,
-      `${metrics.propagation.validByChip.length} chips passed the propagation MSE threshold of ${metrics.propagation.mseThreshold}.`,
-      `${metrics.insertion.byBlock.length} insertion-loss groupings were extracted.`,
-      `${metrics.heater.byChip.length} chips produced heater-efficiency estimates.`
+      `${selectedValidPropagation.length} of ${selectedChipCount} selected chips passed the propagation MSE threshold of ${metrics.propagation.mseThreshold}.`,
+      `${selectedInsertionByBlock.length} insertion-loss groupings remain in the selected chip set.`,
+      `${selectedHeater.length} selected chips produced heater-efficiency estimates.`
     ],
-    matlabSummary: metrics.propagation.summaryStats,
+    matlabSummary: {
+      measuredChips: selectedPropagation.length,
+      failedFits: selectedPropagation.filter((item) => item.mse !== null && item.mse > metrics.propagation.mseThreshold).length,
+      fittedChips: selectedValidPropagation.length,
+      avgPropagationLossDbPerCm,
+      avgPeakWavelengthNm,
+      avgInsertionLossDb,
+      avgBandwidth3dBNm
+    },
     propagationTop,
     insertionTop,
     heaterTop,
     chipTable,
-    waferMetric: metrics.propagation.waferMetric
+    waferMetric: metrics.propagation.waferMetric.filter((item) => isIncludedChip(item.chipId)),
+    selectedChipCount,
+    excludedChipCount,
+    totalChipCount
   };
 }
 
 export function buildHtmlReport(reportState, title = "Wafer Post-Processing Report") {
   const rows = reportState.chipTable
     .map(
-      (row) => `<tr><td>${row.chipId}</td><td>${formatNullable(row.lossDbPerCm, 2)}</td><td>${formatNullable(row.mse, 4)}</td><td>${row.passMse ? "Pass" : "Fail"}</td><td>${formatNullable(row.peakWavelengthNm, 1)}</td><td>${formatNullable(row.insertionLossDb, 2)}</td><td>${formatNullable(row.bandwidth3dBNm, 1)}</td></tr>`
+      (row) => `<tr><td>${row.chipId}</td><td>${formatChipLocation(row.dieX, row.dieY)}</td><td>${formatNullable(row.lossDbPerCm, 2)}</td><td>${formatNullable(row.mse, 4)}</td><td>${row.passMse ? "Pass" : "Fail"}</td><td>${formatNullable(row.peakWavelengthNm, 1)}</td><td>${formatNullable(row.insertionLossDb, 2)}</td><td>${formatNullable(row.bandwidth3dBNm, 1)}</td></tr>`
     )
     .join("");
 
@@ -688,6 +716,7 @@ ul{padding-left:18px}
 <h1>${title}</h1>
 <p>Generated: ${reportState.generatedAt}</p>
 <div class="grid">
+<div class="card"><strong>Selected chips</strong><div>${reportState.selectedChipCount}</div></div>
 <div class="card"><strong>Measured chips</strong><div>${reportState.matlabSummary.measuredChips}</div></div>
 <div class="card"><strong>Fitted chips</strong><div>${reportState.matlabSummary.fittedChips}</div></div>
 <div class="card"><strong>Failed fits</strong><div>${reportState.matlabSummary.failedFits}</div></div>
@@ -699,7 +728,7 @@ ul{padding-left:18px}
 <ul>${reportState.highlights.map((item) => `<li>${item}</li>`).join("")}</ul>
 <h2>Chip Summary Table</h2>
 <table>
-<thead><tr><th>Chip</th><th>Loss (dB/cm)</th><th>MSE</th><th>Status</th><th>Peak WL (nm)</th><th>Insertion Loss (dB)</th><th>3 dB BW (nm)</th></tr></thead>
+<thead><tr><th>Chip</th><th>Location</th><th>Loss (dB/cm)</th><th>MSE</th><th>Status</th><th>Peak WL (nm)</th><th>Insertion Loss (dB)</th><th>3 dB BW (nm)</th></tr></thead>
 <tbody>${rows}</tbody>
 </table>
 </body>
@@ -708,6 +737,10 @@ ul{padding-left:18px}
 
 function formatNullable(value, digits) {
   return value === null || value === undefined || Number.isNaN(value) ? "--" : Number(value).toFixed(digits);
+}
+
+function formatChipLocation(dieX, dieY) {
+  return dieX === null || dieX === undefined || dieY === null || dieY === undefined ? "--" : `(${dieX}, ${dieY})`;
 }
 
 export function getMetricRange(cells) {

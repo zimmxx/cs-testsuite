@@ -17,6 +17,8 @@ The app translates uploaded measurement data into a normalized internal schema, 
 - PowerPoint slide generation for chip-by-chip post-processed reviews
 - GitHub-hosted dataset library management
 - Cross-dataset comparison for wafer/process variation studies
+- Coordinate-based CD-SEM data import, wafer mapping, and overlap review against propagation-loss chips
+- Dashboard views for published MPW, slot, platform, and measurement-library coverage
 - Filename and manual-measurement conversion into standardized trace names
 - Spectrum Viewer for flexible uploaded trace inspection
 - Device-aware insertion-loss characterization across all chips on the wafer
@@ -30,8 +32,16 @@ Live deployment:
 - Replace rigid MATLAB app workflows with a more flexible web interface
 - Support multiple incoming file formats through one translation layer
 - Make wafer-level analysis easier to review, share, compare, and extend
+- Connect cleanroom CD-SEM measurements to optical propagation analysis at chip level
+- Make GitHub-hosted measurement data easier to audit across MPW runs and platforms
 - Keep the project easy to maintain locally and on GitHub
 - Standardize measurement file naming for long-term dataset reuse
+
+## Current Release
+
+- App version: `v0.3.0`
+- Release date: `2026-08-13`
+- Focus: `CD-SEM library foundation and dataset dashboarding`
 
 ## Tech Stack
 
@@ -104,8 +114,9 @@ On push to `main`, GitHub Actions:
 - [Local Git And GitHub Workflow](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\LOCAL_GIT_GITHUB_WORKFLOW.md)
 - [Versioning And Documentation Guide](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\VERSIONING_AND_DOCUMENTATION.md)
 - [Dataset And Filename Standard](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\DATASET_FILENAME_STANDARD.md)
-- [Release Features: v0.2.1](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.2.1\FEATURES.md)
-- [Release Changelog: v0.2.1](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.2.1\CHANGELOG.md)
+- [Release Features: v0.3.0](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.3.0\FEATURES.md)
+- [Release Changelog: v0.3.0](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.3.0\CHANGELOG.md)
+- [Suggested Next Updates](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\suggested_update.md)
 - [Full Project Version History](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\PROJECT_VERSION_HISTORY.md)
 
 ## Recommended Repository Hygiene
@@ -125,3 +136,4 @@ When new features are added, update:
 2. `docs/DATASET_FILENAME_STANDARD.md` if the naming convention changes
 3. `docs/releases/<version>/FEATURES.md` for feature behavior
 4. `docs/releases/<version>/CHANGELOG.md` for change history
+5. `docs/suggested_update.md` for roadmap and architecture follow-up notes

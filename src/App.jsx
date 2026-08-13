@@ -35,6 +35,8 @@ import {
 import ManualConversionPanel from "./components/ManualConversionPanel";
 import DatasetLibraryPanel from "./components/DatasetLibraryPanel";
 import ComparisonLibraryPanel from "./components/ComparisonLibraryPanel";
+import CdSemLibraryPanel from "./components/CdSemLibraryPanel";
+import DatasetDashboardPanel from "./components/DatasetDashboardPanel";
 import HeaterEfficiencyPanel from "./components/HeaterEfficiencyPanel";
 import FilenameConversionPanel from "./components/FilenameConversionPanel";
 import ReportGeneratorPanel from "./components/ReportGeneratorPanel";
@@ -56,6 +58,8 @@ const RAIL_SECTIONS = [
       { id: "manual-conversion", label: "Manual Conversion" },
       { id: "manual-conversion-advanced", label: "Manual Conversion (Advanced)" },
       { id: "comparison", label: "Comparison" },
+      { id: "cd-sem", label: "CD-SEM Data" },
+      { id: "dashboard", label: "Dashboard" },
       { id: "spectrum-viewer", label: "Spectrum Viewer" },
       { id: "filename-conversion", label: "Filename Conversion" },
       { id: "wafermaps", label: "Wafermaps" },
@@ -160,8 +164,9 @@ const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
-  { label: "Feature Guide v0.2.1", path: "docs/releases/v0.2.1/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.2.1/FEATURES.md` },
-  { label: "Change Log v0.2.1", path: "docs/releases/v0.2.1/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.2.1/CHANGELOG.md` },
+  { label: "Feature Guide v0.3.0", path: "docs/releases/v0.3.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.3.0/FEATURES.md` },
+  { label: "Change Log v0.3.0", path: "docs/releases/v0.3.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.3.0/CHANGELOG.md` },
+  { label: "Suggested Next Updates", path: "docs/suggested_update.md", href: `${REPO_DOC_BASE}docs/suggested_update.md` },
   { label: "Dataset Filename Standard", path: "docs/DATASET_FILENAME_STANDARD.md", href: `${REPO_DOC_BASE}docs/DATASET_FILENAME_STANDARD.md` }
 ];
 
@@ -2646,49 +2651,70 @@ export default function App() {
     setActiveTab("propagation");
     appendAudit("workspace", "Workspace cleared", "Cleared the current wafer analysis workspace.");
   }
+  async function fetchBundledDatasetBundle(definition) {
+    const fileNames = definition.files?.length ? definition.files : bundledTraceNames(definition);
+    const configPromise = definition.waveguideConfig
+      ? Promise.resolve(definition.waveguideConfig)
+      : definition.configFile
+        ? fetch(bundledAssetUrl(`${definition.folder}/waveguide-config.json`), { cache: "no-store" })
+            .then((response) => (response.ok ? response.json() : null))
+            .catch(() => null)
+        : Promise.resolve(null);
+    const rowSets = await Promise.all(
+      fileNames.map(async (fileName) => {
+        const response = await fetch(bundledAssetUrl(`${definition.folder}/${fileName}`));
+        if (!response.ok) {
+          throw new Error(`Unable to fetch ${fileName}`);
+        }
+        const text = await response.text();
+        return readNamedTextRows(fileName, text, {
+          launchPowerDbm: sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm,
+          defaultMetricFamily: sourceMeta.defaultMetricFamily ?? appSettings.defaultMetricFamily,
+          defaultWavelengthNm: sourceMeta.defaultWavelengthNm ?? appSettings.defaultWavelengthNm,
+          traceValueUnit: sourceMeta.traceInputUnit || appSettings.traceInputUnit || "watts"
+        });
+      })
+    );
+    const waveguideConfig = await configPromise;
+    const rows = rowSets.flat();
+    const fallbackSettings = buildWaveguideSettingsPatch(sourceMeta);
+    const configuredSettings = waveguideConfig ? buildWaveguideSettingsPatch(waveguideConfig) : fallbackSettings;
+    const nextSourceMeta = applyWaveguideSettingsToSourceMeta(
+      {
+        ...buildDefaultSourceMeta(appSettings),
+        ...fallbackSettings,
+        name: definition.label,
+        type: definition.sourceType,
+        traceInputUnit: sourceMeta.traceInputUnit || appSettings.traceInputUnit || "watts"
+      },
+      configuredSettings
+    );
+    const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
+    const nextProjectName = definition.projectDisplayName || definition.projectName;
+    const nextWaferName = definition.waferDisplayName || definition.waferName;
+
+    return {
+      fileNames,
+      rows,
+      waveguideConfig,
+      sourceMeta: nextSourceMeta,
+      columnMap: inferredMap,
+      projectName: nextProjectName,
+      waferName: nextWaferName
+    };
+  }
   async function loadBundledDataset(definition, libraryKind = "dataset") {
     setLoadingBundledId(definition.id);
     try {
-      const fileNames = definition.files?.length ? definition.files : bundledTraceNames(definition);
-      const configPromise = definition.waveguideConfig
-        ? Promise.resolve(definition.waveguideConfig)
-        : definition.configFile
-          ? fetch(bundledAssetUrl(`${definition.folder}/waveguide-config.json`), { cache: "no-store" })
-              .then((response) => (response.ok ? response.json() : null))
-              .catch(() => null)
-          : Promise.resolve(null);
-      const rowSets = await Promise.all(
-        fileNames.map(async (fileName) => {
-          const response = await fetch(bundledAssetUrl(`${definition.folder}/${fileName}`));
-          if (!response.ok) {
-            throw new Error(`Unable to fetch ${fileName}`);
-          }
-          const text = await response.text();
-          return readNamedTextRows(fileName, text, {
-            launchPowerDbm: sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm,
-            defaultMetricFamily: sourceMeta.defaultMetricFamily ?? appSettings.defaultMetricFamily,
-            defaultWavelengthNm: sourceMeta.defaultWavelengthNm ?? appSettings.defaultWavelengthNm,
-            traceValueUnit: sourceMeta.traceInputUnit || appSettings.traceInputUnit || "watts"
-          });
-        })
-      );
-      const waveguideConfig = await configPromise;
-      const rows = rowSets.flat();
-      const fallbackSettings = buildWaveguideSettingsPatch(sourceMeta);
-      const configuredSettings = waveguideConfig ? buildWaveguideSettingsPatch(waveguideConfig) : fallbackSettings;
-      const nextSourceMeta = applyWaveguideSettingsToSourceMeta(
-        {
-          ...buildDefaultSourceMeta(appSettings),
-          ...fallbackSettings,
-          name: definition.label,
-          type: definition.sourceType,
-          traceInputUnit: sourceMeta.traceInputUnit || appSettings.traceInputUnit || "watts"
-        },
-        configuredSettings
-      );
-      const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
-      const nextProjectName = definition.projectDisplayName || definition.projectName;
-      const nextWaferName = definition.waferDisplayName || definition.waferName;
+      const {
+        fileNames,
+        rows,
+        waveguideConfig,
+        sourceMeta: nextSourceMeta,
+        columnMap: inferredMap,
+        projectName: nextProjectName,
+        waferName: nextWaferName
+      } = await fetchBundledDatasetBundle(definition);
       setProjectName(nextProjectName);
       setWaferName(nextWaferName);
       setExcludedPropagationChipIds({});
@@ -2726,6 +2752,28 @@ export default function App() {
     } finally {
       setLoadingBundledId("");
     }
+  }
+  async function analyzeBundledDataset(definition) {
+    const bundle = await fetchBundledDatasetBundle(definition);
+    const normalized = buildNormalizedRows(bundle.rows, bundle.columnMap, bundle.sourceMeta);
+    const calculated = {
+      propagation: computePropagationLoss(normalized, {
+        targetWavelengthNm: bundle.sourceMeta.propagationTargetWavelengthNm,
+        windowNm: bundle.sourceMeta.propagationWindowNm,
+        spectralStepNm: bundle.sourceMeta.propagationSpectralStepNm,
+        mseThreshold: bundle.sourceMeta.propagationMseThreshold
+      }),
+      insertion: computeInsertionLoss(normalized, {
+        targetWavelengthNm: bundle.sourceMeta.propagationTargetWavelengthNm
+      }),
+      heater: computeHeaterEfficiency(normalized)
+    };
+
+    return {
+      propagationAverage: calculated.propagation.summaryStats.avgPropagationLossDbPerCm,
+      yield: calculated.propagation.passRate,
+      measuredChips: calculated.propagation.summaryStats.measuredChips
+    };
   }
   function updatePropagationDraftField(field, value) {
     setPropagationDraft((previous) => updatePropagationDraft(previous, field, value));
@@ -3304,6 +3352,8 @@ export default function App() {
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "manual-conversion-advanced" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} advanced /> : null}
           {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}
+          {activeTab === "cd-sem" ? <CdSemLibraryPanel waferTemplate={currentWaferTemplate} propagationCells={propagationAllWaferCells} currentDatasetMeta={currentDatasetMeta} sourceMeta={sourceMeta} /> : null}
+          {activeTab === "dashboard" ? <DatasetDashboardPanel remoteDatasets={remoteLibraryDatasets} onAnalyzeDataset={analyzeBundledDataset} onLoadDataset={(dataset) => loadBundledDataset(dataset, "dataset")} /> : null}
           {activeTab === "spectrum-viewer" ? <section className="library-stack"><article className="analysis-card spectrum-viewer-card"><div className="analysis-card-head"><div><h2>Spectrum Viewer</h2><p>Upload any insertion-loss or transmission trace and compare devices instantly. TXT is preferred if you plan to publish the data to the GitHub library later, while Excel is supported for quick review.</p></div><div className="library-action-row"><label className="inline-select-field"><span>Input unit</span><select value={spectrumViewerInputUnit} onChange={(event) => setSpectrumViewerInputUnit(event.target.value)}><option value="watts">Watts (W)</option><option value="db">dB / dBm</option></select></label><label className="inline-select-field"><span>Display</span><select value={spectrumViewerDisplayUnit} onChange={(event) => setSpectrumViewerDisplayUnit(event.target.value)}><option value="db">dB / dBm</option><option value="watts">Watts (W)</option></select></label></div></div><div className={isSpectrumViewerDragging ? "spectrum-dropzone active" : "spectrum-dropzone"} onDragEnter={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(true); }} onDragOver={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(true); }} onDragLeave={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(false); }} onDrop={handleSpectrumViewerDrop}><strong>{isUploadingSpectrumViewerFiles ? "Reading uploaded spectra..." : "Upload Files"}</strong><p>Drag and drop `.txt`, `.csv`, `.xlsx`, or `.xls` files here, or browse from a folder. Excel files are read from the `IL` sheet using wavelength in metres and IL in dB.</p><label className="upload-measurement-button secondary-upload"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleSpectrumViewerUpload} disabled={isUploadingSpectrumViewerFiles} /><span>{isUploadingSpectrumViewerFiles ? "Processing Files..." : "Choose Files"}</span></label></div><div className="spectrum-viewer-controls"><label className="inline-text-field"><span>Figure title</span><input value={spectrumViewerTitle} onChange={(event) => setSpectrumViewerTitle(event.target.value)} placeholder="Spectrum Viewer" /></label><label className="checkbox-inline-field"><input type="checkbox" checked={showSpectrumViewerPeakPosition} onChange={(event) => setShowSpectrumViewerPeakPosition(event.target.checked)} /><span>Show peak position guides</span></label></div><div className="spectrum-viewer-grid insertion-overlay-grid"><div className="spectrum-series-panel"><div className="spectrum-series-toolbar"><button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: true })))} disabled={!spectrumViewerSeries.length}>Show All</button><button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: false })))} disabled={!spectrumViewerSeries.length}>Hide All</button><button type="button" className="secondary-action compact-inline-action" onClick={() => { setSpectrumViewerSeries([]); setSpectrumViewerTitle(""); setShowSpectrumViewerPeakPosition(false); }} disabled={!spectrumViewerSeries.length}>Clear</button></div><div className="spectrum-series-list">{spectrumViewerSeries.length ? spectrumViewerSeries.map((item) => <label key={item.id} className="spectrum-series-item"><input type="checkbox" checked={item.visible !== false} onChange={() => setSpectrumViewerSeries((previous) => previous.map((entry) => entry.id === item.id ? { ...entry, visible: entry.visible === false } : entry))} /><div><strong>{item.label}</strong><span>{item.pointCount} points | {item.wavelengthMinNm.toFixed(1)}-{item.wavelengthMaxNm.toFixed(1)} nm</span></div></label>) : <div className="chart-empty compact">No traces loaded yet.</div>}</div></div><InteractiveSpectrumViewerPlot series={spectrumViewerSeries} displayUnit={spectrumViewerDisplayUnit} chipId="Spectrum Viewer" figureTitle={spectrumViewerTitle} onFigureTitleChange={setSpectrumViewerTitle} showPeakPosition={showSpectrumViewerPeakPosition} /></div></article></section> : null}
           {activeTab === "filename-conversion" ? <FilenameConversionPanel /> : null}
           {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Theme preference</span><select value={settingsDraft.themePreference} onChange={(event) => updateSettingsDraft("themePreference", event.target.value)}>{THEME_PREFERENCE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label><label className="mapping-field"><span>Propagation spectral interval (nm)</span><input type="number" min="1" value={settingsDraft.propagationSpectralStepNm} onChange={(event) => updateSettingsDraft("propagationSpectralStepNm", Math.max(Number(event.target.value) || 1, 1))} /></label><label className="mapping-field"><span>Propagation fit MSE threshold</span><input type="number" step="0.01" value={settingsDraft.propagationMseThreshold} onChange={(event) => updateSettingsDraft("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} /></label></div><WaveguideLengthConfigurator count={settingsDraft.propagationWaveguideCount} start={settingsDraft.propagationWaveguideStartMm} interval={settingsDraft.propagationWaveguideIntervalMm} manualMode={settingsDraft.propagationWaveguideManualMode} lengths={settingsDraft.propagationWaveguideLengthsMm} onNumberChange={updateSettingsDraft} onLengthChange={updateSettingsWaveguideLength} onManualModeChange={(checked) => updateSettingsDraft("propagationWaveguideManualMode", checked)} /><div className="chart-empty compact">Uploaded measurement files now stay in the active workspace only. Use <strong>Save Dataset Snapshot</strong> or <strong>Save to GitHub</strong> from <strong>Dataset Snapshots</strong> when you want to keep a dataset.</div></article></section> : null}

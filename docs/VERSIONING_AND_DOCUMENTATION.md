@@ -26,6 +26,12 @@ Version-specific docs:
 - `docs/releases/v0.2.0/CHANGELOG.md`
 - `docs/releases/v0.2.1/FEATURES.md`
 - `docs/releases/v0.2.1/CHANGELOG.md`
+- `docs/releases/v0.3.0/FEATURES.md`
+- `docs/releases/v0.3.0/CHANGELOG.md`
+
+Forward-planning docs:
+
+- `docs/suggested_update.md`
 
 Templates for future versions:
 
@@ -38,7 +44,7 @@ When the app is upgraded from one documented version to a later version:
 1. Create a new folder:
 
 ```text
-docs/releases/v0.2.1/
+docs/releases/v0.3.0/
 ```
 
 2. Copy the template or previous files into the new version folder
@@ -62,6 +68,7 @@ Use:
 - `v0.1.1` for small fixes
 - `v0.2.0` for medium feature expansions
 - `v0.2.1` for patch improvements on top of the current feature release
+- `v0.3.0` for a larger feature expansion such as new library sections or new dataset workflows
 - `v1.0.0` for a more complete stable release
 
 ## What Belongs In Each File
@@ -115,3 +122,4 @@ Any time you change the app in a meaningful way:
 3. update the release feature doc if behavior changed
 4. update the changelog entry
 5. commit code and docs together
+6. update `docs/suggested_update.md` when the latest work changes the recommended next architecture step

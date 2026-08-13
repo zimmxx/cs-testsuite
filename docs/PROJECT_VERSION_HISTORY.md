@@ -121,11 +121,20 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 - Added editable output filenames in the `Manual Conversion` results table.
 - Applied edited filenames consistently to individual downloads, ZIP export, and manifest export.
 
+### 2026-08-13
+
+#### Current working-tree upgrade
+- Added a new `CD-SEM Data` library section for importing coordinate-based cleanroom metrology files.
+- Added chip-coordinate mapping from `Column` and `Row` values onto the active wafer template.
+- Added overlap review and simple correlation inspection between CD-SEM values and propagation-loss chips.
+- Added a new `Dashboard` library section to review published GitHub datasets by platform and MPW.
+- Added on-demand propagation analytics for published GitHub datasets loaded from the measurement manifest.
+
 ## Current Development State
 
 Latest recorded working-tree update:
-- Date: `2026-08-11`
-- Theme: `Manual conversion filename correction and editable export naming`
+- Date: `2026-08-13`
+- Theme: `CD-SEM library foundation and GitHub dataset dashboard`
 
 ## How To Extend This File
 

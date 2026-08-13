@@ -161,7 +161,7 @@ export function parseManualMeasurementPath(file) {
         ? "StripWaveguide"
         : /slot/i.test(flavorToken)
           ? "SlotWaveguide"
-          : "",
+          : (sanitizeToken(flavorSegment) || ""),
     measurementType: "PropagationLoss",
     mode: "Manual",
     chipId,
@@ -180,7 +180,15 @@ export function parseManualMeasurementPath(file) {
     waveguideNumber,
     flavorSegment,
     outputBaseName,
-    standardMeta
+    standardMeta,
+    parsedSegments: {
+      projectSegment,
+      slotId,
+      chipId,
+      waveguideId,
+      waveguideDescriptor: standardMeta.waveguideDescriptor || "",
+      sourcePath: relativePath
+    }
   };
 }
 
@@ -247,6 +255,7 @@ export async function convertManualMeasurementWorkbook(file, options = {}) {
     launchPowerDbm,
     parser: `xlsx (SheetJS CE, sheet: ${sheetName})`,
     flavor: meta.flavorSegment || "",
+    parsedSegments: meta.parsedSegments,
     standardMeta: {
       ...meta.standardMeta,
       extension: outputFormat

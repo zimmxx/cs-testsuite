@@ -9,7 +9,7 @@ export const PLATFORM_OPTIONS = [
   "Other"
 ];
 
-export const WAVEGUIDE_TYPE_OPTIONS = ["StripWaveguide", "RibWaveguide"];
+export const WAVEGUIDE_TYPE_OPTIONS = ["StripWaveguide", "RibWaveguide", "SlotWaveguide"];
 export const MEASUREMENT_MODE_OPTIONS = ["Manual", "WST"];
 
 function cleanToken(value) {
@@ -54,8 +54,16 @@ function detectPlatform(source) {
 }
 
 function detectWaveguideType(source) {
+  if (/\bslot\b/i.test(source)) return "SlotWaveguide";
   if (/\brib\b/i.test(source)) return "RibWaveguide";
   return "StripWaveguide";
+}
+
+function normalizeWaveguideDescriptor(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (WAVEGUIDE_TYPE_OPTIONS.includes(raw)) return raw;
+  return cleanToken(raw) || "";
 }
 
 function detectMeasurementType(source) {
@@ -77,7 +85,7 @@ export function normalizeStandardMetadata(meta = {}) {
   const rawPlatform = String(meta.platform || "").trim();
   const platform = PLATFORM_OPTIONS.includes(rawPlatform) ? rawPlatform : detectPlatform(rawPlatform);
   const rawWaveguide = String(meta.waveguideDescriptor || meta.waveguideType || "").trim();
-  const waveguideDescriptor = WAVEGUIDE_TYPE_OPTIONS.includes(rawWaveguide) ? rawWaveguide : detectWaveguideType(rawWaveguide);
+  const waveguideDescriptor = normalizeWaveguideDescriptor(rawWaveguide) || detectWaveguideType(rawWaveguide);
   const rawMode = String(meta.mode || "").trim();
   const mode = MEASUREMENT_MODE_OPTIONS.includes(rawMode) ? rawMode : detectMeasurementMode(rawMode);
 

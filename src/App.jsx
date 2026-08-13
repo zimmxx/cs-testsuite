@@ -54,6 +54,7 @@ const RAIL_SECTIONS = [
       { id: "projects", label: "Workspace Snapshots" },
       { id: "datasets", label: "Dataset Snapshots" },
       { id: "manual-conversion", label: "Manual Conversion" },
+      { id: "manual-conversion-advanced", label: "Manual Conversion (Advanced)" },
       { id: "comparison", label: "Comparison" },
       { id: "spectrum-viewer", label: "Spectrum Viewer" },
       { id: "filename-conversion", label: "Filename Conversion" },
@@ -1085,16 +1086,16 @@ function WaferMapPanel({
   const stepY = mapHeight / rowCount;
   const cellWidth = Math.min(stepX * 1.08, 5.64);
   const cellHeight = Math.min(stepY * 1.08, 5.64);
-  const labelFontSize = overlayMode === "chip" ? (layoutCells.length > 90 ? 2.16 : 2.52) : 2.7;
+  const labelFontSize = overlayMode === "chip" ? (layoutCells.length > 90 ? 2.16 : 2.52) : 2.16;
   const centreChipX = layoutCells.find((cell) => shortChipLabel(cell.chipId) === "51")?.dieX ?? ((minCol + maxCol) / 2);
   const centreChipY = layoutCells.find((cell) => shortChipLabel(cell.chipId) === "51")?.dieY ?? ((minRow + maxRow) / 2);
   const mapLeft = waferCenterX - ((centreChipX - minCol) + 0.5) * stepX;
   const mapTop = waferCenterY - ((maxRow - centreChipY) + 0.5) * stepY;
 
   const labelFor = (cell) => {
-    if (!cell.isVisible || overlayMode === "none") return "";
+    if (overlayMode === "none") return "";
     if (overlayMode === "value") {
-      return cell.value !== null && cell.value !== undefined
+      return cell.isActiveInView && cell.value !== null && cell.value !== undefined
         ? formatMetricNumber(cell.value, metricKey === "heater" ? 1 : 2)
         : "";
     }
@@ -1105,10 +1106,9 @@ function WaferMapPanel({
     x: mapLeft + (cell.dieX - minCol) * stepX + (stepX - cellWidth) / 2,
     y: mapTop + (maxRow - cell.dieY) * stepY + (stepY - cellHeight) / 2
   }));
-  const visibleCells = positionedCells.filter((cell) => cell.isVisible);
   const orderedCells = [
-    ...visibleCells.filter((cell) => cell.chipId !== selectedChip),
-    ...visibleCells.filter((cell) => cell.chipId === selectedChip)
+    ...positionedCells.filter((cell) => cell.chipId !== selectedChip),
+    ...positionedCells.filter((cell) => cell.chipId === selectedChip)
   ];
 
   return (
@@ -1144,8 +1144,8 @@ function WaferMapPanel({
             const selected = Boolean(selectedChip === cell.chipId);
             const interactive = Boolean(cell.hasMeasurement);
             const cellLabel = labelFor(cell);
-            const visibleValue = interactive ? cell.value : null;
-            const fill = interactive ? waferColorForValue(visibleValue, range) : undefined;
+            const visibleValue = interactive && cell.isActiveInView ? cell.value : null;
+            const fill = visibleValue !== null && visibleValue !== undefined ? waferColorForValue(visibleValue, range) : undefined;
             return (
               <g
                 key={cell.chipId}
@@ -1168,7 +1168,7 @@ function WaferMapPanel({
                     x={cell.x + cellWidth / 2}
                     y={cell.y + cellHeight / 2 + labelFontSize * 0.32}
                     textAnchor="middle"
-                    className={interactive ? "wafermap-slot-label" : "wafermap-slot-label muted"}
+                    className={interactive && cell.isActiveInView ? "wafermap-slot-label" : "wafermap-slot-label muted"}
                     style={{ fontSize: `${labelFontSize}px` }}
                   >
                     {cellLabel}
@@ -1983,7 +1983,7 @@ export default function App() {
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [isUploadingHeaterFiles, setIsUploadingHeaterFiles] = useState(false);
   const [waferMapDisplayMode, setWaferMapDisplayMode] = useState("all");
-  const [waferMapOverlayMode, setWaferMapOverlayMode] = useState("none");
+  const [waferMapOverlayMode, setWaferMapOverlayMode] = useState("chip");
   const [isPropagationSettingsExpanded, setIsPropagationSettingsExpanded] = useState(true);
   const [isGeneratingPostProcessed, setIsGeneratingPostProcessed] = useState(false);
   const [isGeneratingPptReport, setIsGeneratingPptReport] = useState(false);
@@ -2147,7 +2147,7 @@ export default function App() {
       const metricCell = metricLookup.get(slot.chipId);
       const hasMeasurement = metricCell?.value !== null && metricCell?.value !== undefined;
       const propagationStatus = propagationStatusLookup.get(slot.chipId) || "unmeasured";
-      const isVisible = waferMapDisplayMode === "all"
+      const isActiveInView = waferMapDisplayMode === "all"
         || (waferMapDisplayMode === "measured" && hasMeasurement)
         || waferMapDisplayMode === propagationStatus;
 
@@ -2159,7 +2159,8 @@ export default function App() {
         detail: metricCell?.detail ?? "No measurement loaded for this chip.",
         hasMeasurement,
         propagationStatus,
-        isVisible,
+        isVisible: true,
+        isActiveInView,
         excluded: excludedPropagationChipIds[slot.chipId] === true
       };
     });
@@ -2357,10 +2358,20 @@ export default function App() {
   }, [activeChipOptions, selectedChip]);
 
   useEffect(() => {
-    setExcludedPropagationChipIds((previous) => Object.fromEntries(
-      Object.entries(previous).filter(([chipId]) => propagationChipIds.includes(chipId))
-    ));
-  }, [propagationChipIds]);
+    setExcludedPropagationChipIds((previous) => {
+      const trimmed = Object.fromEntries(
+        Object.entries(previous).filter(([chipId]) => propagationChipIds.includes(chipId))
+      );
+      if (Object.keys(trimmed).length > 0 || !metrics.propagation.byChip.length) {
+        return trimmed;
+      }
+      return Object.fromEntries(
+        metrics.propagation.byChip
+          .filter((item) => !item.passMse)
+          .map((item) => [item.chipId, true])
+      );
+    });
+  }, [metrics.propagation.byChip, propagationChipIds]);
 
   useEffect(() => {
     if (insertionMetricOptions.length && !insertionMetricOptions.some((option) => option.value === insertionMetricField)) {
@@ -3291,6 +3302,7 @@ export default function App() {
           {activeTab === "projects" ? <section className="library-stack workspace-fit-view"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Workspace Snapshots</h2><p>Save the current wafer analysis context so you can reopen the same workspace state later, including selected views and analysis settings.</p></div><div className="library-action-row"><button type="button" onClick={saveCurrentProject}>Save Workspace Snapshot</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Back To Analysis</button></div></div><div className="translator-metrics"><div><strong>{projectName}</strong><span>Project</span></div><div><strong>{getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }).slot}</strong><span>Slot</span></div><div><strong>{datasetSummary.rows}</strong><span>Rows</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Workspace Snapshots</h2><p>Stored locally in this browser for reopening the same workspace state.</p></div></div><LibraryTable columns={["Project", "Slot", "Waveguide Type", "Measurement Mode", "Measurement Type", "Dataset", "Rows", "Saved", "Actions"]} rows={[...bundledProjectRows, ...currentProjectRows]} emptyMessage="No bundled or saved projects are available yet." /></article></section> : null}
           {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} currentDatasetMeta={currentDatasetMeta} currentDatasetNamingDraft={datasetNamingDraft} onCurrentDatasetNamingChange={updateCurrentDatasetNaming} onResetCurrentDatasetNaming={() => resetCurrentDatasetNaming()} onApplyCurrentNamingToLoadedSnapshot={applyCurrentNamingToLoadedSnapshot} canApplyCurrentNamingToLoadedSnapshot={Boolean(selectedLocalDatasetId(quickDatasetSelection))} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={refreshRemoteLibrary} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
+          {activeTab === "manual-conversion-advanced" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} advanced /> : null}
           {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}
           {activeTab === "spectrum-viewer" ? <section className="library-stack"><article className="analysis-card spectrum-viewer-card"><div className="analysis-card-head"><div><h2>Spectrum Viewer</h2><p>Upload any insertion-loss or transmission trace and compare devices instantly. TXT is preferred if you plan to publish the data to the GitHub library later, while Excel is supported for quick review.</p></div><div className="library-action-row"><label className="inline-select-field"><span>Input unit</span><select value={spectrumViewerInputUnit} onChange={(event) => setSpectrumViewerInputUnit(event.target.value)}><option value="watts">Watts (W)</option><option value="db">dB / dBm</option></select></label><label className="inline-select-field"><span>Display</span><select value={spectrumViewerDisplayUnit} onChange={(event) => setSpectrumViewerDisplayUnit(event.target.value)}><option value="db">dB / dBm</option><option value="watts">Watts (W)</option></select></label></div></div><div className={isSpectrumViewerDragging ? "spectrum-dropzone active" : "spectrum-dropzone"} onDragEnter={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(true); }} onDragOver={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(true); }} onDragLeave={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(false); }} onDrop={handleSpectrumViewerDrop}><strong>{isUploadingSpectrumViewerFiles ? "Reading uploaded spectra..." : "Upload Files"}</strong><p>Drag and drop `.txt`, `.csv`, `.xlsx`, or `.xls` files here, or browse from a folder. Excel files are read from the `IL` sheet using wavelength in metres and IL in dB.</p><label className="upload-measurement-button secondary-upload"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleSpectrumViewerUpload} disabled={isUploadingSpectrumViewerFiles} /><span>{isUploadingSpectrumViewerFiles ? "Processing Files..." : "Choose Files"}</span></label></div><div className="spectrum-viewer-controls"><label className="inline-text-field"><span>Figure title</span><input value={spectrumViewerTitle} onChange={(event) => setSpectrumViewerTitle(event.target.value)} placeholder="Spectrum Viewer" /></label><label className="checkbox-inline-field"><input type="checkbox" checked={showSpectrumViewerPeakPosition} onChange={(event) => setShowSpectrumViewerPeakPosition(event.target.checked)} /><span>Show peak position guides</span></label></div><div className="spectrum-viewer-grid insertion-overlay-grid"><div className="spectrum-series-panel"><div className="spectrum-series-toolbar"><button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: true })))} disabled={!spectrumViewerSeries.length}>Show All</button><button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: false })))} disabled={!spectrumViewerSeries.length}>Hide All</button><button type="button" className="secondary-action compact-inline-action" onClick={() => { setSpectrumViewerSeries([]); setSpectrumViewerTitle(""); setShowSpectrumViewerPeakPosition(false); }} disabled={!spectrumViewerSeries.length}>Clear</button></div><div className="spectrum-series-list">{spectrumViewerSeries.length ? spectrumViewerSeries.map((item) => <label key={item.id} className="spectrum-series-item"><input type="checkbox" checked={item.visible !== false} onChange={() => setSpectrumViewerSeries((previous) => previous.map((entry) => entry.id === item.id ? { ...entry, visible: entry.visible === false } : entry))} /><div><strong>{item.label}</strong><span>{item.pointCount} points | {item.wavelengthMinNm.toFixed(1)}-{item.wavelengthMaxNm.toFixed(1)} nm</span></div></label>) : <div className="chart-empty compact">No traces loaded yet.</div>}</div></div><InteractiveSpectrumViewerPlot series={spectrumViewerSeries} displayUnit={spectrumViewerDisplayUnit} chipId="Spectrum Viewer" figureTitle={spectrumViewerTitle} onFigureTitleChange={setSpectrumViewerTitle} showPeakPosition={showSpectrumViewerPeakPosition} /></div></article></section> : null}
           {activeTab === "filename-conversion" ? <FilenameConversionPanel /> : null}

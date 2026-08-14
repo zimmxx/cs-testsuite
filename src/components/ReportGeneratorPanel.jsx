@@ -2,8 +2,12 @@ export default function ReportGeneratorPanel({
   reportState,
   sourceMeta,
   isGeneratingPptReport,
+  isGeneratingWordReport,
+  isGeneratingPdfReport,
   isGeneratingPostProcessed,
   onGeneratePptReport,
+  onGenerateWordReport,
+  onGeneratePdfReport,
   onGeneratePostProcessedFiles
 }) {
   return (
@@ -17,6 +21,12 @@ export default function ReportGeneratorPanel({
           <div className="library-action-row">
             <button type="button" onClick={onGeneratePptReport} disabled={isGeneratingPptReport}>
               {isGeneratingPptReport ? "Generating PPT..." : "Generate Section PPT"}
+            </button>
+            <button type="button" className="ghost-action" onClick={onGenerateWordReport} disabled={isGeneratingWordReport}>
+              {isGeneratingWordReport ? "Generating Word..." : "Generate Word"}
+            </button>
+            <button type="button" className="ghost-action" onClick={onGeneratePdfReport} disabled={isGeneratingPdfReport}>
+              {isGeneratingPdfReport ? "Generating PDF..." : "Generate PDF"}
             </button>
           </div>
         </div>
@@ -36,6 +46,7 @@ export default function ReportGeneratorPanel({
               <li>A chip table with location, propagation loss, MSE, peak wavelength, insertion loss, and bandwidth</li>
               <li>Wafermaps for chip IDs and wafer-level metrics</li>
               <li>One detailed slide per measured chip with propagation fit, transmission spectrum, and loss spectrum plots</li>
+              <li>Matching Word and PDF exports use the same post-processed metrics and wafermaps</li>
             </ul>
           </div>
           <div className="report-preview-note-card">

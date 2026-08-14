@@ -1,11 +1,27 @@
 import PptxGenJS from "pptxgenjs";
+import { jsPDF } from "jspdf";
+import { strFromU8, strToU8, unzipSync, zipSync } from "../../node_modules/.pnpm/fflate@0.8.3/node_modules/fflate/esm/browser.js";
+import {
+  AlignmentType,
+  Document,
+  HeadingLevel,
+  ImageRun,
+  Packer,
+  PageBreak,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+  WidthType
+} from "docx";
 import {
   buildPropagationPlotSpec,
   buildPropagationSpectrumPlotSpec,
   buildTransmissionSpectrumPlotSpec,
-  buildWaferMapPng,
   renderPlotSpecToPng
 } from "./postProcessingExport";
+import { buildWaferMapPng } from "./wafermapFigure";
 
 const BRAND = "3F0B7A";
 const BRAND_SOFT = "F4EEFB";
@@ -40,6 +56,13 @@ function sanitizeSegment(value, fallback) {
   return text.replace(/[^a-z0-9._-]+/gi, "_").replace(/^_+|_+$/g, "") || fallback;
 }
 
+function formatDisplayName(value) {
+  return String(value || "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function formatDateStamp(dateValue = new Date()) {
   const year = dateValue.getFullYear();
   const month = String(dateValue.getMonth() + 1).padStart(2, "0");
@@ -63,6 +86,23 @@ function blobToDataUrl(blob) {
     reader.onerror = () => reject(new Error("Unable to convert image to data URL."));
     reader.readAsDataURL(blob);
   });
+}
+
+function dataUrlToUint8Array(dataUrl) {
+  const base64 = String(dataUrl || "").split(",")[1] || "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function inferImageTypeFromDataUrl(dataUrl) {
+  const match = String(dataUrl || "").match(/^data:image\/(png|jpeg|jpg|gif|bmp);/i);
+  const imageType = match?.[1]?.toLowerCase();
+  if (imageType === "jpeg") return "jpg";
+  return imageType || "png";
 }
 
 function buildChipSummaryRows(chips = []) {
@@ -144,8 +184,7 @@ function addImageOrPlaceholder(slide, data, box, label) {
       x: box.x,
       y: box.y,
       w: box.w,
-      h: box.h,
-      sizing: { type: "contain", w: box.w, h: box.h }
+      h: box.h
     });
     return;
   }
@@ -155,11 +194,24 @@ function addImageOrPlaceholder(slide, data, box, label) {
     line: { color: BORDER, pt: 1, dash: "dash" },
     fill: { color: HEADER_FILL }
   });
-  slide.addText(`${label}\nNot available for this chip`, {
+  slide.addText(label, {
     x: box.x + 0.2,
-    y: box.y + box.h / 2 - 0.2,
+    y: box.y + box.h / 2 - 0.32,
     w: box.w - 0.4,
-    h: 0.4,
+    h: 0.16,
+    align: "center",
+    valign: "mid",
+    fontFace: BODY_FONT,
+    fontSize: 11,
+    bold: true,
+    color: MUTED,
+    margin: 0
+  });
+  slide.addText("Not available for this chip", {
+    x: box.x + 0.2,
+    y: box.y + box.h / 2 - 0.02,
+    w: box.w - 0.4,
+    h: 0.16,
     align: "center",
     valign: "mid",
     fontFace: BODY_FONT,
@@ -202,7 +254,7 @@ function buildTableRows(summaryRows) {
 
 function addTitleSlide(pptx, context) {
   const slide = pptx.addSlide();
-  addSlideFrame(slide, `${context.projectCode} ${context.slotLabel} Post-Processed Report`, `Generated ${context.generatedAtLabel}${context.selectedDate ? ` | Measurement date ${context.selectedDate}` : ""}`, "Report Generator");
+  addSlideFrame(slide, `${context.reportDisplayName} Post-Processed Report`, `Generated ${context.generatedAtLabel}${context.selectedDate ? ` | Measurement date ${context.selectedDate}` : ""}`, "Report Generator");
 
   addMetricCard(slide, { x: 0.45, y: 1.65, w: 2.0, label: "Measured chips", value: String(context.summary.measuredChips || 0) });
   addMetricCard(slide, { x: 2.65, y: 1.65, w: 2.0, label: "Passing chips", value: String(context.summary.fittedChips || 0), accent: TEAL });
@@ -220,21 +272,22 @@ function addTitleSlide(pptx, context) {
     fill: { color: WHITE }
   });
   slide.addText("Deck contents", { x: 0.68, y: 3.22, w: 2.2, h: 0.18, fontFace: TITLE_FONT, fontSize: 18, bold: true, color: TEXT, margin: 0 });
-  slide.addText([
-    "Summary KPIs and measurement settings",
-    "Chip summary table with loss, MSE, peak wavelength, insertion loss, and bandwidth",
-    "Wafermaps for chip IDs and wafer-level metrics",
-    "One detailed slide per measured chip with fit, transmission, and loss spectrum plots"
-  ].join("\n"), {
-    x: 0.74,
-    y: 3.62,
-    w: 5.4,
-    h: 2.1,
-    paraSpaceAfterPt: 8,
-    fontFace: BODY_FONT,
-    fontSize: 12,
-    color: TEXT,
-    margin: 0
+  [
+    "1. Summary KPIs and measurement settings",
+    "2. Chip summary table with loss, MSE, peak wavelength, insertion loss, and bandwidth",
+    "3. Wafermaps for chip IDs and wafer-level metrics",
+    "4. One detailed slide per measured chip with fit, transmission, and loss spectrum plots"
+  ].forEach((line, index) => {
+    slide.addText(line, {
+      x: 0.78,
+      y: 3.62 + index * 0.36,
+      w: 5.2,
+      h: 0.18,
+      fontFace: BODY_FONT,
+      fontSize: 11.5,
+      color: TEXT,
+      margin: 0
+    });
   });
 
   slide.addShape("roundRect", {
@@ -347,7 +400,7 @@ async function buildWafermapViews(context) {
       cells: view.cells,
       metricKey: view.metricKey,
       overlayMode: view.overlayMode,
-      notchOrientation: context.currentWaferTemplate?.notchOrientation || "south",
+      templateName: context.currentWaferTemplate?.name || "",
       title: view.title,
       subtitle,
       colorScaleMin: context.sourceMeta.waferColorScaleMin,
@@ -394,8 +447,7 @@ function addWafermapSlides(pptx, context, wafermapViews) {
         x: layout.imageX,
         y: 1.62,
         w: layout.imageW,
-        h: 5.28,
-        sizing: { type: "contain", w: layout.imageW, h: 5.28 }
+        h: 5.28
       });
     });
   });
@@ -495,9 +547,239 @@ function addChipSlides(pptx, context, chip, assets, index, total) {
   addImageOrPlaceholder(slide, assets.spectrum, { x: 0.38, y: 4.14, w: 8.64, h: 2.74 }, "Propagation loss spectrum");
   addMetricListPanel(slide, "Chip metrics", metrics, { x: 9.2, y: 4.16, w: 3.48, h: 2.72 });
 }
+
+function buildReportFileBase(prefix, context, generatedAt) {
+  const namingBase = sanitizeSegment(context.datasetBaseName, `${sanitizeSegment(context.projectCode, "MPWUNDEFINED")}_${sanitizeSegment(String(context.slotLabel || "SlotUndefined").toUpperCase(), "SLOTUNDEFINED")}`);
+  return `${prefix}_${namingBase}_${formatDateStamp(generatedAt)}`;
+}
+
+async function buildChipAssetBundle(chip, context) {
+  const renderedAssets = await renderChipAssets(chip, context);
+  return {
+    chip,
+    fitDataUrl: await renderedAssets.fit,
+    spectrumDataUrl: await renderedAssets.spectrum,
+    transmissionDataUrl: await renderedAssets.transmission
+  };
+}
+
+async function buildAllChipAssetBundles(context) {
+  const chips = context.metrics.propagation.byChip || [];
+  const bundles = [];
+  for (let index = 0; index < chips.length; index += 1) {
+    const chip = chips[index];
+    context.onProgress?.(`Rendering report plots for chip ${index + 1}/${chips.length}: ${chip.chipId}`);
+    bundles.push(await buildChipAssetBundle(chip, context));
+  }
+  return bundles;
+}
+
+function buildDocxSummaryTable(summaryRows) {
+  const headerRow = new TableRow({
+    children: ["Chip", "Location", "Prop Loss", "MSE", "Status", "Peak WL", "Insertion", "3 dB BW"].map((label) =>
+      new TableCell({
+        children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, color: WHITE })] })],
+        shading: { fill: BRAND }
+      })
+    )
+  });
+
+  const bodyRows = summaryRows.map((row) =>
+    new TableRow({
+      children: [
+        row.chipId,
+        row.location,
+        formatMetric(row.propagationLoss, "dB/cm"),
+        formatNumber(row.mse, 4),
+        row.status,
+        formatMetric(row.peakWavelengthNm, "nm", 1),
+        formatMetric(row.insertionLossDb, "dB"),
+        formatMetric(row.bandwidth3dBNm, "nm", 1)
+      ].map((value) =>
+        new TableCell({
+          children: [new Paragraph(String(value ?? "--"))]
+        })
+      )
+    })
+  );
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [headerRow, ...bodyRows]
+  });
+}
+
+function buildDocxMetricTable(rows) {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: rows.map(([label, value], index) =>
+      new TableRow({
+        children: [
+          new TableCell({
+            shading: { fill: index % 2 === 0 ? "F7FAFB" : "FFFFFF" },
+            children: [new Paragraph({ children: [new TextRun({ text: label, bold: true })] })]
+          }),
+          new TableCell({
+            shading: { fill: index % 2 === 0 ? "F7FAFB" : "FFFFFF" },
+            children: [new Paragraph(String(value ?? "--"))]
+          })
+        ]
+      })
+    )
+  });
+}
+
+function addPdfPageTitle(pdf, title, subtitle) {
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(21);
+  pdf.setTextColor(`#${TEXT}`);
+  pdf.text(title, 40, 44);
+  if (subtitle) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    pdf.setTextColor(`#${MUTED}`);
+    pdf.text(subtitle, 40, 60);
+  }
+}
+
+function addPdfMetricLines(pdf, rows, startX, startY, lineHeight = 16) {
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(11);
+  pdf.setTextColor(`#${TEXT}`);
+  rows.forEach(([label, value], index) => {
+    pdf.setFont("helvetica", "bold");
+    pdf.text(`${label}:`, startX, startY + index * lineHeight);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(String(value ?? "--"), startX + 92, startY + index * lineHeight);
+  });
+}
+
+function addPdfImageContain(pdf, dataUrl, box) {
+  if (!dataUrl) return;
+  const imageProps = pdf.getImageProperties(dataUrl);
+  const widthRatio = box.w / imageProps.width;
+  const heightRatio = box.h / imageProps.height;
+  const scale = Math.min(widthRatio, heightRatio);
+  const width = imageProps.width * scale;
+  const height = imageProps.height * scale;
+  const x = box.x + (box.w - width) / 2;
+  const y = box.y + (box.h - height) / 2;
+  pdf.addImage(dataUrl, "PNG", x, y, width, height, undefined, "FAST");
+}
+
+function normalizeZipPath(path) {
+  return String(path || "")
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\.\//, "");
+}
+
+function resolveZipTarget(sourcePart, target) {
+  const sourceSegments = normalizeZipPath(sourcePart).split("/").filter(Boolean);
+  sourceSegments.pop();
+  const targetSegments = normalizeZipPath(target).split("/").filter(Boolean);
+  const combined = [...sourceSegments];
+  targetSegments.forEach((segment) => {
+    if (segment === ".") return;
+    if (segment === "..") {
+      combined.pop();
+      return;
+    }
+    combined.push(segment);
+  });
+  return combined.join("/");
+}
+
+function parseZipXml(zipEntries, partName) {
+  const part = zipEntries[partName];
+  if (!part) return null;
+  const parser = new DOMParser();
+  return parser.parseFromString(strFromU8(part), "application/xml");
+}
+
+function writeZipXml(zipEntries, partName, xmlDocument) {
+  const serializer = new XMLSerializer();
+  zipEntries[partName] = strToU8(serializer.serializeToString(xmlDocument));
+}
+
+function removeRelationshipsByType(zipEntries, relsPartName, typeSuffixes) {
+  const relsXml = parseZipXml(zipEntries, relsPartName);
+  if (!relsXml) return;
+  const suffixes = Array.isArray(typeSuffixes) ? typeSuffixes : [typeSuffixes];
+  const relationships = Array.from(relsXml.getElementsByTagNameNS("http://schemas.openxmlformats.org/package/2006/relationships", "Relationship"));
+  relationships.forEach((relationship) => {
+    const relationshipType = relationship.getAttribute("Type") || "";
+    if (suffixes.some((suffix) => relationshipType.endsWith(suffix))) {
+      relationship.parentNode?.removeChild(relationship);
+    }
+  });
+  writeZipXml(zipEntries, relsPartName, relsXml);
+}
+
+async function normalizePptxBlob(blob) {
+  const buffer = await blob.arrayBuffer();
+  const zipEntries = unzipSync(new Uint8Array(buffer));
+
+  Object.keys(zipEntries).forEach((name) => {
+    if (name.startsWith("ppt/notesSlides/") || name.startsWith("ppt/notesMasters/")) {
+      delete zipEntries[name];
+    }
+  });
+
+  const presentationXml = parseZipXml(zipEntries, "ppt/presentation.xml");
+  if (presentationXml) {
+    const notesMasterLists = Array.from(presentationXml.getElementsByTagNameNS("http://schemas.openxmlformats.org/presentationml/2006/main", "notesMasterIdLst"));
+    notesMasterLists.forEach((node) => node.parentNode?.removeChild(node));
+    writeZipXml(zipEntries, "ppt/presentation.xml", presentationXml);
+  }
+
+  removeRelationshipsByType(zipEntries, "ppt/_rels/presentation.xml.rels", "notesMaster");
+
+  Object.keys(zipEntries).forEach((name) => {
+    if (name.startsWith("ppt/slides/_rels/") && name.endsWith(".rels")) {
+      removeRelationshipsByType(zipEntries, name, "notesSlide");
+    }
+  });
+
+  const contentTypesXml = parseZipXml(zipEntries, "[Content_Types].xml");
+  if (!contentTypesXml) return blob;
+
+  const entryNames = new Set(Object.keys(zipEntries).map((name) => normalizeZipPath(name)));
+  const overrides = Array.from(contentTypesXml.getElementsByTagNameNS("http://schemas.openxmlformats.org/package/2006/content-types", "Override"));
+  overrides.forEach((override) => {
+    const partName = normalizeZipPath((override.getAttribute("PartName") || "").replace(/^\/+/, ""));
+    if (partName && !entryNames.has(partName)) {
+      override.parentNode?.removeChild(override);
+    }
+  });
+
+  Object.keys(zipEntries).forEach((name) => {
+    if (!name.endsWith(".rels")) return;
+    const relsXml = parseZipXml(zipEntries, name);
+    if (!relsXml) return;
+    const sourcePart = name
+      .replace(/_rels\//, "")
+      .replace(/\.rels$/, "");
+    const relationships = Array.from(relsXml.getElementsByTagNameNS("http://schemas.openxmlformats.org/package/2006/relationships", "Relationship"));
+    relationships.forEach((relationship) => {
+      const target = relationship.getAttribute("Target") || "";
+      if (!target || /^[a-zA-Z]+:/.test(target)) return;
+      const resolvedTarget = resolveZipTarget(sourcePart, target);
+      if (!entryNames.has(resolvedTarget)) {
+        relationship.parentNode?.removeChild(relationship);
+      }
+    });
+    writeZipXml(zipEntries, name, relsXml);
+  });
+
+  writeZipXml(zipEntries, "[Content_Types].xml", contentTypesXml);
+  return new Blob([zipSync(zipEntries)], { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
+}
+
 export async function generatePowerPointReport({
   projectCode,
   slotLabel,
+  datasetBaseName,
   selectedDate,
   sourceMeta,
   metrics,
@@ -522,6 +804,8 @@ export async function generatePowerPointReport({
   const context = {
     projectCode,
     slotLabel,
+    datasetBaseName,
+    reportDisplayName: formatDisplayName(datasetBaseName || `${projectCode} ${slotLabel}`),
     selectedDate,
     sourceMeta,
     metrics,
@@ -555,13 +839,236 @@ export async function generatePowerPointReport({
   }
 
   onProgress?.("Finalizing PowerPoint file...");
-  const blob = await pptx.write({ outputType: "blob" });
-  const fileBase = `post_processed_report_${sanitizeSegment(projectCode, "MPWUNDEFINED")}_${sanitizeSegment(String(slotLabel || "SlotUndefined").toUpperCase(), "SLOTUNDEFINED")}_${formatDateStamp(generatedAt)}`;
+  const rawBlob = await pptx.write({ outputType: "blob" });
+  const blob = await normalizePptxBlob(rawBlob);
+  const fileBase = buildReportFileBase("post_processed_report", context, generatedAt);
 
   return {
     blob,
     fileName: `${fileBase}.pptx`,
     slideCount: pptx._slides?.length || 0,
+    chipCount: metrics.propagation.byChip.length
+  };
+}
+
+export async function generateWordReport({
+  projectCode,
+  slotLabel,
+  datasetBaseName,
+  selectedDate,
+  sourceMeta,
+  metrics,
+  currentWaferTemplate,
+  currentWaferCells,
+  onProgress
+}) {
+  const generatedAt = new Date();
+  const context = {
+    projectCode,
+    slotLabel,
+    datasetBaseName,
+    reportDisplayName: formatDisplayName(datasetBaseName || `${projectCode} ${slotLabel}`),
+    selectedDate,
+    sourceMeta,
+    metrics,
+    currentWaferTemplate,
+    currentWaferCells,
+    generatedAtLabel: generatedAt.toLocaleString(),
+    summary: metrics.propagation.summaryStats,
+    onProgress
+  };
+
+  const summaryRows = buildChipSummaryRows(metrics.propagation.byChip || []);
+  onProgress?.("Rendering wafermaps for the Word report...");
+  const wafermapViews = await buildWafermapViews(context);
+  onProgress?.("Rendering chip plots for the Word report...");
+  const chipBundles = await buildAllChipAssetBundles(context);
+
+  const children = [
+    new Paragraph({ text: `${context.reportDisplayName} Post-Processed Report`, heading: HeadingLevel.TITLE }),
+    new Paragraph(`Generated ${context.generatedAtLabel}${selectedDate ? ` | Measurement date ${selectedDate}` : ""}`),
+    new Paragraph(""),
+    new Paragraph({ text: "Summary", heading: HeadingLevel.HEADING_1 }),
+    buildDocxMetricTable([
+      ["Measured chips", String(context.summary.measuredChips || 0)],
+      ["Passing chips", String(context.summary.fittedChips || 0)],
+      ["Failed fits", String(context.summary.failedFits || 0)],
+      ["Average propagation loss", formatMetric(context.summary.avgPropagationLossDbPerCm, "dB/cm")],
+      ["Average peak wavelength", formatMetric(context.summary.avgPeakWavelengthNm, "nm", 1)],
+      ["Target wavelength", `${context.sourceMeta.propagationTargetWavelengthNm} nm`],
+      ["Averaging window", `+/- ${context.sourceMeta.propagationWindowNm} nm`],
+      ["Spectral step", `${context.sourceMeta.propagationSpectralStepNm} nm`],
+      ["MSE threshold", formatNumber(context.sourceMeta.propagationMseThreshold, 2)]
+    ]),
+    new Paragraph(""),
+    new Paragraph({ text: "Chip Summary Table", heading: HeadingLevel.HEADING_1 }),
+    buildDocxSummaryTable(summaryRows),
+    new Paragraph({ children: [new PageBreak()] }),
+    new Paragraph({ text: "Wafermaps", heading: HeadingLevel.HEADING_1 })
+  ];
+
+  wafermapViews.forEach((view) => {
+    children.push(new Paragraph({ text: view.title.replace("Wafermap - ", ""), heading: HeadingLevel.HEADING_2 }));
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new ImageRun({
+            type: inferImageTypeFromDataUrl(view.dataUrl),
+            data: dataUrlToUint8Array(view.dataUrl),
+            transformation: { width: 520, height: 390 }
+          })
+        ]
+      })
+    );
+  });
+
+  chipBundles.forEach((bundle, index) => {
+    const metricsTable = buildDocxMetricTable(buildChipMetricPairs(bundle.chip));
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+    children.push(new Paragraph({ text: `${bundle.chip.chipId} (${locationLabel(bundle.chip)})`, heading: HeadingLevel.HEADING_1 }));
+    children.push(metricsTable);
+    if (bundle.fitDataUrl) {
+      children.push(
+        new Paragraph({ text: "Propagation loss fit", heading: HeadingLevel.HEADING_2 }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new ImageRun({ type: inferImageTypeFromDataUrl(bundle.fitDataUrl), data: dataUrlToUint8Array(bundle.fitDataUrl), transformation: { width: 620, height: 250 } })]
+        })
+      );
+    }
+    if (bundle.transmissionDataUrl) {
+      children.push(
+        new Paragraph({ text: "Transmission spectrum", heading: HeadingLevel.HEADING_2 }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new ImageRun({ type: inferImageTypeFromDataUrl(bundle.transmissionDataUrl), data: dataUrlToUint8Array(bundle.transmissionDataUrl), transformation: { width: 620, height: 250 } })]
+        })
+      );
+    }
+    if (bundle.spectrumDataUrl) {
+      children.push(
+        new Paragraph({ text: "Propagation loss spectrum", heading: HeadingLevel.HEADING_2 }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new ImageRun({ type: inferImageTypeFromDataUrl(bundle.spectrumDataUrl), data: dataUrlToUint8Array(bundle.spectrumDataUrl), transformation: { width: 620, height: 250 } })]
+        })
+      );
+    }
+    if (index < chipBundles.length - 1) {
+      children.push(new Paragraph(""));
+    }
+  });
+
+  const document = new Document({
+    sections: [
+      {
+        children
+      }
+    ]
+  });
+
+  onProgress?.("Finalizing Word report...");
+  const blob = await Packer.toBlob(document);
+  const fileBase = buildReportFileBase("post_processed_report", context, generatedAt);
+
+  return {
+    blob,
+    fileName: `${fileBase}.docx`,
+    chipCount: metrics.propagation.byChip.length
+  };
+}
+
+export async function generatePdfReport({
+  projectCode,
+  slotLabel,
+  datasetBaseName,
+  selectedDate,
+  sourceMeta,
+  metrics,
+  currentWaferTemplate,
+  currentWaferCells,
+  onProgress
+}) {
+  const generatedAt = new Date();
+  const context = {
+    projectCode,
+    slotLabel,
+    datasetBaseName,
+    reportDisplayName: formatDisplayName(datasetBaseName || `${projectCode} ${slotLabel}`),
+    selectedDate,
+    sourceMeta,
+    metrics,
+    currentWaferTemplate,
+    currentWaferCells,
+    generatedAtLabel: generatedAt.toLocaleString(),
+    summary: metrics.propagation.summaryStats,
+    onProgress
+  };
+
+  const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4", compress: true });
+  const summaryRows = buildChipSummaryRows(metrics.propagation.byChip || []);
+
+  addPdfPageTitle(pdf, `${context.reportDisplayName} Post-Processed Report`, `Generated ${context.generatedAtLabel}${selectedDate ? ` | Measurement date ${selectedDate}` : ""}`);
+  addPdfMetricLines(pdf, [
+    ["Measured chips", String(context.summary.measuredChips || 0)],
+    ["Passing chips", String(context.summary.fittedChips || 0)],
+    ["Failed fits", String(context.summary.failedFits || 0)],
+    ["Avg propagation", formatMetric(context.summary.avgPropagationLossDbPerCm, "dB/cm")],
+    ["Avg peak wavelength", formatMetric(context.summary.avgPeakWavelengthNm, "nm", 1)],
+    ["Target wavelength", `${sourceMeta.propagationTargetWavelengthNm} nm`],
+    ["Window", `+/- ${sourceMeta.propagationWindowNm} nm`],
+    ["Spectral step", `${sourceMeta.propagationSpectralStepNm} nm`]
+  ], 40, 92);
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(13);
+  pdf.text("Chip summary", 420, 92);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9.5);
+  summaryRows.slice(0, 18).forEach((row, index) => {
+    pdf.text(
+      `${row.chipId}  ${row.location}  ${formatMetric(row.propagationLoss, "dB/cm")}  ${formatMetric(row.insertionLossDb, "dB")}  ${formatMetric(row.bandwidth3dBNm, "nm", 1)}  ${row.status}`,
+      420,
+      116 + index * 16
+    );
+  });
+
+  onProgress?.("Rendering wafermaps for the PDF report...");
+  const wafermapViews = await buildWafermapViews(context);
+  pdf.addPage();
+  addPdfPageTitle(pdf, "Wafermaps", `${context.reportDisplayName} | Spatial summary`);
+  wafermapViews.forEach((view, index) => {
+    const isLeft = index % 2 === 0;
+    const row = Math.floor(index / 2);
+    const imageBox = { x: isLeft ? 40 : 430, y: 96 + row * 250, w: 350, h: 230 };
+    const titleX = imageBox.x;
+    const top = imageBox.y - 12;
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(13);
+    pdf.setTextColor(`#${TEXT}`);
+    pdf.text(view.title.replace("Wafermap - ", ""), titleX, top);
+    addPdfImageContain(pdf, view.dataUrl, imageBox);
+  });
+
+  onProgress?.("Rendering chip plots for the PDF report...");
+  const chipBundles = await buildAllChipAssetBundles(context);
+  chipBundles.forEach((bundle, index) => {
+    pdf.addPage();
+    addPdfPageTitle(pdf, `${bundle.chip.chipId} | ${locationLabel(bundle.chip)}`, `Chip ${index + 1} of ${chipBundles.length}`);
+    addPdfMetricLines(pdf, buildChipMetricPairs(bundle.chip), 40, 92, 15);
+    addPdfImageContain(pdf, bundle.fitDataUrl, { x: 300, y: 84, w: 470, h: 180 });
+    addPdfImageContain(pdf, bundle.transmissionDataUrl, { x: 40, y: 300, w: 355, h: 190 });
+    addPdfImageContain(pdf, bundle.spectrumDataUrl, { x: 415, y: 300, w: 355, h: 190 });
+  });
+
+  onProgress?.("Finalizing PDF report...");
+  const blob = pdf.output("blob");
+  const fileBase = buildReportFileBase("post_processed_report", context, generatedAt);
+
+  return {
+    blob,
+    fileName: `${fileBase}.pdf`,
     chipCount: metrics.propagation.byChip.length
   };
 }

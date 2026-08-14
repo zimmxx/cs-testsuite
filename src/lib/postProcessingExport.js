@@ -1,7 +1,6 @@
 import * as XLSX from "xlsx";
 import { buildStoredZip } from "./manualConversion";
-import { getMetricRange, metricLabel } from "./analysis";
-import { shortChipLabel } from "./waferTemplates";
+import { buildWaferMapPng } from "./wafermapFigure";
 
 const PLOTLY_CDN = "https://cdn.plot.ly/plotly-2.35.2.min.js";
 const PLOT_FONT = "IBM Plex Sans, Arial, sans-serif";
@@ -500,163 +499,6 @@ function blobToUint8Array(blob) {
   return blob.arrayBuffer().then((buffer) => new Uint8Array(buffer));
 }
 
-function escapeXml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-const WAFER_SCALE_COLORS = {
-  low: "#2fa66d",
-  medium: "#f2c94c",
-  high: "#d94b4b",
-  empty: "#eef2f4"
-};
-
-function mixHexColors(startColor, endColor, ratio) {
-  const clampedRatio = Math.min(Math.max(ratio, 0), 1);
-  const channels = [1, 3, 5].map((offset) => {
-    const start = Number.parseInt(startColor.slice(offset, offset + 2), 16);
-    const end = Number.parseInt(endColor.slice(offset, offset + 2), 16);
-    return Math.round(start + (end - start) * clampedRatio).toString(16).padStart(2, "0");
-  });
-  return `#${channels.join("")}`;
-}
-
-function colorForValue(value, range) {
-  if (!range || value === null || value === undefined) return WAFER_SCALE_COLORS.empty;
-  if (value <= range.mid) {
-    const ratio = (value - range.min) / Math.max(range.mid - range.min, 0.0001);
-    return mixHexColors(WAFER_SCALE_COLORS.low, WAFER_SCALE_COLORS.medium, ratio);
-  }
-  const ratio = (value - range.mid) / Math.max(range.max - range.mid, 0.0001);
-  return mixHexColors(WAFER_SCALE_COLORS.medium, WAFER_SCALE_COLORS.high, ratio);
-}
-function buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax, includeHeader = true }) {
-  const validCells = Array.isArray(cells) ? cells : [];
-  const rowValues = Array.from(new Set(validCells.map((cell) => cell.dieY).filter((value) => value !== null && value !== undefined))).sort((a, b) => b - a);
-  const cols = Math.max(arrayMax(validCells.map((cell) => cell.dieX || 0), 0), 1);
-  const rows = rowValues.length || 1;
-  const cellSize = includeHeader ? 62 : 72;
-  const gridWidth = cols * cellSize;
-  const gridHeight = rows * cellSize;
-  const waferPadding = includeHeader ? 120 : 68;
-  const titleBlockHeight = includeHeader ? 110 : 16;
-  const scaleWidth = includeHeader ? 140 : 126;
-  const width = waferPadding * 2 + gridWidth + scaleWidth;
-  const height = titleBlockHeight + waferPadding + gridHeight + (includeHeader ? 80 : 40);
-  const automaticRange = getMetricRange(validCells.filter((cell) => cell.hasMeasurement && cell.isVisible !== false));
-  const requestedMin = colorScaleMin === null || colorScaleMin === "" ? null : Number(colorScaleMin);
-  const requestedMid = colorScaleMid === null || colorScaleMid === "" ? null : Number(colorScaleMid);
-  const requestedMax = colorScaleMax === null || colorScaleMax === "" ? null : Number(colorScaleMax);
-  const hasManualEndpoints = Number.isFinite(requestedMin) && Number.isFinite(requestedMax) && requestedMax > requestedMin;
-  const rangeMin = hasManualEndpoints ? requestedMin : automaticRange?.min;
-  const rangeMax = hasManualEndpoints ? requestedMax : automaticRange?.max;
-  const range = Number.isFinite(rangeMin) && Number.isFinite(rangeMax)
-    ? {
-      min: rangeMin,
-      mid: Number.isFinite(requestedMid) && requestedMid > rangeMin && requestedMid < rangeMax ? requestedMid : (rangeMin + rangeMax) / 2,
-      max: rangeMax
-    }
-    : null;
-  const cellLookup = new Map(validCells.map((cell) => [`${cell.dieX}-${cell.dieY}`, cell]));
-  const waferRadius = Math.max(gridWidth, gridHeight) / 2 + (includeHeader ? 48 : 38);
-  const waferCenterX = waferPadding + gridWidth / 2;
-  const waferCenterY = titleBlockHeight + waferPadding / 2 + gridHeight / 2;
-  const notch = String(notchOrientation || "south").toLowerCase();
-
-  const notchSvg = notch === "north"
-    ? `<rect x="${waferCenterX - 42}" y="${waferCenterY - waferRadius - 12}" width="84" height="28" rx="12" fill="#ffffff" />`
-    : notch === "east"
-      ? `<rect x="${waferCenterX + waferRadius - 16}" y="${waferCenterY - 42}" width="28" height="84" rx="12" fill="#ffffff" />`
-      : notch === "west"
-        ? `<rect x="${waferCenterX - waferRadius - 12}" y="${waferCenterY - 42}" width="28" height="84" rx="12" fill="#ffffff" />`
-        : `<rect x="${waferCenterX - 42}" y="${waferCenterY + waferRadius - 16}" width="84" height="28" rx="12" fill="#ffffff" />`;
-
-  const gridCells = [];
-  for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
-    for (let colIndex = 0; colIndex < cols; colIndex += 1) {
-      const x = colIndex + 1;
-      const y = rowValues[rowIndex];
-      const cell = cellLookup.get(`${x}-${y}`) || null;
-      const cellX = waferPadding + colIndex * cellSize;
-      const cellY = titleBlockHeight + 48 + rowIndex * cellSize;
-      const visible = cell?.isVisible !== false;
-      const label = visible && cell
-        ? overlayMode === "value" && cell.value !== null && cell.value !== undefined
-          ? formatNumber(cell.value, metricKey === "heater" ? 1 : 2)
-          : overlayMode === "chip" ? shortChipLabel(cell.chipId) : ""
-        : "";
-      const fill = cell ? colorForValue(visible ? cell.value : null, range) : "#f4f7f8";
-      gridCells.push(`
-        <rect x="${cellX + 4}" y="${cellY + 4}" width="${cellSize - 8}" height="${cellSize - 8}" rx="12" fill="${fill}" stroke="#d7e2e6" stroke-width="1.5" />
-        ${label ? `<text x="${cellX + cellSize / 2}" y="${cellY + cellSize / 2 + (overlayMode === "value" ? 6 : 8)}" text-anchor="middle" font-family="${PLOT_FONT}" font-size="${overlayMode === "value" ? (includeHeader ? 16 : 19) : (includeHeader ? 18 : 22)}" font-weight="600" fill="#16323b">${escapeXml(label)}</text>` : ""}
-      `);
-    }
-  }
-
-  const headerSvg = includeHeader
-    ? `<text x="48" y="48" font-family="${PLOT_FONT}" font-size="32" font-weight="700" fill="#16323b">${escapeXml(title)}</text>
-    <text x="48" y="84" font-family="${PLOT_FONT}" font-size="19" fill="#48626b">${escapeXml(subtitle)}</text>`
-    : "";
-  const scaleX = waferPadding + gridWidth + (includeHeader ? 40 : 26);
-  const scaleBarX = waferPadding + gridWidth + (includeHeader ? 64 : 34);
-  const scaleBarY = titleBlockHeight + (includeHeader ? 82 : 60);
-  const scaleBarH = gridHeight - (includeHeader ? 24 : 8);
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-  <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-    <rect width="100%" height="100%" fill="#ffffff" />
-    ${headerSvg}
-    <circle cx="${waferCenterX}" cy="${waferCenterY}" r="${waferRadius}" fill="#f7fbfc" stroke="#d6e3e7" stroke-width="3" />
-    ${notchSvg}
-    ${gridCells.join("\n")}
-    <text x="${scaleX}" y="${titleBlockHeight + (includeHeader ? 54 : 38)}" font-family="${PLOT_FONT}" font-size="${includeHeader ? 21 : 24}" font-weight="700" fill="#16323b">${escapeXml(metricLabel(metricKey) || metricKey)}</text>
-    <rect x="${scaleBarX}" y="${scaleBarY}" width="${includeHeader ? 28 : 30}" height="${scaleBarH}" rx="14" fill="url(#scaleGradient)" />
-    <text x="${scaleBarX + 42}" y="${scaleBarY + 14}" font-family="${PLOT_FONT}" font-size="${includeHeader ? 18 : 20}" fill="#16323b">${range ? formatNumber(range.max, 2) : "--"}</text>
-    <text x="${scaleBarX + 42}" y="${scaleBarY + scaleBarH / 2 + 6}" font-family="${PLOT_FONT}" font-size="${includeHeader ? 18 : 20}" fill="#16323b">${range ? formatNumber(range.mid, 2) : "--"}</text>
-    <text x="${scaleBarX + 42}" y="${scaleBarY + scaleBarH + 10}" font-family="${PLOT_FONT}" font-size="${includeHeader ? 18 : 20}" fill="#16323b">${range ? formatNumber(range.min, 2) : "--"}</text>
-    <defs>
-      <linearGradient id="scaleGradient" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0%" stop-color="${WAFER_SCALE_COLORS.high}" />
-        <stop offset="50%" stop-color="${WAFER_SCALE_COLORS.medium}" />
-        <stop offset="100%" stop-color="${WAFER_SCALE_COLORS.low}" />
-      </linearGradient>
-    </defs>
-  </svg>`;
-}
-
-async function svgToPngBlob(svgText, width, height) {
-  const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(svgBlob);
-  try {
-    const image = await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("Failed to render wafermap image."));
-      img.src = url;
-    });
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, width, height);
-    context.drawImage(image, 0, 0, width, height);
-    return await new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-export async function buildWaferMapPng({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax, includeHeader = true }) {
-  const svg = buildWaferMapSvg({ cells, metricKey, overlayMode, notchOrientation, title, subtitle, colorScaleMin, colorScaleMid, colorScaleMax, includeHeader });
-  return svgToPngBlob(svg, 2200, 1650);
-}
-
 function workbookBytes({ projectCode, slotLabel, selectedDate, summaryRows, propagationMetrics }) {
   const workbook = XLSX.utils.book_new();
   const chipSheetRows = summaryRows.map((row) => ({
@@ -730,14 +572,16 @@ function chipSummaryRows(chips, waferCells = []) {
     };
   });
 }
-function archiveBaseName(projectCode, slotLabel, now) {
+function archiveBaseName(projectCode, slotLabel, datasetBaseName, now) {
   const { dateStamp, timeStamp } = formatDateParts(now);
-  return `post_processed_${sanitizeSegment(projectCode, "MPWUNDEFINED")}_${sanitizeSegment(slotLabel.toUpperCase(), "SLOTUNDEFINED")}_${dateStamp}_${timeStamp}`;
+  const namingBase = sanitizeSegment(datasetBaseName, `${sanitizeSegment(projectCode, "MPWUNDEFINED")}_${sanitizeSegment(slotLabel.toUpperCase(), "SLOTUNDEFINED")}`);
+  return `post_processed_${namingBase}_${dateStamp}_${timeStamp}`;
 }
 
 export async function generatePostProcessedArchive({
   projectCode,
   slot,
+  datasetBaseName,
   selectedDate,
   sourceMeta,
   metrics,
@@ -746,7 +590,8 @@ export async function generatePostProcessedArchive({
   onProgress
 }) {
   const slotLabel = slotFolderName(slot);
-  const baseName = archiveBaseName(projectCode, slotLabel, new Date());
+  const baseName = archiveBaseName(projectCode, slotLabel, datasetBaseName, new Date());
+  const assetBaseName = sanitizeSegment(datasetBaseName, `${sanitizeSegment(projectCode, "project")}_${sanitizeSegment(slotLabel, "slot")}`);
   const zipEntries = [];
   const propagationChips = metrics?.propagation?.byChip || [];
   const summaryRows = chipSummaryRows(propagationChips, currentWaferCells);
@@ -788,13 +633,13 @@ export async function generatePostProcessedArchive({
   const waferSubtitle = `${projectCode} | ${slotLabel} | Template: ${currentWaferTemplate?.name || "Current Template"}`;
   const waferMapViews = [
     {
-      fileName: "project/wafermaps/wafermap_chip_numbers.png",
+      fileName: `project/wafermaps/${assetBaseName}_wafermap_chip_numbers.png`,
       metricKey: "propagation",
       overlayMode: "chip",
       title: `Wafermap - Chip Numbers`
     },
     {
-      fileName: "project/wafermaps/wafermap_propagation_loss.png",
+      fileName: `project/wafermaps/${assetBaseName}_wafermap_propagation_loss.png`,
       metricKey: "propagation",
       overlayMode: "value",
       title: `Wafermap - Propagation Loss`
@@ -803,7 +648,7 @@ export async function generatePostProcessedArchive({
 
   if ((metrics?.insertion?.waferMetric || []).length) {
     waferMapViews.push({
-      fileName: "project/wafermaps/wafermap_insertion_loss.png",
+      fileName: `project/wafermaps/${assetBaseName}_wafermap_insertion_loss.png`,
       metricKey: "insertion",
       overlayMode: "value",
       title: `Wafermap - Insertion Loss`
@@ -811,7 +656,7 @@ export async function generatePostProcessedArchive({
   }
   if ((metrics?.heater?.waferMetric || []).length) {
     waferMapViews.push({
-      fileName: "project/wafermaps/wafermap_heater_efficiency.png",
+      fileName: `project/wafermaps/${assetBaseName}_wafermap_heater_efficiency.png`,
       metricKey: "heater",
       overlayMode: "value",
       title: `Wafermap - Heater Efficiency`
@@ -857,12 +702,12 @@ export async function generatePostProcessedArchive({
 
   onProgress?.("Building Excel summary...");
   zipEntries.push({
-    outputFileName: `project/data/${sanitizeSegment(projectCode, "project")}_${sanitizeSegment(slotLabel, "slot")}_summary.xlsx`,
+    outputFileName: `project/data/${assetBaseName}_summary.xlsx`,
     contentBytes: workbookBytes({ projectCode, slotLabel, selectedDate, summaryRows, propagationMetrics: metrics.propagation })
   });
 
   zipEntries.push({
-    outputFileName: `project/data/${sanitizeSegment(projectCode, "project")}_${sanitizeSegment(slotLabel, "slot")}_summary.json`,
+    outputFileName: `project/data/${assetBaseName}_summary.json`,
     content: JSON.stringify({
       projectCode,
       slot: slotLabel,

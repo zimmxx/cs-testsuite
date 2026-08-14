@@ -22,9 +22,10 @@ import {
 import { createCenterFilledWaferTemplate, defaultWaferTemplateId, getBuiltInWaferTemplates, getWaferTemplateLayout, shortChipLabel } from "./lib/waferTemplates";
 import { buildDatasetSnapshotMetadata, buildGithubDatasetPackage, publishDatasetPackageToGithub } from "./lib/githubLibrary";
 import { getDatasetPresentation } from "./lib/datasetPresentation";
+import { buildStandardDatasetBaseName } from "./lib/filenameStandardization";
 import { parseHeaterMeasurementFiles } from "./lib/heaterMeasurement";
 import { generatePostProcessedArchive } from "./lib/postProcessingExport";
-import { generatePowerPointReport } from "./lib/reportGenerator";
+import { buildWaferMapFigureModel, buildWaferMapPng, buildWaferMapSvgDocument, downloadBlob as downloadAssetBlob, openWaferMapFigureWindow } from "./lib/wafermapFigure";
 import {
   InteractiveHeaterTuningPlot,
   InteractivePropagationPlot,
@@ -1008,52 +1009,6 @@ function formatInsertionMetric(field, value) {
   return `${Number(value).toFixed(2)} dB`;
 }
 
-const WAFER_SCALE_COLORS = {
-  low: "#2fa66d",
-  medium: "#f2c94c",
-  high: "#d94b4b",
-  empty: "#eef2f4"
-};
-
-function mixHexColors(startColor, endColor, ratio) {
-  const clampedRatio = Math.min(Math.max(ratio, 0), 1);
-  const channels = [1, 3, 5].map((offset) => {
-    const start = Number.parseInt(startColor.slice(offset, offset + 2), 16);
-    const end = Number.parseInt(endColor.slice(offset, offset + 2), 16);
-    return Math.round(start + (end - start) * clampedRatio).toString(16).padStart(2, "0");
-  });
-  return `#${channels.join("")}`;
-}
-
-function resolveWaferColorRange(cells, colorScaleMin, colorScaleMid, colorScaleMax) {
-  const automaticRange = getMetricRange(cells.filter((cell) => cell.hasMeasurement && cell.isVisible !== false));
-  const parseThreshold = (value) => value === null || value === undefined || value === "" ? null : Number(value);
-  const requestedMin = parseThreshold(colorScaleMin);
-  const requestedMid = parseThreshold(colorScaleMid);
-  const requestedMax = parseThreshold(colorScaleMax);
-  const hasManualEndpoints = Number.isFinite(requestedMin) && Number.isFinite(requestedMax) && requestedMax > requestedMin;
-  const min = hasManualEndpoints ? requestedMin : automaticRange?.min;
-  const max = hasManualEndpoints ? requestedMax : automaticRange?.max;
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
-
-  const midpoint = (min + max) / 2;
-  return {
-    min,
-    mid: Number.isFinite(requestedMid) && requestedMid > min && requestedMid < max ? requestedMid : midpoint,
-    max
-  };
-}
-
-function waferColorForValue(value, range) {
-  if (!range || value === null || value === undefined) return WAFER_SCALE_COLORS.empty;
-  if (value <= range.mid) {
-    const ratio = (value - range.min) / Math.max(range.mid - range.min, 0.0001);
-    return mixHexColors(WAFER_SCALE_COLORS.low, WAFER_SCALE_COLORS.medium, ratio);
-  }
-  const ratio = (value - range.mid) / Math.max(range.max - range.mid, 0.0001);
-  return mixHexColors(WAFER_SCALE_COLORS.medium, WAFER_SCALE_COLORS.high, ratio);
-}
-
 function WaferMapPanel({
   cells,
   metricKey,
@@ -1070,63 +1025,27 @@ function WaferMapPanel({
     return <div className="chart-empty">No wafermap values available for this metric.</div>;
   }
 
-  const range = resolveWaferColorRange(cells, colorScaleMin, colorScaleMid, colorScaleMax);
-  const layoutCells = cells.filter((cell) => cell.dieX !== null && cell.dieX !== undefined && cell.dieY !== null && cell.dieY !== undefined);
-  const colValues = Array.from(new Set(layoutCells.map((cell) => cell.dieX))).sort((a, b) => a - b);
-  const rowValues = Array.from(new Set(layoutCells.map((cell) => cell.dieY))).sort((a, b) => b - a);
-  const minCol = colValues.length ? colValues[0] : 1;
-  const maxCol = colValues.length ? colValues[colValues.length - 1] : 1;
-  const minRow = rowValues.length ? rowValues[rowValues.length - 1] : 1;
-  const maxRow = rowValues.length ? rowValues[0] : 1;
-  const colCount = Math.max(maxCol - minCol + 1, 1);
-  const rowCount = Math.max(maxRow - minRow + 1, 1);
-  const svgWidth = 100;
-  const svgHeight = 108;
-  const waferCenterX = 52;
-  const waferCenterY = 58.5;
-  const waferRadius = 43.8;
-  const mapWidth = 73.2;
-  const mapHeight = 73.2;
-  const stepX = mapWidth / colCount;
-  const stepY = mapHeight / rowCount;
-  const cellWidth = Math.min(stepX * 1.08, 5.64);
-  const cellHeight = Math.min(stepY * 1.08, 5.64);
-  const labelFontSize = overlayMode === "chip" ? (layoutCells.length > 90 ? 2.16 : 2.52) : 2.16;
-  const centreChipX = layoutCells.find((cell) => shortChipLabel(cell.chipId) === "51")?.dieX ?? ((minCol + maxCol) / 2);
-  const centreChipY = layoutCells.find((cell) => shortChipLabel(cell.chipId) === "51")?.dieY ?? ((minRow + maxRow) / 2);
-  const mapLeft = waferCenterX - ((centreChipX - minCol) + 0.5) * stepX;
-  const mapTop = waferCenterY - ((maxRow - centreChipY) + 0.5) * stepY;
-
-  const labelFor = (cell) => {
-    if (overlayMode === "none") return "";
-    if (overlayMode === "value") {
-      return cell.isActiveInView && cell.value !== null && cell.value !== undefined
-        ? formatMetricNumber(cell.value, metricKey === "heater" ? 1 : 2)
-        : "";
-    }
-    return overlayMode === "chip" ? shortChipLabel(cell.chipId) : "";
-  };
-  const positionedCells = layoutCells.map((cell) => ({
-    ...cell,
-    x: mapLeft + (cell.dieX - minCol) * stepX + (stepX - cellWidth) / 2,
-    y: mapTop + (maxRow - cell.dieY) * stepY + (stepY - cellHeight) / 2
-  }));
-  const orderedCells = [
-    ...positionedCells.filter((cell) => cell.chipId !== selectedChip),
-    ...positionedCells.filter((cell) => cell.chipId === selectedChip)
-  ];
+  const figure = buildWaferMapFigureModel({
+    cells,
+    metricKey,
+    overlayMode,
+    selectedChip,
+    colorScaleMin,
+    colorScaleMid,
+    colorScaleMax
+  });
 
   return (
     <div className="wafer-card-layout">
       <div className="wafer-outline-shell">
         {templateName ? <div className="wafer-template-badge">{templateName}</div> : null}
-        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="wafermap-svg" role="img" aria-label={`Wafermap for ${metricLabel(metricKey)}`}>
-          <circle cx={waferCenterX} cy={waferCenterY} r={waferRadius} className="wafermap-circle" />
-          <path d={`M ${waferCenterX - 2.16} ${waferCenterY + waferRadius - 1.32} A 2.16 2.16 0 0 1 ${waferCenterX + 2.16} ${waferCenterY + waferRadius - 1.32}`} className="wafermap-notch-stroke" />
-          {colValues.map((column) => (
+        <svg viewBox={`0 0 ${figure.svgWidth} ${figure.svgHeight}`} className="wafermap-svg" role="img" aria-label={`Wafermap for ${metricLabel(metricKey)}`}>
+          <circle cx={figure.waferCenterX} cy={figure.waferCenterY} r={figure.waferRadius} className="wafermap-circle" />
+          <path d={`M ${figure.waferCenterX - 2.16} ${figure.waferCenterY + figure.waferRadius - 1.32} A 2.16 2.16 0 0 1 ${figure.waferCenterX + 2.16} ${figure.waferCenterY + figure.waferRadius - 1.32}`} className="wafermap-notch-stroke" />
+          {figure.colValues.map((column) => (
             <text
               key={`column-label-${column}`}
-              x={mapLeft + (column - minCol) * stepX + stepX / 2}
+              x={figure.mapLeft + (column - figure.colValues[0]) * figure.stepX + figure.stepX / 2}
               y={10.8}
               textAnchor="middle"
               className="wafermap-axis-label"
@@ -1134,49 +1053,44 @@ function WaferMapPanel({
               {column}
             </text>
           ))}
-          {rowValues.map((row) => (
+          {figure.rowValues.map((row) => (
             <text
               key={`row-label-${row}`}
               x={5}
-              y={mapTop + (maxRow - row) * stepY + stepY / 2 + 0.4}
+              y={figure.mapTop + (figure.rowValues[0] - row) * figure.stepY + figure.stepY / 2 + 0.4}
               textAnchor="middle"
               className="wafermap-axis-label"
             >
               {row}
             </text>
           ))}
-          {orderedCells.map((cell) => {
-            const selected = Boolean(selectedChip === cell.chipId);
-            const interactive = Boolean(cell.hasMeasurement);
-            const cellLabel = labelFor(cell);
-            const visibleValue = interactive && cell.isActiveInView ? cell.value : null;
-            const fill = visibleValue !== null && visibleValue !== undefined ? waferColorForValue(visibleValue, range) : undefined;
+          {figure.cells.map((cell) => {
             return (
               <g
                 key={cell.chipId}
-                className={selected ? "wafermap-slot-group selected" : cell.excluded ? "wafermap-slot-group excluded" : "wafermap-slot-group"}
-                onClick={() => interactive && onSelect(cell.chipId)}
+                className={cell.selected ? "wafermap-slot-group selected" : cell.excluded ? "wafermap-slot-group excluded" : "wafermap-slot-group"}
+                onClick={() => cell.interactive && onSelect(cell.chipId)}
               >
                 <rect
                   x={cell.x}
                   y={cell.y}
-                  width={cellWidth}
-                  height={cellHeight}
+                  width={figure.cellWidth}
+                  height={figure.cellHeight}
                   rx="0.35"
-                  className={interactive ? "wafermap-slot active" : "wafermap-slot"}
-                  style={fill ? { fill } : undefined}
+                  className={cell.interactive ? "wafermap-slot active" : "wafermap-slot"}
+                  style={cell.fill ? { fill: cell.fill } : undefined}
                 >
                   <title>{`${cell.chipId}: ${cell.detail || (cell.value !== null && cell.value !== undefined ? formatMetric(metricKey, cell.value) : "No measurement loaded")}${cell.excluded ? " | Excluded from chip summary averages" : ""}`}</title>
                 </rect>
-                {cellLabel ? (
+                {cell.label ? (
                   <text
-                    x={cell.x + cellWidth / 2}
-                    y={cell.y + cellHeight / 2 + labelFontSize * 0.32}
+                    x={cell.x + figure.cellWidth / 2}
+                    y={cell.y + figure.cellHeight / 2 + figure.labelFontSize * 0.32}
                     textAnchor="middle"
-                    className={interactive && cell.isActiveInView ? "wafermap-slot-label" : "wafermap-slot-label muted"}
-                    style={{ fontSize: `${labelFontSize}px` }}
+                    className={cell.interactive && cell.isActiveInView ? "wafermap-slot-label" : "wafermap-slot-label muted"}
+                    style={{ fontSize: `${figure.labelFontSize}px` }}
                   >
-                    {cellLabel}
+                    {cell.label}
                   </text>
                 ) : null}
               </g>
@@ -1188,9 +1102,9 @@ function WaferMapPanel({
         <span className="wafer-scale-caption high">High</span>
         <div className="wafer-scale-bar" />
         <div className="wafer-scale-labels">
-          <span>{range ? range.max.toFixed(2) : "--"}</span>
-          <span>{range ? range.mid.toFixed(2) : "--"}</span>
-          <span>{range ? range.min.toFixed(2) : "--"}</span>
+          <span>{figure.range ? figure.range.max.toFixed(2) : "--"}</span>
+          <span>{figure.range ? figure.range.mid.toFixed(2) : "--"}</span>
+          <span>{figure.range ? figure.range.min.toFixed(2) : "--"}</span>
         </div>
         <span className="wafer-scale-caption low">Low</span>
       </div>
@@ -1992,6 +1906,8 @@ export default function App() {
   const [isPropagationSettingsExpanded, setIsPropagationSettingsExpanded] = useState(true);
   const [isGeneratingPostProcessed, setIsGeneratingPostProcessed] = useState(false);
   const [isGeneratingPptReport, setIsGeneratingPptReport] = useState(false);
+  const [isGeneratingWordReport, setIsGeneratingWordReport] = useState(false);
+  const [isGeneratingPdfReport, setIsGeneratingPdfReport] = useState(false);
   const [spectrumViewerSeries, setSpectrumViewerSeries] = useState([]);
   const [spectrumViewerInputUnit, setSpectrumViewerInputUnit] = useState("watts");
   const [spectrumViewerDisplayUnit, setSpectrumViewerDisplayUnit] = useState("db");
@@ -2855,6 +2771,86 @@ export default function App() {
     appendAudit("wafermap", "Wafermap template deleted", `Deleted wafermap template ${target?.name || templateId}.`);
   }
   function downloadBlob(content, fileName, mimeType) { const blob = new Blob([content], { type: mimeType }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url); }
+  function buildCurrentReportNaming() {
+    const presented = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows });
+    const datasetIdentity = buildDatasetSnapshotMetadata({
+      projectName,
+      waferName,
+      selectedDate,
+      rawRows: currentRows,
+      sourceMeta,
+      namingOverrides: datasetNamingDraft
+    });
+    const datasetBaseName = buildStandardDatasetBaseName({
+      mpw: datasetIdentity.mpw || presented.projectDisplayName || projectName || "MPWUNDEFINED",
+      platform: datasetIdentity.platformLabel || sourceMeta.platform || sourceMeta.platformId || "220nmSOI",
+      slot: datasetIdentity.slot || presented.slot || waferName || "SlotUndefined",
+      waveguideDescriptor: presented.waveguideType || "StripWaveguide",
+      measurementType: datasetIdentity.measurementType || "PropagationLoss",
+      mode: /wst/i.test(datasetIdentity.measurementMode || "") ? "WST" : "Manual"
+    });
+
+    return {
+      presented,
+      datasetBaseName,
+      exportProjectCode: presented.projectDisplayName || projectName || "MPWUNDEFINED",
+      exportSlot: presented.slot || waferName || "SlotUndefined"
+    };
+  }
+  async function saveCurrentWafermapPng() {
+    if (!currentWaferCells.length) {
+      const message = "No wafermap is available to export yet.";
+      setStatusMessage(message);
+      pushToast("Wafermap export skipped", message, "danger");
+      return;
+    }
+
+    const { datasetBaseName } = buildCurrentReportNaming();
+    const metricName = metricLabel(selectedWaferMetric).replace(/\s+/g, "");
+    try {
+      const png = await buildWaferMapPng({
+        cells: currentWaferCells,
+        metricKey: selectedWaferMetric,
+        overlayMode: waferMapOverlayMode,
+        templateName: currentWaferTemplate?.name || "",
+        title: `Wafermap - ${metricLabel(selectedWaferMetric)}`,
+        subtitle: `${projectName || "MPWUNDEFINED"} | ${waferName || "SlotUndefined"}${selectedDate ? ` | ${selectedDate}` : ""}`,
+        colorScaleMin: sourceMeta.waferColorScaleMin,
+        colorScaleMid: sourceMeta.waferColorScaleMid,
+        colorScaleMax: sourceMeta.waferColorScaleMax
+      });
+      downloadAssetBlob(png, `${datasetBaseName}_wafermap_${metricName}.png`);
+      setStatusMessage(`Saved wafermap PNG for ${metricLabel(selectedWaferMetric)}.`);
+      pushToast("Wafermap PNG ready", `${metricLabel(selectedWaferMetric)} saved as a PNG.`, "success");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown wafermap export error.";
+      setStatusMessage(`Wafermap PNG export failed: ${detail}`);
+      pushToast("Wafermap export failed", detail, "danger");
+    }
+  }
+  function openCurrentWafermapFigure() {
+    if (!currentWaferCells.length) {
+      const message = "No wafermap is available to open yet.";
+      setStatusMessage(message);
+      pushToast("Wafermap figure skipped", message, "danger");
+      return;
+    }
+
+    const title = `Wafermap - ${metricLabel(selectedWaferMetric)}`;
+    const subtitle = `${projectName || "MPWUNDEFINED"} | ${waferName || "SlotUndefined"}${selectedDate ? ` | ${selectedDate}` : ""}`;
+    const { svg } = buildWaferMapSvgDocument({
+      cells: currentWaferCells,
+      metricKey: selectedWaferMetric,
+      overlayMode: waferMapOverlayMode,
+      templateName: currentWaferTemplate?.name || "",
+      title,
+      subtitle,
+      colorScaleMin: sourceMeta.waferColorScaleMin,
+      colorScaleMid: sourceMeta.waferColorScaleMid,
+      colorScaleMax: sourceMeta.waferColorScaleMax
+    });
+    openWaferMapFigureWindow({ svg, title });
+  }
   function exportNormalizedCsv() { downloadBlob(normalizedRowsToCsv(normalizedRows), "normalized-wafer-measurements.csv", "text/csv;charset=utf-8"); appendAudit("export", "Normalized CSV exported", `Exported ${normalizedRows.length} normalized rows to CSV.`); }
   function exportReportJson() {
     const safeWafer = waferName.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "") || "wafer";
@@ -2872,14 +2868,13 @@ export default function App() {
     }
 
     setIsGeneratingPostProcessed(true);
-    const presented = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows });
-    const exportProjectCode = presented.projectDisplayName || projectName || "MPWUNDEFINED";
-    const exportSlot = presented.slot || waferName || "SlotUndefined";
+    const { datasetBaseName, exportProjectCode, exportSlot } = buildCurrentReportNaming();
 
     try {
       const result = await generatePostProcessedArchive({
         projectCode: exportProjectCode,
         slot: exportSlot,
+        datasetBaseName,
         selectedDate,
         sourceMeta,
         metrics,
@@ -2910,14 +2905,14 @@ export default function App() {
     }
 
     setIsGeneratingPptReport(true);
-    const presented = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows });
-    const exportProjectCode = presented.projectDisplayName || projectName || "MPWUNDEFINED";
-    const exportSlot = presented.slot || waferName || "SlotUndefined";
+    const { datasetBaseName, exportProjectCode, exportSlot } = buildCurrentReportNaming();
 
     try {
+      const { generatePowerPointReport } = await import("./lib/reportGenerator");
       const result = await generatePowerPointReport({
         projectCode: exportProjectCode,
         slotLabel: exportSlot,
+        datasetBaseName,
         selectedDate,
         sourceMeta,
         metrics,
@@ -2937,6 +2932,82 @@ export default function App() {
       pushToast("PowerPoint export failed", detail, "danger");
     } finally {
       setIsGeneratingPptReport(false);
+    }
+  }
+  async function generateWordDeck() {
+    if (!metrics.propagation.byChip.length) {
+      const message = "Load a propagation-loss dataset before generating the Word report.";
+      setStatusMessage(message);
+      pushToast("Word export skipped", message, "danger");
+      return;
+    }
+
+    setIsGeneratingWordReport(true);
+    const { datasetBaseName, exportProjectCode, exportSlot } = buildCurrentReportNaming();
+
+    try {
+      const { generateWordReport } = await import("./lib/reportGenerator");
+      const result = await generateWordReport({
+        projectCode: exportProjectCode,
+        slotLabel: exportSlot,
+        datasetBaseName,
+        selectedDate,
+        sourceMeta,
+        metrics,
+        currentWaferTemplate,
+        currentWaferCells,
+        onProgress: (message) => setStatusMessage(message)
+      });
+      downloadBlob(result.blob, result.fileName, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      const detail = `Generated ${result.fileName} with ${result.chipCount} chip section(s).`;
+      setStatusMessage(detail);
+      appendAudit("export", "Word report exported", detail);
+      pushToast("Word report ready", `${result.chipCount} chip section(s) exported to ${result.fileName}.`, "success");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown Word export error.";
+      setStatusMessage(`Word export failed: ${detail}`);
+      appendAudit("export", "Word report failed", detail);
+      pushToast("Word export failed", detail, "danger");
+    } finally {
+      setIsGeneratingWordReport(false);
+    }
+  }
+  async function generatePdfDeck() {
+    if (!metrics.propagation.byChip.length) {
+      const message = "Load a propagation-loss dataset before generating the PDF report.";
+      setStatusMessage(message);
+      pushToast("PDF export skipped", message, "danger");
+      return;
+    }
+
+    setIsGeneratingPdfReport(true);
+    const { datasetBaseName, exportProjectCode, exportSlot } = buildCurrentReportNaming();
+
+    try {
+      const { generatePdfReport } = await import("./lib/reportGenerator");
+      const result = await generatePdfReport({
+        projectCode: exportProjectCode,
+        slotLabel: exportSlot,
+        datasetBaseName,
+        selectedDate,
+        sourceMeta,
+        metrics,
+        currentWaferTemplate,
+        currentWaferCells,
+        onProgress: (message) => setStatusMessage(message)
+      });
+      downloadBlob(result.blob, result.fileName, "application/pdf");
+      const detail = `Generated ${result.fileName} with ${result.chipCount} chip section(s).`;
+      setStatusMessage(detail);
+      appendAudit("export", "PDF report exported", detail);
+      pushToast("PDF report ready", `${result.chipCount} chip section(s) exported to ${result.fileName}.`, "success");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown PDF export error.";
+      setStatusMessage(`PDF export failed: ${detail}`);
+      appendAudit("export", "PDF report failed", detail);
+      pushToast("PDF export failed", detail, "danger");
+    } finally {
+      setIsGeneratingPdfReport(false);
     }
   }
   function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const currentPresentation = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }); const projectRecord = { id: createId("project"), projectName: currentPresentation.projectDisplayName, waferName: currentPresentation.waferDisplayName, slot: currentPresentation.slot, waveguideType: currentPresentation.waveguideType, measurementMode: currentPresentation.measurementMode, measurementType: currentPresentation.measurementType, datasetLabel: sourceMeta?.name || `${currentPresentation.projectDisplayName} ${currentPresentation.slot}`, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, excludedPropagationChipIds, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${currentPresentation.projectDisplayName} for slot ${currentPresentation.slot}.`); setStatusMessage(`Saved project ${currentPresentation.projectDisplayName}. You can reopen it later from the Projects section.`); }
@@ -3203,6 +3274,8 @@ export default function App() {
                 <div className="analysis-card-head">
                   <div><h2>Wafermap - {metricLabel(selectedWaferMetric)}</h2></div>
                   <div className="analysis-card-controls compact">
+                    <button type="button" className="ghost-action" onClick={openCurrentWafermapFigure} disabled={!currentWaferCells.length}>Open Figure</button>
+                    <button type="button" className="ghost-action" onClick={saveCurrentWafermapPng} disabled={!currentWaferCells.length}>Save PNG</button>
                     <span>Metric</span>
                     <select value={selectedWaferMetric} onChange={(event) => setSelectedWaferMetric(event.target.value)}>
                       <option value="propagation">Propagation Loss</option>
@@ -3358,7 +3431,7 @@ export default function App() {
           {activeTab === "filename-conversion" ? <FilenameConversionPanel /> : null}
           {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Theme preference</span><select value={settingsDraft.themePreference} onChange={(event) => updateSettingsDraft("themePreference", event.target.value)}>{THEME_PREFERENCE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label><label className="mapping-field"><span>Propagation spectral interval (nm)</span><input type="number" min="1" value={settingsDraft.propagationSpectralStepNm} onChange={(event) => updateSettingsDraft("propagationSpectralStepNm", Math.max(Number(event.target.value) || 1, 1))} /></label><label className="mapping-field"><span>Propagation fit MSE threshold</span><input type="number" step="0.01" value={settingsDraft.propagationMseThreshold} onChange={(event) => updateSettingsDraft("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} /></label></div><WaveguideLengthConfigurator count={settingsDraft.propagationWaveguideCount} start={settingsDraft.propagationWaveguideStartMm} interval={settingsDraft.propagationWaveguideIntervalMm} manualMode={settingsDraft.propagationWaveguideManualMode} lengths={settingsDraft.propagationWaveguideLengthsMm} onNumberChange={updateSettingsDraft} onLengthChange={updateSettingsWaveguideLength} onManualModeChange={(checked) => updateSettingsDraft("propagationWaveguideManualMode", checked)} /><div className="chart-empty compact">Uploaded measurement files now stay in the active workspace only. Use <strong>Save Dataset Snapshot</strong> or <strong>Save to GitHub</strong> from <strong>Dataset Snapshots</strong> when you want to keep a dataset.</div></article></section> : null}
           {activeTab === "wafermaps" ? <WafermapsLibrary draft={waferTemplateDraft} onDraftChange={updateWaferTemplateDraft} onSaveTemplate={saveWaferTemplate} templates={allWaferTemplates} selectedTemplateId={currentWaferTemplate?.id || ""} onUseTemplate={useWaferTemplate} onDeleteTemplate={deleteWaferTemplate} /> : null}
-          {activeTab === "report-generator" ? <ReportGeneratorPanel reportState={reportState} sourceMeta={sourceMeta} isGeneratingPptReport={isGeneratingPptReport} isGeneratingPostProcessed={isGeneratingPostProcessed} onGeneratePptReport={generatePowerPointDeck} onGeneratePostProcessedFiles={generatePostProcessedFiles} /> : null}
+          {activeTab === "report-generator" ? <ReportGeneratorPanel reportState={reportState} sourceMeta={sourceMeta} isGeneratingPptReport={isGeneratingPptReport} isGeneratingWordReport={isGeneratingWordReport} isGeneratingPdfReport={isGeneratingPdfReport} isGeneratingPostProcessed={isGeneratingPostProcessed} onGeneratePptReport={generatePowerPointDeck} onGenerateWordReport={generateWordDeck} onGeneratePdfReport={generatePdfDeck} onGeneratePostProcessedFiles={generatePostProcessedFiles} /> : null}
           {activeTab === "audit" ? <section className="library-stack workspace-fit-view"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Audit Log</h2><p>Review the local activity trail for uploads, exports, saves, loads, and settings changes.</p></div><div className="library-action-row"><button type="button" className="ghost-action" onClick={clearAuditLog}>Clear Audit Log</button></div></div><LibraryTable columns={["Action", "Type", "Detail", "Time"]} rows={auditRows} emptyMessage="No audit entries yet." /></article></section> : null}
           {activeTab === "help" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Help Center</h2><p>Quick in-app guidance for the current release, focused on how data flows through propagation processing, storage, and reporting.</p></div><div className="library-action-row"><button type="button" onClick={() => updateTab("projects")}>Open Workspace Snapshots</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Open Propagation View</button></div></div><div className="help-grid">{HELP_TOPICS.map((topic) => <article key={topic.title} className="help-card"><h3>{topic.title}</h3><p>{topic.body}</p></article>)}</div><div className="doc-link-list">{DOC_LINKS.map((doc) => <a key={doc.label} className="doc-link-item" href={doc.href} target="_blank" rel="noreferrer"><strong>{doc.label}</strong><span>{doc.path}</span></a>)}</div></article></section> : null}
         </main>
@@ -3366,6 +3439,3 @@ export default function App() {
     </div>
   );
 }
-
-
-

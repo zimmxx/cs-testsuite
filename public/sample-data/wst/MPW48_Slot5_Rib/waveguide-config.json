@@ -2,7 +2,7 @@
   "propagationWaveguideCount": 4,
   "propagationWaveguideStartMm": 0,
   "propagationWaveguideIntervalMm": 5,
-  "propagationWaveguideManualMode": true,
+  "propagationWaveguideManualMode": false,
   "waveguideLengths": [
     {
       "index": 1,

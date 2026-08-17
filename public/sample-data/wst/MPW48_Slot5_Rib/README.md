@@ -1,4 +1,4 @@
-# MPW48_Slot5_Rib
+# MPW48_Slot5_Rib_
 This folder contains GitHub-hosted measurement traces for MPW48.
 ## Dataset Summary
 - Project: MPW48

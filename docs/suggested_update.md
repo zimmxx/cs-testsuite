@@ -1,63 +1,64 @@
 # Suggested Updates
 
-This document captures the most useful next steps after the `v0.3.0` update.
+This document captures the most useful next steps after the `v0.3.1` update.
 
 ## Recommended Next Step
 
-The strongest next improvement is to make CD-SEM a first-class published dataset type in the GitHub library, rather than an in-app-only import workflow.
+The strongest next improvement is to extract the spectrum viewer workflows into smaller dedicated components and shared utilities, so the standard and advanced viewers can keep evolving without adding more complexity to `src/App.jsx`.
 
 Why this should be next:
 
-- it closes the loop between cleanroom metrology and optical wafer analysis
-- it removes the need to re-import the same CD-SEM files repeatedly
-- it makes dashboard summaries more meaningful because both propagation and CD-SEM data can be tracked per MPW and slot
+- it reduces regression risk when one viewer is tuned without affecting the other
+- it makes the advanced controls easier to test and reason about
+- it prepares the project for future spectrum analysis features such as batch metrics, annotations, and saved view presets
 
-## Suggested Repository Structure
+## Suggested Spectrum Architecture
 
-Recommended long-term structure:
+Recommended long-term split:
 
 ```text
-sample-data/
-  enhanced/
-    platforms/
-      220nm SOI/
-        MPW48/
-          Slot8/
-            Rib/
-              propagation/
-              cdsem/
-              post-processed/
+src/
+  components/
+    spectrum/
+      SpectrumViewerPanel.jsx
+      SpectrumViewerAdvancedPanel.jsx
+      SpectrumAnalysisControls.jsx
+      SpectrumSeriesList.jsx
+      SpectrumPlotSummary.jsx
+  lib/
+    spectrumAnalysis.js
+    spectrumViewState.js
 ```
 
 Benefits:
 
-- easier browsing by platform, MPW, slot, and waveguide family
-- cleaner separation between raw traces, CD-SEM tables, and post-processed outputs
-- simpler future dashboard indexing
+- clearer ownership between standard viewer behavior and advanced viewer behavior
+- easier reuse of peak detection, zoom normalization, and export helpers
+- simpler future UI-level testing for spectrum interactions
 
 ## Suggested Functional Improvements
 
-1. Add GitHub publish support for CD-SEM datasets.
-2. Define a shared metadata schema so propagation and CD-SEM records can be linked by platform, MPW, slot, waveguide family, and chip coordinate.
-3. Add cached dashboard summary JSON so the dashboard does not need to reprocess every dataset on demand.
-4. Add scatter plots and regression tools for CD-SEM versus propagation loss.
-5. Add richer parameter selection for CD-SEM beyond `Si waveguide mid`, including saved presets per file format.
-6. Add a combined wafer review mode that can switch between propagation, CD-SEM, overlap only, and delta overlays.
-7. Add repository-side support for storing post-processed reports, wafermaps, figures, and summary markdown in a controlled subfolder.
+1. Add saved presets for wavelength windows and vertical ranges in the advanced spectrum viewer.
+2. Add optional tabular peak and FSR export from the advanced viewer.
+3. Add on-plot region annotations and user notes for captured spectrum images.
+4. Add small test fixtures for TXT and Excel spectrum uploads with known wavelength ranges.
+5. Add a clearer metric toggle for peak-based summaries versus whole-trace summaries.
+6. Add keyboard-safe reset actions for horizontal zoom and vertical range independently.
+7. Add a dedicated user-facing explanation of dB-axis reversal in advanced spectrum mode.
 
 ## Suggested Technical Improvements
 
 1. Split the large `src/App.jsx` orchestration file into smaller workspace and library controllers.
-2. Add a shared dataset-loader utility for local and remote library analytics.
-3. Add manifest versioning specifically for enhanced dashboard summaries.
-4. Add test fixtures for CD-SEM import formats and coordinate mapping.
-5. Add UI-level tests around dashboard filtering and dataset analysis triggers.
+2. Move spectrum-specific calculations out of `InteractivePlots.jsx` into a dedicated helper module.
+3. Add UI-level tests around advanced spectrum upload, wavelength zoom, and vertical range behavior.
+4. Add a stable view-model layer for spectrum controls so temporary inputs and applied bounds are explicit.
+5. Add a small regression checklist for spectrum export, peak detection, and axis handling.
 
 ## Suggested Product Decisions To Confirm
 
 These decisions would remove ambiguity for the next implementation round:
 
-1. The exact CD-SEM input template to support first.
-2. Whether CD-SEM files should be stored as raw source files, normalized CSV, or both.
-3. Whether post-processed assets belong in the repository by default or should be generated only on demand.
-4. Whether the dashboard should remain client-side only or move toward a precomputed summary index.
+1. Whether advanced spectrum metrics should use the full trace or only the visible wavelength window by default.
+2. Whether spectrum images captured from the viewer should include analysis overlays by default.
+3. Whether saved spectrum views should be local-only or exportable as part of reports.
+4. Whether future FSR and extinction summaries belong only in the advanced viewer or also in report generation.

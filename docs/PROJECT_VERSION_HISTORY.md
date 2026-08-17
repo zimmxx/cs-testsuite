@@ -130,11 +130,19 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 - Added a new `Dashboard` library section to review published GitHub datasets by platform and MPW.
 - Added on-demand propagation analytics for published GitHub datasets loaded from the measurement manifest.
 
+### 2026-08-17
+
+#### Current working-tree upgrade
+- Split the spectrum workflow into `Spectrum Viewer` and `Spectrum Viewer (Advanced)` so quick inspection and detailed analysis no longer compete in one panel.
+- Restored the original lightweight spectrum viewer behavior for ordinary uploads and visibility toggles.
+- Added advanced wavelength-window zoom and vertical axis controls for the advanced viewer, including corrected dB-axis handling for loss bounds.
+- Refined advanced spectrum upload behavior so the advanced viewer keeps its own traces and no longer locks the library navigation after upload.
+
 ## Current Development State
 
 Latest recorded working-tree update:
-- Date: `2026-08-13`
-- Theme: `CD-SEM library foundation and GitHub dataset dashboard`
+- Date: `2026-08-17`
+- Theme: `Spectrum viewer split and advanced zoom control refinement`
 
 ## How To Extend This File
 

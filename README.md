@@ -21,6 +21,7 @@ The app translates uploaded measurement data into a normalized internal schema, 
 - Dashboard views for published MPW, slot, platform, and measurement-library coverage
 - Filename and manual-measurement conversion into standardized trace names
 - Spectrum Viewer for flexible uploaded trace inspection
+- Spectrum Viewer (Advanced) for wavelength-window zoom, vertical axis control, and trace diagnostics
 - Device-aware insertion-loss characterization across all chips on the wafer
 - Editable manual-conversion output filenames with corrected rib-versus-strip trace naming
 
@@ -39,9 +40,9 @@ Live deployment:
 
 ## Current Release
 
-- App version: `v0.3.0`
-- Release date: `2026-08-13`
-- Focus: `CD-SEM library foundation and dataset dashboarding`
+- App version: `v0.3.1`
+- Release date: `2026-08-17`
+- Focus: `Spectrum viewer split and advanced zoom control refinement`
 
 ## Tech Stack
 
@@ -114,8 +115,8 @@ On push to `main`, GitHub Actions:
 - [Local Git And GitHub Workflow](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\LOCAL_GIT_GITHUB_WORKFLOW.md)
 - [Versioning And Documentation Guide](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\VERSIONING_AND_DOCUMENTATION.md)
 - [Dataset And Filename Standard](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\DATASET_FILENAME_STANDARD.md)
-- [Release Features: v0.3.0](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.3.0\FEATURES.md)
-- [Release Changelog: v0.3.0](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.3.0\CHANGELOG.md)
+- [Release Features: v0.3.1](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.3.1\FEATURES.md)
+- [Release Changelog: v0.3.1](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.3.1\CHANGELOG.md)
 - [Suggested Next Updates](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\suggested_update.md)
 - [Full Project Version History](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\PROJECT_VERSION_HISTORY.md)
 

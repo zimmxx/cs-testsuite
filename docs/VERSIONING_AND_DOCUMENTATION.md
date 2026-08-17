@@ -28,6 +28,8 @@ Version-specific docs:
 - `docs/releases/v0.2.1/CHANGELOG.md`
 - `docs/releases/v0.3.0/FEATURES.md`
 - `docs/releases/v0.3.0/CHANGELOG.md`
+- `docs/releases/v0.3.1/FEATURES.md`
+- `docs/releases/v0.3.1/CHANGELOG.md`
 
 Forward-planning docs:
 
@@ -44,7 +46,7 @@ When the app is upgraded from one documented version to a later version:
 1. Create a new folder:
 
 ```text
-docs/releases/v0.3.0/
+docs/releases/v0.3.1/
 ```
 
 2. Copy the template or previous files into the new version folder
@@ -69,6 +71,7 @@ Use:
 - `v0.2.0` for medium feature expansions
 - `v0.2.1` for patch improvements on top of the current feature release
 - `v0.3.0` for a larger feature expansion such as new library sections or new dataset workflows
+- `v0.3.1` for a patch release that refines an existing workflow such as spectrum-viewer controls
 - `v1.0.0` for a more complete stable release
 
 ## What Belongs In Each File

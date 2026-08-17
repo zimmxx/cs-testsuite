@@ -62,6 +62,7 @@ const RAIL_SECTIONS = [
       { id: "cd-sem", label: "CD-SEM Data" },
       { id: "dashboard", label: "Dashboard" },
       { id: "spectrum-viewer", label: "Spectrum Viewer" },
+      { id: "spectrum-viewer-advanced", label: "Spectrum Viewer (Advanced)" },
       { id: "filename-conversion", label: "Filename Conversion" },
       { id: "wafermaps", label: "Wafermaps" },
       { id: "report-generator", label: "Report Generator" },
@@ -165,8 +166,8 @@ const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
-  { label: "Feature Guide v0.3.0", path: "docs/releases/v0.3.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.3.0/FEATURES.md` },
-  { label: "Change Log v0.3.0", path: "docs/releases/v0.3.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.3.0/CHANGELOG.md` },
+  { label: "Feature Guide v0.3.1", path: "docs/releases/v0.3.1/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.3.1/FEATURES.md` },
+  { label: "Change Log v0.3.1", path: "docs/releases/v0.3.1/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.3.1/CHANGELOG.md` },
   { label: "Suggested Next Updates", path: "docs/suggested_update.md", href: `${REPO_DOC_BASE}docs/suggested_update.md` },
   { label: "Dataset Filename Standard", path: "docs/DATASET_FILENAME_STANDARD.md", href: `${REPO_DOC_BASE}docs/DATASET_FILENAME_STANDARD.md` }
 ];
@@ -1915,6 +1916,25 @@ export default function App() {
   const [showSpectrumViewerPeakPosition, setShowSpectrumViewerPeakPosition] = useState(false);
   const [isUploadingSpectrumViewerFiles, setIsUploadingSpectrumViewerFiles] = useState(false);
   const [isSpectrumViewerDragging, setIsSpectrumViewerDragging] = useState(false);
+  const [advancedSpectrumViewerSeries, setAdvancedSpectrumViewerSeries] = useState([]);
+  const [advancedSpectrumViewerInputUnit, setAdvancedSpectrumViewerInputUnit] = useState("watts");
+  const [advancedSpectrumViewerDisplayUnit, setAdvancedSpectrumViewerDisplayUnit] = useState("db");
+  const [advancedSpectrumViewerTitle, setAdvancedSpectrumViewerTitle] = useState("");
+  const [showAdvancedSpectrumViewerPeakPosition, setShowAdvancedSpectrumViewerPeakPosition] = useState(false);
+  const [spectrumViewerPeakDetectionEnabled, setSpectrumViewerPeakDetectionEnabled] = useState(false);
+  const [spectrumViewerPeakType, setSpectrumViewerPeakType] = useState("minima");
+  const [spectrumViewerPeakSpacingNm, setSpectrumViewerPeakSpacingNm] = useState(0.5);
+  const [spectrumViewerPeakProminence, setSpectrumViewerPeakProminence] = useState(0.2);
+  const [advancedSpectrumViewerStartWavelengthNm, setAdvancedSpectrumViewerStartWavelengthNm] = useState("");
+  const [advancedSpectrumViewerStopWavelengthNm, setAdvancedSpectrumViewerStopWavelengthNm] = useState("");
+  const [advancedSpectrumViewerYAxisMin, setAdvancedSpectrumViewerYAxisMin] = useState("");
+  const [advancedSpectrumViewerYAxisMax, setAdvancedSpectrumViewerYAxisMax] = useState("");
+  const [spectrumViewerComparisonSeriesA, setSpectrumViewerComparisonSeriesA] = useState("");
+  const [spectrumViewerComparisonSeriesB, setSpectrumViewerComparisonSeriesB] = useState("");
+  const [advancedSpectrumViewerComparisonSeriesA, setAdvancedSpectrumViewerComparisonSeriesA] = useState("");
+  const [advancedSpectrumViewerComparisonSeriesB, setAdvancedSpectrumViewerComparisonSeriesB] = useState("");
+  const [isUploadingAdvancedSpectrumViewerFiles, setIsUploadingAdvancedSpectrumViewerFiles] = useState(false);
+  const [isAdvancedSpectrumViewerDragging, setIsAdvancedSpectrumViewerDragging] = useState(false);
   const builtInWaferTemplates = useMemo(() => getBuiltInWaferTemplates(), []);
   const allWaferTemplates = useMemo(() => mergeWaferTemplates(builtInWaferTemplates, savedWaferTemplates), [builtInWaferTemplates, savedWaferTemplates]);
   const currentWaferTemplate = useMemo(() => {
@@ -2300,6 +2320,38 @@ export default function App() {
     }
   }, [insertionMetricField, insertionMetricOptions]);
 
+  useEffect(() => {
+    const visibleSeries = spectrumViewerSeries.filter((item) => item.visible !== false);
+    const ids = visibleSeries.map((item) => item.id);
+    if (!ids.length) {
+      setSpectrumViewerComparisonSeriesA("");
+      setSpectrumViewerComparisonSeriesB("");
+      return;
+    }
+    if (!ids.includes(spectrumViewerComparisonSeriesA)) {
+      setSpectrumViewerComparisonSeriesA(ids[0]);
+    }
+    if (!ids.includes(spectrumViewerComparisonSeriesB) || (ids.length > 1 && spectrumViewerComparisonSeriesB === spectrumViewerComparisonSeriesA)) {
+      setSpectrumViewerComparisonSeriesB(ids[1] || ids[0]);
+    }
+  }, [spectrumViewerSeries, spectrumViewerComparisonSeriesA, spectrumViewerComparisonSeriesB]);
+
+  useEffect(() => {
+    const visibleSeries = advancedSpectrumViewerSeries.filter((item) => item.visible !== false);
+    const ids = visibleSeries.map((item) => item.id);
+    if (!ids.length) {
+      setAdvancedSpectrumViewerComparisonSeriesA("");
+      setAdvancedSpectrumViewerComparisonSeriesB("");
+      return;
+    }
+    if (!ids.includes(advancedSpectrumViewerComparisonSeriesA)) {
+      setAdvancedSpectrumViewerComparisonSeriesA(ids[0]);
+    }
+    if (!ids.includes(advancedSpectrumViewerComparisonSeriesB) || (ids.length > 1 && advancedSpectrumViewerComparisonSeriesB === advancedSpectrumViewerComparisonSeriesA)) {
+      setAdvancedSpectrumViewerComparisonSeriesB(ids[1] || ids[0]);
+    }
+  }, [advancedSpectrumViewerComparisonSeriesA, advancedSpectrumViewerComparisonSeriesB, advancedSpectrumViewerSeries]);
+
   function appendAudit(kind, title, detail) {
     setAuditLog((previous) => [{ id: createId("audit"), kind, title, detail, timestamp: new Date().toISOString() }, ...previous].slice(0, 120));
   }
@@ -2547,6 +2599,52 @@ export default function App() {
     }
   }
 
+  async function loadAdvancedSpectrumViewerFiles(files) {
+    if (!files.length || isUploadingAdvancedSpectrumViewerFiles) return;
+    const inferredInputUnit = inferSpectrumInputUnit(files);
+    setAdvancedSpectrumViewerInputUnit(inferredInputUnit);
+    setIsUploadingAdvancedSpectrumViewerFiles(true);
+    try {
+      const series = await Promise.all(
+        files.map((file) => readSpectrumFile(file, { traceValueUnit: inferredInputUnit, launchPowerDbm: sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm }))
+      );
+      setAdvancedSpectrumViewerSeries((previous) => {
+        const next = [...previous];
+        series.forEach((item, index) => {
+          next.push({
+            ...item,
+            id: `${item.fileName}-${Date.now()}-advanced-${index}`,
+            visible: true
+          });
+        });
+        return next;
+      });
+      if (!String(advancedSpectrumViewerTitle || "").trim()) {
+        const nextCount = advancedSpectrumViewerSeries.length + series.length;
+        setAdvancedSpectrumViewerTitle(nextCount === 1 ? (series[0]?.label || "Spectrum Viewer") : "Spectrum Viewer Comparison");
+      }
+      const allSeries = [...advancedSpectrumViewerSeries, ...series];
+      const wavelengthMin = allSeries.length ? Math.min(...allSeries.map((item) => item.wavelengthMinNm)) : null;
+      const wavelengthMax = allSeries.length ? Math.max(...allSeries.map((item) => item.wavelengthMaxNm)) : null;
+      if (wavelengthMin !== null && wavelengthMax !== null) {
+        setAdvancedSpectrumViewerStartWavelengthNm(String(wavelengthMin));
+        setAdvancedSpectrumViewerStopWavelengthNm(String(wavelengthMax));
+      }
+      setStatusMessage(series.length === 1 ? `Added ${series[0].fileName} to Spectrum Viewer (Advanced).` : `Added ${series.length} traces to Spectrum Viewer (Advanced).`);
+      appendAudit("upload", "Advanced spectrum viewer files uploaded", `Loaded ${series.length} advanced spectrum file(s) using ${inferredInputUnit} input mode.`);
+      pushToast("Advanced spectrum viewer updated", `${series.length} trace${series.length === 1 ? "" : "s"} added to the advanced viewer.`, "success");
+      setActiveTab("spectrum-viewer-advanced");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown spectrum upload error.";
+      setStatusMessage(`Spectrum Viewer (Advanced) upload failed: ${detail}`);
+      appendAudit("upload", "Advanced spectrum viewer upload failed", detail);
+      pushToast("Advanced spectrum viewer upload failed", detail, "danger");
+    } finally {
+      setIsUploadingAdvancedSpectrumViewerFiles(false);
+      setIsAdvancedSpectrumViewerDragging(false);
+    }
+  }
+
   async function handleSpectrumViewerUpload(event) {
     const files = Array.from(event.target.files || []);
     await loadSpectrumViewerFiles(files);
@@ -2557,6 +2655,34 @@ export default function App() {
     event.preventDefault();
     const files = Array.from(event.dataTransfer?.files || []);
     await loadSpectrumViewerFiles(files);
+  }
+  async function handleAdvancedSpectrumViewerUpload(event) {
+    const files = Array.from(event.target.files || []);
+    await loadAdvancedSpectrumViewerFiles(files);
+    if (event.target) event.target.value = "";
+  }
+
+  async function handleAdvancedSpectrumViewerDrop(event) {
+    event.preventDefault();
+    const files = Array.from(event.dataTransfer?.files || []);
+    await loadAdvancedSpectrumViewerFiles(files);
+  }
+  function resetSpectrumViewerAnalysisControls() {
+    setShowAdvancedSpectrumViewerPeakPosition(false);
+    setSpectrumViewerPeakDetectionEnabled(false);
+    setSpectrumViewerPeakType("minima");
+    setSpectrumViewerPeakSpacingNm(0.5);
+    setSpectrumViewerPeakProminence(0.2);
+    setAdvancedSpectrumViewerStartWavelengthNm("");
+    setAdvancedSpectrumViewerStopWavelengthNm("");
+    setAdvancedSpectrumViewerYAxisMin("");
+    setAdvancedSpectrumViewerYAxisMax("");
+    setAdvancedSpectrumViewerComparisonSeriesA("");
+    setAdvancedSpectrumViewerComparisonSeriesB("");
+  }
+  function resetAdvancedSpectrumViewerVerticalRange() {
+    setAdvancedSpectrumViewerYAxisMin("");
+    setAdvancedSpectrumViewerYAxisMax("");
   }
   function clearWorkspace() {
     const nextSourceMeta = buildDefaultSourceMeta(appSettings);
@@ -3427,7 +3553,266 @@ export default function App() {
           {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}
           {activeTab === "cd-sem" ? <CdSemLibraryPanel waferTemplate={currentWaferTemplate} propagationCells={propagationAllWaferCells} currentDatasetMeta={currentDatasetMeta} sourceMeta={sourceMeta} /> : null}
           {activeTab === "dashboard" ? <DatasetDashboardPanel remoteDatasets={remoteLibraryDatasets} onAnalyzeDataset={analyzeBundledDataset} onLoadDataset={(dataset) => loadBundledDataset(dataset, "dataset")} /> : null}
-          {activeTab === "spectrum-viewer" ? <section className="library-stack"><article className="analysis-card spectrum-viewer-card"><div className="analysis-card-head"><div><h2>Spectrum Viewer</h2><p>Upload any insertion-loss or transmission trace and compare devices instantly. TXT is preferred if you plan to publish the data to the GitHub library later, while Excel is supported for quick review.</p></div><div className="library-action-row"><label className="inline-select-field"><span>Input unit</span><select value={spectrumViewerInputUnit} onChange={(event) => setSpectrumViewerInputUnit(event.target.value)}><option value="watts">Watts (W)</option><option value="db">dB / dBm</option></select></label><label className="inline-select-field"><span>Display</span><select value={spectrumViewerDisplayUnit} onChange={(event) => setSpectrumViewerDisplayUnit(event.target.value)}><option value="db">dB / dBm</option><option value="watts">Watts (W)</option></select></label></div></div><div className={isSpectrumViewerDragging ? "spectrum-dropzone active" : "spectrum-dropzone"} onDragEnter={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(true); }} onDragOver={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(true); }} onDragLeave={(event) => { event.preventDefault(); setIsSpectrumViewerDragging(false); }} onDrop={handleSpectrumViewerDrop}><strong>{isUploadingSpectrumViewerFiles ? "Reading uploaded spectra..." : "Upload Files"}</strong><p>Drag and drop `.txt`, `.csv`, `.xlsx`, or `.xls` files here, or browse from a folder. Excel files are read from the `IL` sheet using wavelength in metres and IL in dB.</p><label className="upload-measurement-button secondary-upload"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleSpectrumViewerUpload} disabled={isUploadingSpectrumViewerFiles} /><span>{isUploadingSpectrumViewerFiles ? "Processing Files..." : "Choose Files"}</span></label></div><div className="spectrum-viewer-controls"><label className="inline-text-field"><span>Figure title</span><input value={spectrumViewerTitle} onChange={(event) => setSpectrumViewerTitle(event.target.value)} placeholder="Spectrum Viewer" /></label><label className="checkbox-inline-field"><input type="checkbox" checked={showSpectrumViewerPeakPosition} onChange={(event) => setShowSpectrumViewerPeakPosition(event.target.checked)} /><span>Show peak position guides</span></label></div><div className="spectrum-viewer-grid insertion-overlay-grid"><div className="spectrum-series-panel"><div className="spectrum-series-toolbar"><button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: true })))} disabled={!spectrumViewerSeries.length}>Show All</button><button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: false })))} disabled={!spectrumViewerSeries.length}>Hide All</button><button type="button" className="secondary-action compact-inline-action" onClick={() => { setSpectrumViewerSeries([]); setSpectrumViewerTitle(""); setShowSpectrumViewerPeakPosition(false); }} disabled={!spectrumViewerSeries.length}>Clear</button></div><div className="spectrum-series-list">{spectrumViewerSeries.length ? spectrumViewerSeries.map((item) => <label key={item.id} className="spectrum-series-item"><input type="checkbox" checked={item.visible !== false} onChange={() => setSpectrumViewerSeries((previous) => previous.map((entry) => entry.id === item.id ? { ...entry, visible: entry.visible === false } : entry))} /><div><strong>{item.label}</strong><span>{item.pointCount} points | {item.wavelengthMinNm.toFixed(1)}-{item.wavelengthMaxNm.toFixed(1)} nm</span></div></label>) : <div className="chart-empty compact">No traces loaded yet.</div>}</div></div><InteractiveSpectrumViewerPlot series={spectrumViewerSeries} displayUnit={spectrumViewerDisplayUnit} chipId="Spectrum Viewer" figureTitle={spectrumViewerTitle} onFigureTitleChange={setSpectrumViewerTitle} showPeakPosition={showSpectrumViewerPeakPosition} /></div></article></section> : null}
+          {activeTab === "spectrum-viewer" ? (
+            <section className="library-stack">
+              <article className="analysis-card spectrum-viewer-card">
+                <div className="analysis-card-head">
+                  <div>
+                    <h2>Spectrum Viewer</h2>
+                    <p>Upload any insertion-loss or transmission trace and compare devices instantly. TXT is preferred if you plan to publish the data to the GitHub library later, while Excel is supported for quick review.</p>
+                  </div>
+                  <div className="library-action-row">
+                    <label className="inline-select-field">
+                      <span>Input unit</span>
+                      <select value={advancedSpectrumViewerInputUnit} onChange={(event) => setAdvancedSpectrumViewerInputUnit(event.target.value)}>
+                        <option value="watts">Watts (W)</option>
+                        <option value="db">dB / dBm</option>
+                      </select>
+                    </label>
+                    <label className="inline-select-field">
+                      <span>Display</span>
+                      <select value={advancedSpectrumViewerDisplayUnit} onChange={(event) => setAdvancedSpectrumViewerDisplayUnit(event.target.value)}>
+                        <option value="db">dB / dBm</option>
+                        <option value="watts">Watts (W)</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+                <div
+                  className={isSpectrumViewerDragging ? "spectrum-dropzone active" : "spectrum-dropzone"}
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    setIsSpectrumViewerDragging(true);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsSpectrumViewerDragging(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    setIsSpectrumViewerDragging(false);
+                  }}
+                  onDrop={handleSpectrumViewerDrop}
+                >
+                  <strong>{isUploadingSpectrumViewerFiles ? "Reading uploaded spectra..." : "Upload Files"}</strong>
+                  <p>Drag and drop `.txt`, `.csv`, `.xlsx`, or `.xls` files here, or browse from a folder. Excel files are read from the `IL` sheet using wavelength in metres and IL in dB.</p>
+                  <label className="upload-measurement-button secondary-upload">
+                    <input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleSpectrumViewerUpload} disabled={isUploadingSpectrumViewerFiles} />
+                    <span>{isUploadingSpectrumViewerFiles ? "Processing Files..." : "Choose Files"}</span>
+                  </label>
+                </div>
+                <div className="spectrum-viewer-controls">
+                  <label className="inline-text-field">
+                    <span>Figure title</span>
+                    <input value={spectrumViewerTitle} onChange={(event) => setSpectrumViewerTitle(event.target.value)} placeholder="Spectrum Viewer" />
+                  </label>
+                  <label className="checkbox-inline-field">
+                    <input type="checkbox" checked={showSpectrumViewerPeakPosition} onChange={(event) => setShowSpectrumViewerPeakPosition(event.target.checked)} />
+                    <span>Show peak position guides</span>
+                  </label>
+                </div>
+                <div className="spectrum-viewer-grid insertion-overlay-grid">
+                  <div className="spectrum-series-panel">
+                    <div className="spectrum-series-toolbar">
+                      <button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: true })))} disabled={!spectrumViewerSeries.length}>Show All</button>
+                      <button type="button" className="secondary-action compact-inline-action" onClick={() => setSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: false })))} disabled={!spectrumViewerSeries.length}>Hide All</button>
+                      <button
+                        type="button"
+                        className="secondary-action compact-inline-action"
+                        onClick={() => {
+                          setSpectrumViewerSeries([]);
+                          setSpectrumViewerTitle("");
+                          resetSpectrumViewerAnalysisControls();
+                        }}
+                        disabled={!spectrumViewerSeries.length}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <div className="spectrum-series-list">
+                      {spectrumViewerSeries.length ? spectrumViewerSeries.map((item) => (
+                        <label key={item.id} className="spectrum-series-item">
+                          <input
+                            type="checkbox"
+                            checked={item.visible !== false}
+                            onChange={() => setSpectrumViewerSeries((previous) => previous.map((entry) => entry.id === item.id ? { ...entry, visible: entry.visible === false } : entry))}
+                          />
+                          <div>
+                            <strong>{item.label}</strong>
+                            <span>{item.pointCount} points | {item.wavelengthMinNm.toFixed(1)}-{item.wavelengthMaxNm.toFixed(1)} nm</span>
+                          </div>
+                        </label>
+                      )) : <div className="chart-empty compact">No traces loaded yet.</div>}
+                    </div>
+                  </div>
+                  <InteractiveSpectrumViewerPlot
+                    series={spectrumViewerSeries}
+                    displayUnit={spectrumViewerDisplayUnit}
+                    chipId="Spectrum Viewer"
+                    figureTitle={spectrumViewerTitle}
+                    onFigureTitleChange={setSpectrumViewerTitle}
+                    showPeakPosition={showSpectrumViewerPeakPosition}
+                  />
+                </div>
+              </article>
+            </section>
+          ) : null}
+          {activeTab === "spectrum-viewer-advanced" ? (
+            <section className="library-stack">
+              <article className="analysis-card spectrum-viewer-card">
+                <div className="analysis-card-head">
+                  <div>
+                    <h2>Spectrum Viewer (Advanced)</h2>
+                    <p>Use advanced peak detection, wavelength focus windows, custom axes, FSR estimates, and extinction-ratio summaries on the same uploaded spectra.</p>
+                  </div>
+                  <div className="library-action-row">
+                    <label className="inline-select-field">
+                      <span>Input unit</span>
+                      <select value={spectrumViewerInputUnit} onChange={(event) => setSpectrumViewerInputUnit(event.target.value)}>
+                        <option value="watts">Watts (W)</option>
+                        <option value="db">dB / dBm</option>
+                      </select>
+                    </label>
+                    <label className="inline-select-field">
+                      <span>Display</span>
+                      <select value={spectrumViewerDisplayUnit} onChange={(event) => setSpectrumViewerDisplayUnit(event.target.value)}>
+                        <option value="db">dB / dBm</option>
+                        <option value="watts">Watts (W)</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+                <div
+                  className={isAdvancedSpectrumViewerDragging ? "spectrum-dropzone active" : "spectrum-dropzone"}
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    setIsAdvancedSpectrumViewerDragging(true);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsAdvancedSpectrumViewerDragging(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    setIsAdvancedSpectrumViewerDragging(false);
+                  }}
+                  onDrop={handleAdvancedSpectrumViewerDrop}
+                >
+                  <strong>{isUploadingAdvancedSpectrumViewerFiles ? "Reading uploaded spectra..." : "Upload Files"}</strong>
+                  <p>Drag and drop `.txt`, `.csv`, `.xlsx`, or `.xls` files here, or browse from a folder. Excel files are read from the `IL` sheet using wavelength in metres and IL in dB.</p>
+                  <label className="upload-measurement-button secondary-upload">
+                    <input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleAdvancedSpectrumViewerUpload} disabled={isUploadingAdvancedSpectrumViewerFiles} />
+                    <span>{isUploadingAdvancedSpectrumViewerFiles ? "Processing Files..." : "Choose Files"}</span>
+                  </label>
+                </div>
+                <div className="spectrum-viewer-controls">
+                  <label className="inline-text-field">
+                    <span>Figure title</span>
+                    <input value={advancedSpectrumViewerTitle} onChange={(event) => setAdvancedSpectrumViewerTitle(event.target.value)} placeholder="Spectrum Viewer" />
+                  </label>
+                  <label className="checkbox-inline-field">
+                    <input type="checkbox" checked={showAdvancedSpectrumViewerPeakPosition} onChange={(event) => setShowAdvancedSpectrumViewerPeakPosition(event.target.checked)} />
+                    <span>Show strongest-peak guides</span>
+                  </label>
+                  <label className="checkbox-inline-field">
+                    <input type="checkbox" checked={spectrumViewerPeakDetectionEnabled} onChange={(event) => setSpectrumViewerPeakDetectionEnabled(event.target.checked)} />
+                    <span>Enable peak detection</span>
+                  </label>
+                  <label className="inline-select-field">
+                    <span>Peak type</span>
+                    <select value={spectrumViewerPeakType} onChange={(event) => setSpectrumViewerPeakType(event.target.value)}>
+                      <option value="minima">Minima</option>
+                      <option value="maxima">Maxima</option>
+                    </select>
+                  </label>
+                  <label className="inline-text-field">
+                    <span>Peak spacing (nm)</span>
+                    <input type="number" min="0" step="0.1" value={spectrumViewerPeakSpacingNm} onChange={(event) => setSpectrumViewerPeakSpacingNm(Math.max(Number(event.target.value) || 0, 0))} />
+                  </label>
+                  <label className="inline-text-field">
+                    <span>Prominence</span>
+                    <input type="number" min="0" step="0.05" value={spectrumViewerPeakProminence} onChange={(event) => setSpectrumViewerPeakProminence(Math.max(Number(event.target.value) || 0, 0))} />
+                  </label>
+                </div>
+                <div className="spectrum-analysis-controls">
+                  <label className="mapping-field">
+                    <span>Start wavelength (nm)</span>
+                    <input type="number" value={advancedSpectrumViewerStartWavelengthNm} onChange={(event) => setAdvancedSpectrumViewerStartWavelengthNm(event.target.value)} />
+                  </label>
+                  <label className="mapping-field">
+                    <span>Stop wavelength (nm)</span>
+                    <input type="number" value={advancedSpectrumViewerStopWavelengthNm} onChange={(event) => setAdvancedSpectrumViewerStopWavelengthNm(event.target.value)} />
+                  </label>
+                  <label className="mapping-field">
+                    <span>{advancedSpectrumViewerDisplayUnit === "watts" ? "Power min (W)" : "Loss min (dB)"}</span>
+                    <input type="number" value={advancedSpectrumViewerYAxisMin} onChange={(event) => setAdvancedSpectrumViewerYAxisMin(event.target.value)} />
+                  </label>
+                  <label className="mapping-field">
+                    <span>{advancedSpectrumViewerDisplayUnit === "watts" ? "Power max (W)" : "Loss max (dB)"}</span>
+                    <input type="number" value={advancedSpectrumViewerYAxisMax} onChange={(event) => setAdvancedSpectrumViewerYAxisMax(event.target.value)} />
+                  </label>
+                </div>
+                <div className="spectrum-series-toolbar">
+                  <button type="button" className="ghost-action compact-inline-action" onClick={resetAdvancedSpectrumViewerVerticalRange} disabled={!advancedSpectrumViewerSeries.length}>Reset Vertical Range</button>
+                </div>
+                <div className="spectrum-viewer-grid insertion-overlay-grid">
+                  <div className="spectrum-series-panel">
+                    <div className="spectrum-series-toolbar">
+                      <button type="button" className="secondary-action compact-inline-action" onClick={() => setAdvancedSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: true })))} disabled={!advancedSpectrumViewerSeries.length}>Show All</button>
+                      <button type="button" className="secondary-action compact-inline-action" onClick={() => setAdvancedSpectrumViewerSeries((previous) => previous.map((item) => ({ ...item, visible: false })))} disabled={!advancedSpectrumViewerSeries.length}>Hide All</button>
+                      <button
+                        type="button"
+                        className="secondary-action compact-inline-action"
+                        onClick={() => {
+                          setAdvancedSpectrumViewerSeries([]);
+                          setAdvancedSpectrumViewerTitle("");
+                          resetSpectrumViewerAnalysisControls();
+                        }}
+                        disabled={!advancedSpectrumViewerSeries.length}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <div className="spectrum-series-list">
+                      {advancedSpectrumViewerSeries.length ? advancedSpectrumViewerSeries.map((item) => (
+                        <label key={item.id} className="spectrum-series-item">
+                          <input
+                            type="checkbox"
+                            checked={item.visible !== false}
+                            onChange={() => setAdvancedSpectrumViewerSeries((previous) => previous.map((entry) => entry.id === item.id ? { ...entry, visible: entry.visible === false } : entry))}
+                          />
+                          <div>
+                            <strong>{item.label}</strong>
+                            <span>{item.pointCount} points | {item.wavelengthMinNm.toFixed(1)}-{item.wavelengthMaxNm.toFixed(1)} nm</span>
+                          </div>
+                        </label>
+                      )) : <div className="chart-empty compact">No traces loaded yet.</div>}
+                    </div>
+                  </div>
+                  <InteractiveSpectrumViewerPlot
+                    series={advancedSpectrumViewerSeries}
+                    displayUnit={advancedSpectrumViewerDisplayUnit}
+                    chipId="Spectrum Viewer"
+                    figureTitle={advancedSpectrumViewerTitle}
+                    onFigureTitleChange={setAdvancedSpectrumViewerTitle}
+                    showPeakPosition={showAdvancedSpectrumViewerPeakPosition}
+                    analysisOptions={{
+                      peakDetectionEnabled: spectrumViewerPeakDetectionEnabled,
+                      peakType: spectrumViewerPeakType,
+                      minPeakSpacingNm: spectrumViewerPeakSpacingNm,
+                      minPeakProminence: spectrumViewerPeakProminence,
+                      focusMinNm: advancedSpectrumViewerStartWavelengthNm,
+                      focusMaxNm: advancedSpectrumViewerStopWavelengthNm,
+                      yAxisMin: advancedSpectrumViewerYAxisMin,
+                      yAxisMax: advancedSpectrumViewerYAxisMax,
+                      compareSeriesAId: advancedSpectrumViewerComparisonSeriesA,
+                      compareSeriesBId: advancedSpectrumViewerComparisonSeriesB
+                    }}
+                  />
+                </div>
+              </article>
+            </section>
+          ) : null}
           {activeTab === "filename-conversion" ? <FilenameConversionPanel /> : null}
           {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Theme preference</span><select value={settingsDraft.themePreference} onChange={(event) => updateSettingsDraft("themePreference", event.target.value)}>{THEME_PREFERENCE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label><label className="mapping-field"><span>Propagation spectral interval (nm)</span><input type="number" min="1" value={settingsDraft.propagationSpectralStepNm} onChange={(event) => updateSettingsDraft("propagationSpectralStepNm", Math.max(Number(event.target.value) || 1, 1))} /></label><label className="mapping-field"><span>Propagation fit MSE threshold</span><input type="number" step="0.01" value={settingsDraft.propagationMseThreshold} onChange={(event) => updateSettingsDraft("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} /></label></div><WaveguideLengthConfigurator count={settingsDraft.propagationWaveguideCount} start={settingsDraft.propagationWaveguideStartMm} interval={settingsDraft.propagationWaveguideIntervalMm} manualMode={settingsDraft.propagationWaveguideManualMode} lengths={settingsDraft.propagationWaveguideLengthsMm} onNumberChange={updateSettingsDraft} onLengthChange={updateSettingsWaveguideLength} onManualModeChange={(checked) => updateSettingsDraft("propagationWaveguideManualMode", checked)} /><div className="chart-empty compact">Uploaded measurement files now stay in the active workspace only. Use <strong>Save Dataset Snapshot</strong> or <strong>Save to GitHub</strong> from <strong>Dataset Snapshots</strong> when you want to keep a dataset.</div></article></section> : null}
           {activeTab === "wafermaps" ? <WafermapsLibrary draft={waferTemplateDraft} onDraftChange={updateWaferTemplateDraft} onSaveTemplate={saveWaferTemplate} templates={allWaferTemplates} selectedTemplateId={currentWaferTemplate?.id || ""} onUseTemplate={useWaferTemplate} onDeleteTemplate={deleteWaferTemplate} /> : null}

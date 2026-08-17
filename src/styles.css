@@ -2812,6 +2812,12 @@ body {
   align-items: end;
 }
 
+.spectrum-analysis-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
 .spectrum-dropzone {
   display: grid;
   gap: 10px;
@@ -2863,6 +2869,36 @@ body {
 .spectrum-series-list {
   display: grid;
   gap: 10px;
+}
+
+.spectrum-plot-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.spectrum-analysis-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.spectrum-analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.spectrum-analysis-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff, #f7fbfb);
+}
+
+.spectrum-analysis-card span {
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .spectrum-series-item {

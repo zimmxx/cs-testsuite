@@ -2,10 +2,10 @@
   "schemaVersion": 2,
   "datasetId": "picbootcamp_220nmsoipassive_slot3_ribwaveguide_propagationloss_wst",
   "label": "PICBOOTCAMP_Slot3_Rib",
-  "projectName": "PICBOOTCAMP",
+  "projectName": "MPWPICBOOTCAMP",
   "waferName": "SlotUndefined",
   "selectedDate": "",
-  "mpwRun": "PICBOOTCAMP",
+  "mpwRun": "MPWPICBOOTCAMP",
   "slot": "Slot3",
   "platform": "220nm SOI Passive",
   "platformId": "platform_undefined",
@@ -291,7 +291,7 @@
   },
   "namingOverrides": {
     "label": "PICBOOTCAMP_Slot3_Rib",
-    "projectName": "PICBOOTCAMP",
+    "projectName": "MPWPICBOOTCAMP",
     "slot": "Slot3",
     "platformLabel": "220nm SOI Passive",
     "buildingBlockLabel": "Propagation Loss Waveguide"

@@ -1,0 +1,37 @@
+{
+  "label": "MPW47_Slot11_Strip",
+  "projectName": "MPW47",
+  "mpwRun": "MPW47",
+  "slot": "Slot11",
+  "platform": "220nm SOI Active",
+  "buildingBlock": "Propagation Loss Strip",
+  "analyticsSummary": {
+    "propagationAverage": 4.199005697958,
+    "yield": 100,
+    "measuredChips": 7,
+    "computedAt": "2026-08-19T11:49:36.1934163Z"
+  },
+  "analyticsReview": {
+    "excludedChipIds": [],
+    "includedChipIds": [],
+    "totalChipCount": 7,
+    "selectedChipCount": 7,
+    "measuredChips": 7,
+    "fittedChips": 7,
+    "failedFits": 0,
+    "savedAt": "2026-08-19T11:49:36.1934163Z",
+    "propagationSettings": {
+      "propagationTargetWavelengthNm": 1550,
+      "propagationWindowNm": 5,
+      "propagationSpectralStepNm": 10,
+      "propagationMseThreshold": 0.5
+    }
+  },
+  "namingOverrides": {
+    "label": "MPW47_Slot11_Strip",
+    "projectName": "MPW47",
+    "slot": "Slot11",
+    "platformLabel": "220nm SOI Active",
+    "buildingBlockLabel": "Propagation Loss Strip"
+  }
+}

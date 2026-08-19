@@ -690,6 +690,27 @@ async function putGithubFile({ owner, repo, branch, path, token, message, conten
   });
 }
 
+async function deleteGithubFile({ owner, repo, branch, path, token, message }) {
+  const existingSha = await getExistingFileSha({ owner, repo, branch, path, token });
+  if (!existingSha) return null;
+
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  return githubRequest(url, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "X-GitHub-Api-Version": "2022-11-28"
+    },
+    body: JSON.stringify({
+      message,
+      branch,
+      sha: existingSha
+    })
+  });
+}
+
 export async function publishDatasetPackageToGithub({
   owner,
   repo,
@@ -855,6 +876,94 @@ export async function updatePublishedDatasetMetadataOnGithub({
     manifest: nextManifest,
     manifestV2: nextManifestV2,
     folderUrl: `https://github.com/${owner}/${repo}/tree/${branch}/public/${dataset.folder}`
+  };
+}
+
+export async function deletePublishedDatasetFromGithub({
+  owner,
+  repo,
+  branch,
+  token,
+  manifestPath,
+  mirrorManifestPath,
+  manifestPathV2,
+  mirrorManifestPathV2,
+  analyticsIndexPath,
+  analyticsIndexMirrorPath,
+  dataset,
+  existingManifest = [],
+  existingManifestV2 = [],
+  onProgress
+}) {
+  if (!owner || !repo || !token) {
+    throw new Error("GitHub owner, repo, and token are required.");
+  }
+  if (!dataset?.id || !dataset?.folder) {
+    throw new Error("Published dataset metadata is incomplete.");
+  }
+
+  const nextManifest = existingManifest.filter((entry) => entry?.id !== dataset.id)
+    .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
+  const nextManifestV2 = existingManifestV2.filter((entry) => entry?.id !== dataset.id)
+    .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
+  const analyticsIndex = buildLibraryAnalyticsIndex(nextManifestV2);
+  const datasetFolder = String(dataset.folder || "").replace(/^\/+|\/+$/g, "");
+  const datasetFiles = Array.isArray(dataset.files) ? dataset.files.filter(Boolean) : [];
+  const deletePaths = unique([
+    `public/${datasetFolder}/README.md`,
+    `${datasetFolder}/README.md`,
+    `public/${datasetFolder}/metadata.json`,
+    `${datasetFolder}/metadata.json`,
+    `public/${datasetFolder}/waveguide-config.json`,
+    `${datasetFolder}/waveguide-config.json`,
+    ...datasetFiles.flatMap((fileName) => [
+      `public/${datasetFolder}/${fileName}`,
+      `${datasetFolder}/${fileName}`
+    ])
+  ]);
+  const writes = [
+    manifestPath ? { path: manifestPath, content: JSON.stringify(nextManifest, null, 2) + "\n", message: `Remove ${dataset.label || dataset.id} from library manifest` } : null,
+    mirrorManifestPath ? { path: mirrorManifestPath, content: JSON.stringify(nextManifest, null, 2) + "\n", message: `Mirror removal of ${dataset.label || dataset.id} from library manifest` } : null,
+    manifestPathV2 ? { path: manifestPathV2, content: JSON.stringify(nextManifestV2, null, 2) + "\n", message: `Remove ${dataset.label || dataset.id} from library manifest v2` } : null,
+    mirrorManifestPathV2 ? { path: mirrorManifestPathV2, content: JSON.stringify(nextManifestV2, null, 2) + "\n", message: `Mirror removal of ${dataset.label || dataset.id} from library manifest v2` } : null,
+    analyticsIndexPath ? { path: analyticsIndexPath, content: JSON.stringify(analyticsIndex, null, 2) + "\n", message: `Remove ${dataset.label || dataset.id} from library analytics cache` } : null,
+    analyticsIndexMirrorPath ? { path: analyticsIndexMirrorPath, content: JSON.stringify(analyticsIndex, null, 2) + "\n", message: `Mirror removal of ${dataset.label || dataset.id} from library analytics cache` } : null
+  ].filter(Boolean);
+
+  let completed = 0;
+  const total = deletePaths.length + writes.length;
+  for (const path of deletePaths) {
+    onProgress?.({ completed, total, path });
+    await deleteGithubFile({
+      owner,
+      repo,
+      branch,
+      token,
+      path,
+      message: `Delete measurement dataset ${dataset.label || dataset.id}`
+    });
+    completed += 1;
+    onProgress?.({ completed, total, path });
+  }
+
+  for (const file of writes) {
+    onProgress?.({ completed, total, path: file.path });
+    await putGithubFile({
+      owner,
+      repo,
+      branch,
+      token,
+      path: file.path,
+      content: file.content,
+      message: file.message
+    });
+    completed += 1;
+    onProgress?.({ completed, total, path: file.path });
+  }
+
+  return {
+    manifest: nextManifest,
+    manifestV2: nextManifestV2
   };
 }
 

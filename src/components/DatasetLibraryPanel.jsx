@@ -60,6 +60,8 @@ export default function DatasetLibraryPanel({
   onPublishedDatasetDraftChange,
   onSavePublishedDatasetMetadata,
   isSavingPublishedDataset,
+  onDeletePublishedDataset,
+  isDeletingPublishedDataset,
   loadedGithubDataset,
   currentPublishedDatasetReview,
   canSaveCurrentReviewToPublishedDataset,
@@ -225,6 +227,9 @@ export default function DatasetLibraryPanel({
                     <td>{dataset.rowCount ? Number(dataset.rowCount).toLocaleString() : `${dataset.traceCount ?? 0} raw traces`}</td>
                     <td className="library-table-actions">
                       <button type="button" className="secondary-action" onClick={() => onSelectPublishedDataset(dataset)}>Edit</button>
+                      <button type="button" className="danger-action" onClick={() => onDeletePublishedDataset(dataset)} disabled={isDeletingPublishedDataset}>
+                        {isDeletingPublishedDataset ? "Deleting..." : "Delete"}
+                      </button>
                       <button type="button" onClick={() => onLoadRemoteDataset(dataset)} disabled={loadingBundledId === dataset.id}>{loadingBundledId === dataset.id ? "Loading..." : "Load"}</button>
                     </td>
                   </tr>
@@ -247,6 +252,9 @@ export default function DatasetLibraryPanel({
           <div className="library-action-row">
             <button type="button" onClick={() => onSavePublishedDatasetMetadata(selectedPublishedDataset)} disabled={!selectedPublishedDataset || isSavingPublishedDataset}>
               {isSavingPublishedDataset ? "Saving..." : canSaveCurrentReviewToPublishedDataset ? "Save Metadata + Current Review to GitHub" : "Save Metadata to GitHub"}
+            </button>
+            <button type="button" className="danger-action" onClick={() => onDeletePublishedDataset(selectedPublishedDataset)} disabled={!selectedPublishedDataset || isDeletingPublishedDataset}>
+              {isDeletingPublishedDataset ? "Deleting..." : "Delete Published Dataset"}
             </button>
           </div>
         </div>

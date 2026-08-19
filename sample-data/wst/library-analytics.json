@@ -44,50 +44,6 @@
     }
   },
   {
-    "id": "mit_220nmsoipassive_slot14_ribwaveguide_propagationloss_manuala",
-    "datasetId": "mit_220nmsoipassive_slot14_ribwaveguide_propagationloss_manuala",
-    "label": "MIT_220NMSOIPASSIVE_SLOT14_RIBWAVEGUIDE_PROPAGATIONLOSS_MANUAL",
-    "projectName": "MIT",
-    "waferName": "SlotUndefined",
-    "selectedDate": "",
-    "folder": "sample-data/wst/MIT_220NMSOIPASSIVE_SLOT14_RIBWAVEGUIDE_PROPAGATIONLOSS_MANUALa",
-    "measurementType": "PropagationLoss",
-    "measurementMode": "Manual",
-    "mpw": "MPWUNDEFINED",
-    "slot": "Slot14",
-    "waveguideType": "RibWaveguide",
-    "platformId": "220nm_soi_passive",
-    "platformLabel": "220nm SOI Passive",
-    "buildingBlockId": "propagation_loss_rib",
-    "buildingBlockLabel": "Propagation Loss Rib",
-    "traceCount": 102,
-    "rowCount": 1938102,
-    "chipCount": 17,
-    "waveguideCount": 6,
-    "analyticsSummary": {
-      "propagationAverage": 2.78592198638,
-      "yield": 100,
-      "measuredChips": 17,
-      "computedAt": "2026-08-19T11:49:01.9067975Z"
-    },
-    "analyticsReview": {
-      "excludedChipIds": [],
-      "includedChipIds": [],
-      "totalChipCount": 17,
-      "selectedChipCount": 17,
-      "measuredChips": 17,
-      "fittedChips": 17,
-      "failedFits": 0,
-      "savedAt": "2026-08-19T11:49:01.9067975Z",
-      "propagationSettings": {
-        "propagationTargetWavelengthNm": 1550,
-        "propagationWindowNm": 5,
-        "propagationSpectralStepNm": 10,
-        "propagationMseThreshold": 0.5
-      }
-    }
-  },
-  {
     "id": "mpw30_slot13_rib_data",
     "datasetId": "mpw30_slot13_rib_data",
     "label": "MPW30 Slot13 Rib WST Raw Data",
@@ -839,6 +795,50 @@
       "fittedChips": 9,
       "failedFits": 1,
       "savedAt": "2026-08-19T11:50:19.0390582Z",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 1550,
+        "propagationWindowNm": 5,
+        "propagationSpectralStepNm": 10,
+        "propagationMseThreshold": 0.5
+      }
+    }
+  },
+  {
+    "id": "mit_220nmsoipassive_slot14_ribwaveguide_propagationloss_manuala",
+    "datasetId": "mit_220nmsoipassive_slot14_ribwaveguide_propagationloss_manuala",
+    "label": "MIT_Slot14_Rib",
+    "projectName": "MPWMIT",
+    "waferName": "SlotUndefined",
+    "selectedDate": "",
+    "folder": "sample-data/wst/MIT_220NMSOIPASSIVE_SLOT14_RIBWAVEGUIDE_PROPAGATIONLOSS_MANUALa",
+    "measurementType": "PropagationLoss",
+    "measurementMode": "Manual",
+    "mpw": "MPWMIT",
+    "slot": "Slot14",
+    "waveguideType": "RibWaveguide",
+    "platformId": "220nm_soi_passive",
+    "platformLabel": "220nm SOI Passive",
+    "buildingBlockId": "propagation_loss_rib",
+    "buildingBlockLabel": "Propagation Loss Rib",
+    "traceCount": 102,
+    "rowCount": 1938102,
+    "chipCount": 17,
+    "waveguideCount": 6,
+    "analyticsSummary": {
+      "propagationAverage": 2.78592198638,
+      "yield": 100,
+      "measuredChips": 17,
+      "computedAt": "2026-08-19T11:49:01.9067975Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [],
+      "includedChipIds": [],
+      "totalChipCount": 17,
+      "selectedChipCount": 17,
+      "measuredChips": 17,
+      "fittedChips": 17,
+      "failedFits": 0,
+      "savedAt": "2026-08-19T11:49:01.9067975Z",
       "propagationSettings": {
         "propagationTargetWavelengthNm": 1550,
         "propagationWindowNm": 5,

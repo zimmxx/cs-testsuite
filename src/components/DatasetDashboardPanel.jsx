@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getDatasetPresentation } from "../lib/datasetPresentation";
+
+const DATASET_ANALYSIS_TIMEOUT_MS = 20000;
 
 function formatNumber(value, digits = 1, suffix = "") {
   return value === null || value === undefined || Number.isNaN(value) ? "--" : `${Number(value).toFixed(digits)}${suffix}`;
@@ -18,6 +20,85 @@ function groupCount(items, keyFn) {
 
 function sum(items, valueFn) {
   return items.reduce((total, item) => total + (Number(valueFn(item)) || 0), 0);
+}
+
+function hasUsableAnalytics(summary) {
+  return summary && (
+    summary.propagationAverage !== null
+    || summary.yield !== null
+    || summary.measuredChips !== null
+  );
+}
+
+function buildDashboardStatus({
+  filteredDatasets,
+  analyticsById,
+  activeDatasetLabel,
+  failedCount,
+  isAnalyzing
+}) {
+  const total = filteredDatasets.length;
+  const completed = filteredDatasets.filter((dataset) => hasUsableAnalytics(analyticsById[dataset.id])).length;
+  const remaining = Math.max(total - completed, 0);
+
+  if (!total) {
+    return {
+      phase: "idle",
+      label: "No datasets selected",
+      detail: "Adjust the platform or project filters to include at least one published dataset.",
+      completed,
+      total,
+      remaining,
+      failedCount
+    };
+  }
+
+  if (isAnalyzing && activeDatasetLabel) {
+    const currentIndex = Math.min(completed + 1, total);
+    return {
+      phase: "running",
+      label: `Analysing dataset ${currentIndex} of ${total}`,
+      detail: `Currently processing ${activeDatasetLabel}. ${remaining} dataset${remaining === 1 ? "" : "s"} still need analytics.`,
+      completed,
+      total,
+      remaining,
+      failedCount
+    };
+  }
+
+  if (failedCount && completed === 0 && remaining > 0) {
+    return {
+      phase: "failed",
+      label: "Analysis failed",
+      detail: `${failedCount} dataset${failedCount === 1 ? "" : "s"} failed to analyse. Use Re-run Missing Analytics to try again.`,
+      completed,
+      total,
+      remaining,
+      failedCount
+    };
+  }
+
+  if (completed === total) {
+    return {
+      phase: "complete",
+      label: "Completed",
+      detail: `Analytics are loaded for all ${total} filtered dataset${total === 1 ? "" : "s"}.`,
+      completed,
+      total,
+      remaining,
+      failedCount
+    };
+  }
+
+  return {
+    phase: "queued",
+    label: `Queued ${remaining} dataset${remaining === 1 ? "" : "s"}`,
+    detail: `${completed} of ${total} filtered dataset${total === 1 ? "" : "s"} already have analytics.`,
+    completed,
+    total,
+    remaining,
+    failedCount
+  };
 }
 
 function DonutChart({ data = [], title }) {
@@ -112,9 +193,12 @@ export default function DatasetDashboardPanel({
 }) {
   const [platformFilter, setPlatformFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
-  const [statusMessage, setStatusMessage] = useState("The dashboard reads the GitHub measurement manifest immediately and can calculate slot-level propagation summaries on demand.");
   const [analyticsById, setAnalyticsById] = useState({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [activeDatasetLabel, setActiveDatasetLabel] = useState("");
+  const [failedDatasetIds, setFailedDatasetIds] = useState([]);
+  const [lastErrorMessage, setLastErrorMessage] = useState("");
+  const activeAnalysisIdRef = useRef("");
 
   const platforms = useMemo(
     () => ["all", ...new Set(remoteDatasets.map((dataset) => dataset.platformLabel || dataset.platformDisplayName || "Platform Undefined"))],
@@ -160,26 +244,117 @@ export default function DatasetDashboardPanel({
       }),
     [analyticsById, filteredDatasets]
   );
+  const failedDatasetSet = useMemo(() => new Set(failedDatasetIds), [failedDatasetIds]);
+  const dashboardStatus = useMemo(
+    () => buildDashboardStatus({
+      filteredDatasets,
+      analyticsById,
+      activeDatasetLabel,
+      failedCount: failedDatasetIds.length,
+      isAnalyzing
+    }),
+    [activeDatasetLabel, analyticsById, failedDatasetIds.length, filteredDatasets, isAnalyzing]
+  );
 
-  async function analyzeFiltered() {
-    const targets = filteredDatasets.filter((dataset) => !analyticsById[dataset.id]);
-    if (!targets.length) {
-      setStatusMessage("Filtered datasets are already analysed.");
-      return;
+  async function runDatasetAnalysis(dataset) {
+    let timeoutHandle;
+    try {
+      return await Promise.race([
+        onAnalyzeDataset(dataset),
+        new Promise((_, reject) => {
+          timeoutHandle = window.setTimeout(() => {
+            reject(new Error(`Analysis timed out after ${Math.round(DATASET_ANALYSIS_TIMEOUT_MS / 1000)} seconds.`));
+          }, DATASET_ANALYSIS_TIMEOUT_MS);
+        })
+      ]);
+    } finally {
+      if (timeoutHandle) window.clearTimeout(timeoutHandle);
+    }
+  }
+
+  useEffect(() => {
+    setAnalyticsById((previous) => {
+      const next = { ...previous };
+      let changed = false;
+      remoteDatasets.forEach((dataset) => {
+        if (!hasUsableAnalytics(dataset?.analyticsSummary)) return;
+        if (previous[dataset.id]) return;
+        next[dataset.id] = dataset.analyticsSummary;
+        changed = true;
+      });
+      return changed ? next : previous;
+    });
+  }, [remoteDatasets]);
+
+  useEffect(() => {
+    const nextTarget = filteredDatasets.find(
+      (dataset) => !hasUsableAnalytics(analyticsById[dataset.id]) && !failedDatasetSet.has(dataset.id)
+    );
+    if (nextTarget && activeAnalysisIdRef.current === nextTarget.id) return undefined;
+    if (!nextTarget) {
+      activeAnalysisIdRef.current = "";
+      setActiveDatasetLabel("");
+      if (isAnalyzing) setIsAnalyzing(false);
+      return undefined;
     }
 
+    let cancelled = false;
+    activeAnalysisIdRef.current = nextTarget.id;
+    setIsAnalyzing(true);
+    setActiveDatasetLabel(nextTarget.label);
+    setLastErrorMessage("");
+
+    (async () => {
+      try {
+        const analytics = await runDatasetAnalysis(nextTarget);
+        if (cancelled) return;
+        setAnalyticsById((previous) => ({ ...previous, [nextTarget.id]: analytics }));
+        setFailedDatasetIds((previous) => previous.filter((datasetId) => datasetId !== nextTarget.id));
+      } catch (error) {
+        if (cancelled) return;
+        setFailedDatasetIds((previous) => previous.includes(nextTarget.id) ? previous : [...previous, nextTarget.id]);
+        setLastErrorMessage(error instanceof Error ? error.message : "Dataset analytics failed.");
+      } finally {
+        if (!cancelled) {
+          activeAnalysisIdRef.current = "";
+          setActiveDatasetLabel("");
+          setIsAnalyzing(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [analyticsById, failedDatasetSet, filteredDatasets, isAnalyzing, onAnalyzeDataset]);
+
+  async function analyzeFiltered() {
+    const targets = filteredDatasets.filter((dataset) => !hasUsableAnalytics(analyticsById[dataset.id]));
+    if (!targets.length) return;
+
+    setFailedDatasetIds([]);
+    setLastErrorMessage("");
     setIsAnalyzing(true);
     try {
       const nextEntries = {};
       for (const dataset of targets) {
-        setStatusMessage(`Analysing ${dataset.label}...`);
-        nextEntries[dataset.id] = await onAnalyzeDataset(dataset);
+        activeAnalysisIdRef.current = dataset.id;
+        setActiveDatasetLabel(dataset.label);
+        try {
+          nextEntries[dataset.id] = await runDatasetAnalysis(dataset);
+        } catch (error) {
+          setFailedDatasetIds((previous) => previous.includes(dataset.id) ? previous : [...previous, dataset.id]);
+          setLastErrorMessage(error instanceof Error ? error.message : "Dataset analytics failed.");
+        }
       }
       setAnalyticsById((previous) => ({ ...previous, ...nextEntries }));
-      setStatusMessage(`Analysed ${targets.length} dataset(s). The dashboard now includes average propagation loss and yield for the filtered library view.`);
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Dataset analytics failed.");
+      if (activeAnalysisIdRef.current) {
+        setFailedDatasetIds((previous) => previous.includes(activeAnalysisIdRef.current) ? previous : [...previous, activeAnalysisIdRef.current]);
+      }
     } finally {
+      activeAnalysisIdRef.current = "";
+      setActiveDatasetLabel("");
       setIsAnalyzing(false);
     }
   }
@@ -190,10 +365,12 @@ export default function DatasetDashboardPanel({
         <div className="analysis-card-head">
           <div>
             <h2>Dashboard</h2>
-            <p>Review everything currently published in the GitHub measurement library, filter by platform or MPW, and calculate wafer-level propagation summaries from the saved datasets.</p>
+            <p>Review everything currently published in the GitHub measurement library, filter by platform or MPW, and auto-load wafer-level propagation summaries from stored analytics or the saved raw datasets.</p>
           </div>
           <div className="library-action-row">
-            <button type="button" onClick={analyzeFiltered} disabled={isAnalyzing || !filteredDatasets.length}>{isAnalyzing ? "Analysing..." : "Analyse Filtered Datasets"}</button>
+            <button type="button" onClick={analyzeFiltered} disabled={isAnalyzing || !filteredDatasets.length}>
+              {isAnalyzing ? `${dashboardStatus.completed + 1}/${dashboardStatus.total} Analysing...` : "Re-run Missing Analytics"}
+            </button>
           </div>
         </div>
 
@@ -224,8 +401,16 @@ export default function DatasetDashboardPanel({
         <div className="analysis-card-head stacked">
           <div>
             <h2>Dashboard Status</h2>
-            <p>{statusMessage}</p>
+            <p><strong>{dashboardStatus.label}</strong></p>
+            <p>{dashboardStatus.detail}</p>
+            {lastErrorMessage ? <p>{lastErrorMessage}</p> : null}
           </div>
+        </div>
+        <div className="translator-metrics github-library-metrics">
+          <div><strong>{dashboardStatus.completed}</strong><span>Completed</span></div>
+          <div><strong>{dashboardStatus.remaining}</strong><span>Queued</span></div>
+          <div><strong>{failedDatasetIds.length}</strong><span>Failed</span></div>
+          <div><strong>{dashboardStatus.total}</strong><span>Total filtered</span></div>
         </div>
       </article>
 

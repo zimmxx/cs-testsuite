@@ -20,7 +20,15 @@ import {
   sourceTypeLabel
 } from "./lib/parsers";
 import { createCenterFilledWaferTemplate, defaultWaferTemplateId, getBuiltInWaferTemplates, getWaferTemplateLayout, shortChipLabel } from "./lib/waferTemplates";
-import { buildDatasetSnapshotMetadata, buildGithubDatasetPackage, publishDatasetPackageToGithub } from "./lib/githubLibrary";
+import {
+  buildDatasetAnalyticsSummary,
+  normalizeDatasetAnalyticsReview,
+  buildDatasetSnapshotMetadata,
+  buildGithubDatasetPackage,
+  normalizeDatasetAnalyticsSummary,
+  publishDatasetPackageToGithub,
+  updatePublishedDatasetMetadataOnGithub
+} from "./lib/githubLibrary";
 import { getDatasetPresentation } from "./lib/datasetPresentation";
 import { buildStandardDatasetBaseName } from "./lib/filenameStandardization";
 import { parseHeaterMeasurementFiles } from "./lib/heaterMeasurement";
@@ -78,6 +86,7 @@ const DEFAULT_WAVEGUIDE_COUNT = 6;
 const DEFAULT_WAVEGUIDE_START_MM = 0;
 const DEFAULT_WAVEGUIDE_INTERVAL_MM = 4;
 const UPLOAD_BATCH_SIZE = 8;
+const BUNDLED_ANALYSIS_BATCH_SIZE = 4;
 const MAX_LOCAL_SNAPSHOT_ROWS = 150000;
 const MAX_LOCAL_SNAPSHOT_FILES = 120;
 const MAX_LOCAL_SNAPSHOT_ESTIMATED_BYTES = 4500000;
@@ -206,6 +215,8 @@ function normalizeLibraryDataset(definition) {
     id: definition.id || definition.datasetId || definition.label,
     ...display,
     files,
+    analyticsSummary: normalizeDatasetAnalyticsSummary(definition.analyticsSummary),
+    analyticsReview: normalizeDatasetAnalyticsReview(definition.analyticsReview),
     source: definition.source || "github-library",
     librarySchemaVersion: definition.librarySchemaVersion || definition.schemaVersion || 1
   };
@@ -354,6 +365,20 @@ async function readFilesInBatches(files, reader, batchSize = UPLOAD_BATCH_SIZE, 
     await new Promise((resolve) => window.setTimeout(resolve, 0));
   }
   return rows;
+}
+
+async function readItemsInBatches(items, reader, batchSize = BUNDLED_ANALYSIS_BATCH_SIZE, onProgress) {
+  const results = [];
+  for (let index = 0; index < items.length; index += batchSize) {
+    const batch = items.slice(index, index + batchSize);
+    const batchResults = await Promise.all(batch.map((item, batchIndex) => reader(item, index + batchIndex)));
+    batchResults.forEach((result) => {
+      results.push(result);
+    });
+    onProgress?.(Math.min(index + batch.length, items.length), items.length);
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+  }
+  return results;
 }
 
 function createId(prefix) {
@@ -774,8 +799,60 @@ function createDatasetNamingDraft(dataset = {}) {
   };
 }
 
+function createPublishedDatasetDraft(dataset = {}) {
+  return {
+    label: dataset.label || "",
+    projectName: dataset.projectName || "",
+    slot: dataset.slot || "",
+    platformLabel: dataset.platformLabel || dataset.platformDisplayName || "",
+    buildingBlockLabel: dataset.buildingBlockLabel || ""
+  };
+}
+
+function buildReviewedAnalyticsPayload(reportState, includedChipIds, allChipIds, sourceMeta) {
+  const measuredChips = Number(reportState?.matlabSummary?.measuredChips) || 0;
+  const fittedChips = Number(reportState?.matlabSummary?.fittedChips) || 0;
+  const failedFits = Number(reportState?.matlabSummary?.failedFits) || 0;
+  const selectedChipCount = Number(reportState?.selectedChipCount) || measuredChips;
+  const totalChipCount = Number(reportState?.totalChipCount) || selectedChipCount;
+  const includedIds = Array.isArray(includedChipIds) ? includedChipIds.map((chipId) => String(chipId)) : [];
+  const excludedChipIds = Array.isArray(allChipIds)
+    ? allChipIds.map((chipId) => String(chipId)).filter((chipId) => !includedIds.includes(chipId))
+    : [];
+  const yieldValue = measuredChips ? (fittedChips / measuredChips) * 100 : null;
+
+  return {
+    analyticsSummary: normalizeDatasetAnalyticsSummary({
+      propagationAverage: reportState?.matlabSummary?.avgPropagationLossDbPerCm,
+      yield: yieldValue,
+      measuredChips,
+      computedAt: new Date().toISOString()
+    }),
+    analyticsReview: normalizeDatasetAnalyticsReview({
+      excludedChipIds,
+      includedChipIds: includedIds,
+      totalChipCount,
+      selectedChipCount,
+      measuredChips,
+      fittedChips,
+      failedFits,
+      savedAt: new Date().toISOString(),
+      propagationSettings: {
+        propagationTargetWavelengthNm: sourceMeta?.propagationTargetWavelengthNm,
+        propagationWindowNm: sourceMeta?.propagationWindowNm,
+        propagationSpectralStepNm: sourceMeta?.propagationSpectralStepNm,
+        propagationMseThreshold: sourceMeta?.propagationMseThreshold
+      }
+    })
+  };
+}
+
 function selectedLocalDatasetId(value = "") {
   return String(value || "").startsWith("local:") ? String(value).slice(6) : "";
+}
+
+function selectedGithubDatasetId(value = "") {
+  return String(value || "").startsWith("github:") ? String(value).slice(7) : "";
 }
 
 function mergeWaferTemplates(...groups) {
@@ -1886,6 +1963,9 @@ export default function App() {
   const [savedProjects, setSavedProjects] = useState(() => readStoredJson(STORAGE_KEYS.projects, []));
   const [savedDatasets, setSavedDatasets] = useState(() => normalizeStoredDatasets(readStoredJson(STORAGE_KEYS.datasets, [])));
   const [datasetNamingDraft, setDatasetNamingDraft] = useState(() => createDatasetNamingDraft({ sourceMeta: buildDefaultSourceMeta(initialSettings), rawRows: [] }));
+  const [selectedPublishedDatasetId, setSelectedPublishedDatasetId] = useState("");
+  const [publishedDatasetDraft, setPublishedDatasetDraft] = useState({});
+  const [isSavingPublishedDataset, setIsSavingPublishedDataset] = useState(false);
   const [persistentCollectionsReady, setPersistentCollectionsReady] = useState(() => !supportsIndexedDbPersistence());
   const [savedWaferTemplates, setSavedWaferTemplates] = useState(() => readStoredJson(STORAGE_KEYS.waferTemplates, []));
   const [auditLog, setAuditLog] = useState(() => readStoredJson(STORAGE_KEYS.audit, []));
@@ -2444,6 +2524,90 @@ export default function App() {
     appendAudit("dataset", "Dataset naming updated", `Updated naming for local dataset snapshot ${datasetId}.`);
     pushToast("Dataset naming updated", "The loaded snapshot now uses the current publish preview naming.", "success");
   }
+  function selectPublishedDatasetForEdit(dataset) {
+    setSelectedPublishedDatasetId(dataset?.id || "");
+    setPublishedDatasetDraft(createPublishedDatasetDraft(dataset));
+    setStatusMessage(`Editing published dataset metadata for ${dataset?.label || "the selected dataset"}.`);
+  }
+  function updatePublishedDatasetDraft(field, value) {
+    setPublishedDatasetDraft((previous) => ({ ...previous, [field]: value }));
+  }
+  async function savePublishedDatasetMetadata(dataset) {
+    if (!dataset?.id) return;
+    if (!githubConfig.token) {
+      const message = "Add a fine-grained GitHub token in the Datasets tab before updating published dataset metadata.";
+      setStatusMessage(message);
+      pushToast("GitHub token required", message, "danger");
+      return;
+    }
+
+    setIsSavingPublishedDataset(true);
+    setRemoteLibraryStatus(`Updating GitHub metadata for ${dataset.label}...`);
+    try {
+      const metadataResponse = await fetch(bundledAssetUrl(`${dataset.folder}/metadata.json`), { cache: "no-store" });
+      const existingMetadata = metadataResponse.ok ? await metadataResponse.json() : {};
+      const isLoadedPublishedDataset = selectedGithubDatasetId(quickDatasetSelection) === dataset.id;
+      const reviewedAnalytics = isLoadedPublishedDataset
+        ? buildReviewedAnalyticsPayload(reportState, includedPropagationChipIds, propagationChipIds, sourceMeta)
+        : null;
+      const analyticsSummary = reviewedAnalytics?.analyticsSummary || normalizeDatasetAnalyticsSummary(
+        existingMetadata?.analyticsSummary || dataset.analyticsSummary
+      );
+      const analyticsReview = reviewedAnalytics?.analyticsReview || normalizeDatasetAnalyticsReview(
+        existingMetadata?.analyticsReview || dataset.analyticsReview
+      );
+      const nextMetadata = {
+        ...existingMetadata,
+        label: publishedDatasetDraft.label || dataset.label,
+        projectName: publishedDatasetDraft.projectName || dataset.projectName,
+        mpwRun: publishedDatasetDraft.projectName || existingMetadata.mpwRun || dataset.mpw,
+        slot: publishedDatasetDraft.slot || dataset.slot,
+        platform: publishedDatasetDraft.platformLabel || dataset.platformLabel,
+        buildingBlock: publishedDatasetDraft.buildingBlockLabel || dataset.buildingBlockLabel,
+        analyticsSummary,
+        analyticsReview,
+        namingOverrides: {
+          label: publishedDatasetDraft.label || dataset.label,
+          projectName: publishedDatasetDraft.projectName || dataset.projectName,
+          slot: publishedDatasetDraft.slot || dataset.slot,
+          platformLabel: publishedDatasetDraft.platformLabel || dataset.platformLabel,
+          buildingBlockLabel: publishedDatasetDraft.buildingBlockLabel || dataset.buildingBlockLabel
+        }
+      };
+
+      const result = await updatePublishedDatasetMetadataOnGithub({
+        owner: githubConfig.owner,
+        repo: githubConfig.repo,
+        branch: githubConfig.branch,
+        token: githubConfig.token,
+        manifestPath: GITHUB_LIBRARY_MANIFEST_PATH,
+        mirrorManifestPath: GITHUB_LIBRARY_MANIFEST_MIRROR_PATH,
+        manifestPathV2: GITHUB_LIBRARY_MANIFEST_V2_PATH,
+        mirrorManifestPathV2: GITHUB_LIBRARY_MANIFEST_V2_MIRROR_PATH,
+        dataset,
+        metadata: nextMetadata,
+        existingManifest: remoteLibraryDatasets,
+        existingManifestV2: remoteLibraryDatasets,
+        onProgress: ({ completed, total, path }) => {
+          setRemoteLibraryStatus(`Updating GitHub metadata: ${completed}/${total} files processed. Latest: ${path}`);
+        }
+      });
+
+      setRemoteLibraryDatasets((result.manifestV2 || result.manifest).map(normalizeLibraryDataset));
+      setStatusMessage(`Updated published dataset metadata for ${publishedDatasetDraft.label || dataset.label}.`);
+      setRemoteLibraryStatus(`GitHub metadata update complete for ${publishedDatasetDraft.label || dataset.label}.`);
+      appendAudit("github", "Published dataset metadata updated", `Updated GitHub metadata for ${dataset.id}.`);
+      pushToast("GitHub metadata updated", `${publishedDatasetDraft.label || dataset.label} was updated in the repository.`, "success");
+    } catch (error) {
+      const detail = formatGithubPublishError(error, githubConfig);
+      setStatusMessage(`GitHub metadata update failed: ${detail}`);
+      setRemoteLibraryStatus(`GitHub metadata update failed. ${detail}`);
+      appendAudit("github", "Published dataset metadata update failed", `Failed to update ${dataset.id}: ${detail}`);
+      pushToast("GitHub metadata update failed", detail, "danger");
+    } finally {
+      setIsSavingPublishedDataset(false);
+    }
+  }
   async function handleFileUpload(event) {
     const files = Array.from(event.target.files || []);
     if (!files.length || isUploadingFiles) return;
@@ -2693,8 +2857,15 @@ export default function App() {
     setActiveTab("propagation");
     appendAudit("workspace", "Workspace cleared", "Cleared the current wafer analysis workspace.");
   }
-  async function fetchBundledDatasetBundle(definition) {
+  async function fetchBundledDatasetBundle(definition, onProgress) {
     const fileNames = definition.files?.length ? definition.files : bundledTraceNames(definition);
+    const metadataPromise = definition.metadata
+      ? Promise.resolve(definition.metadata)
+      : definition.metadataFile
+        ? fetch(bundledAssetUrl(`${definition.folder}/metadata.json`), { cache: "no-store" })
+            .then((response) => (response.ok ? response.json() : null))
+            .catch(() => null)
+        : Promise.resolve(null);
     const configPromise = definition.waveguideConfig
       ? Promise.resolve(definition.waveguideConfig)
       : definition.configFile
@@ -2702,8 +2873,9 @@ export default function App() {
             .then((response) => (response.ok ? response.json() : null))
             .catch(() => null)
         : Promise.resolve(null);
-    const rowSets = await Promise.all(
-      fileNames.map(async (fileName) => {
+    const rowSets = await readItemsInBatches(
+      fileNames,
+      async (fileName) => {
         const response = await fetch(bundledAssetUrl(`${definition.folder}/${fileName}`));
         if (!response.ok) {
           throw new Error(`Unable to fetch ${fileName}`);
@@ -2715,12 +2887,22 @@ export default function App() {
           defaultWavelengthNm: sourceMeta.defaultWavelengthNm ?? appSettings.defaultWavelengthNm,
           traceValueUnit: sourceMeta.traceInputUnit || appSettings.traceInputUnit || "watts"
         });
-      })
+      },
+      BUNDLED_ANALYSIS_BATCH_SIZE,
+      onProgress
     );
+    const metadata = await metadataPromise;
     const waveguideConfig = await configPromise;
     const rows = rowSets.flat();
     const fallbackSettings = buildWaveguideSettingsPatch(sourceMeta);
     const configuredSettings = waveguideConfig ? buildWaveguideSettingsPatch(waveguideConfig) : fallbackSettings;
+    const savedReview = normalizeDatasetAnalyticsReview(metadata?.analyticsReview);
+    const reviewedPropagationSettings = {
+      propagationTargetWavelengthNm: savedReview.propagationSettings?.propagationTargetWavelengthNm,
+      propagationWindowNm: savedReview.propagationSettings?.propagationWindowNm,
+      propagationSpectralStepNm: savedReview.propagationSettings?.propagationSpectralStepNm,
+      propagationMseThreshold: savedReview.propagationSettings?.propagationMseThreshold
+    };
     const nextSourceMeta = applyWaveguideSettingsToSourceMeta(
       {
         ...buildDefaultSourceMeta(appSettings),
@@ -2729,15 +2911,19 @@ export default function App() {
         type: definition.sourceType,
         traceInputUnit: sourceMeta.traceInputUnit || appSettings.traceInputUnit || "watts"
       },
-      configuredSettings
+      {
+        ...configuredSettings,
+        ...Object.fromEntries(Object.entries(reviewedPropagationSettings).filter(([, value]) => value !== null && value !== undefined))
+      }
     );
     const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
-    const nextProjectName = definition.projectDisplayName || definition.projectName;
-    const nextWaferName = definition.waferDisplayName || definition.waferName;
+    const nextProjectName = metadata?.projectName || definition.projectDisplayName || definition.projectName;
+    const nextWaferName = metadata?.waferName || definition.waferDisplayName || definition.waferName;
 
     return {
       fileNames,
       rows,
+      metadata,
       waveguideConfig,
       sourceMeta: nextSourceMeta,
       columnMap: inferredMap,
@@ -2751,20 +2937,26 @@ export default function App() {
       const {
         fileNames,
         rows,
+        metadata,
         waveguideConfig,
         sourceMeta: nextSourceMeta,
         columnMap: inferredMap,
         projectName: nextProjectName,
         waferName: nextWaferName
       } = await fetchBundledDatasetBundle(definition);
+      const savedReview = normalizeDatasetAnalyticsReview(metadata?.analyticsReview);
+      const excludedChipLookup = Object.fromEntries(
+        (savedReview.excludedChipIds || []).map((chipId) => [String(chipId), true])
+      );
       setProjectName(nextProjectName);
       setWaferName(nextWaferName);
-      setExcludedPropagationChipIds({});
+      setExcludedPropagationChipIds(excludedChipLookup);
       setRawRows(rows);
       setColumnMap(inferredMap);
       setSourceMeta(nextSourceMeta);
       setDatasetNamingDraft(createDatasetNamingDraft({
         ...definition,
+        metadata,
         projectName: nextProjectName,
         waferName: nextWaferName,
         selectedDate: definition.selectedDate,
@@ -2775,7 +2967,11 @@ export default function App() {
       setSelectedWaferMetric("propagation");
       setSelectedChip(rows[0]?.chip_id || "");
       setActiveTab("propagation");
-      setStatusMessage(`Loaded bundled sample ${definition.label} from GitHub-hosted files (${fileNames.length} traces).`);
+      setStatusMessage(
+        savedReview.excludedChipIds.length
+          ? `Loaded bundled sample ${definition.label} from GitHub-hosted files (${fileNames.length} traces) with ${savedReview.excludedChipIds.length} saved chip exclusions.`
+          : `Loaded bundled sample ${definition.label} from GitHub-hosted files (${fileNames.length} traces).`
+      );
       pushToast(
         "Dataset loaded",
         waveguideConfig
@@ -2796,26 +2992,36 @@ export default function App() {
     }
   }
   async function analyzeBundledDataset(definition) {
-    const bundle = await fetchBundledDatasetBundle(definition);
-    const normalized = buildNormalizedRows(bundle.rows, bundle.columnMap, bundle.sourceMeta);
-    const calculated = {
-      propagation: computePropagationLoss(normalized, {
-        targetWavelengthNm: bundle.sourceMeta.propagationTargetWavelengthNm,
-        windowNm: bundle.sourceMeta.propagationWindowNm,
-        spectralStepNm: bundle.sourceMeta.propagationSpectralStepNm,
-        mseThreshold: bundle.sourceMeta.propagationMseThreshold
-      }),
-      insertion: computeInsertionLoss(normalized, {
-        targetWavelengthNm: bundle.sourceMeta.propagationTargetWavelengthNm
-      }),
-      heater: computeHeaterEfficiency(normalized)
-    };
+    const bundle = await fetchBundledDatasetBundle(
+      definition,
+      (completed, total) => {
+        setRemoteLibraryStatus(`Analysing ${definition.label}: loaded ${completed}/${total} trace files.`);
+      }
+    );
+    const existingSummary = normalizeDatasetAnalyticsSummary(
+      definition.analyticsSummary || bundle.metadata?.analyticsSummary
+    );
+    if (
+      existingSummary.propagationAverage !== null
+      && existingSummary.yield !== null
+      && existingSummary.measuredChips !== null
+    ) {
+      return existingSummary;
+    }
 
-    return {
-      propagationAverage: calculated.propagation.summaryStats.avgPropagationLossDbPerCm,
-      yield: calculated.propagation.passRate,
-      measuredChips: calculated.propagation.summaryStats.measuredChips
-    };
+    const summary = buildDatasetAnalyticsSummary({
+      rawRows: bundle.rows,
+      columnMap: bundle.columnMap,
+      sourceMeta: bundle.sourceMeta
+    });
+
+    setRemoteLibraryDatasets((previous) => previous.map((dataset) => (
+      dataset.id === definition.id
+        ? { ...dataset, analyticsSummary: summary }
+        : dataset
+    )));
+
+    return summary;
   }
   function updatePropagationDraftField(field, value) {
     setPropagationDraft((previous) => updatePropagationDraft(previous, field, value));
@@ -3238,6 +3444,30 @@ export default function App() {
   useEffect(() => {
     refreshRemoteLibrary(true);
   }, []);
+  useEffect(() => {
+    if (!selectedPublishedDatasetId) return;
+    const selectedDataset = remoteLibraryDatasets.find((dataset) => dataset.id === selectedPublishedDatasetId);
+    if (!selectedDataset) {
+      setSelectedPublishedDatasetId("");
+      setPublishedDatasetDraft({});
+      return;
+    }
+    setPublishedDatasetDraft((previous) => (
+      Object.keys(previous).length ? previous : createPublishedDatasetDraft(selectedDataset)
+    ));
+  }, [remoteLibraryDatasets, selectedPublishedDatasetId]);
+  const loadedGithubDatasetId = selectedGithubDatasetId(quickDatasetSelection);
+  const loadedGithubDataset = remoteLibraryDatasets.find((dataset) => dataset.id === loadedGithubDatasetId) || null;
+  const selectedPublishedDataset = remoteLibraryDatasets.find((dataset) => dataset.id === selectedPublishedDatasetId) || null;
+  const currentPublishedDatasetReview = loadedGithubDataset
+    ? buildReviewedAnalyticsPayload(reportState, includedPropagationChipIds, propagationChipIds, sourceMeta)
+    : null;
+  const canSaveCurrentReviewToPublishedDataset = Boolean(
+    selectedPublishedDataset
+    && loadedGithubDataset
+    && selectedPublishedDataset.id === loadedGithubDataset.id
+    && currentPublishedDatasetReview?.analyticsSummary?.measuredChips
+  );
   function updateSettingsDraft(field, value) { setSettingsDraft((previous) => applyWaveguideSettingsToDraft(previous, { [field]: value })); }
   function updateSettingsWaveguideLength(index, value) {
     setSettingsDraft((previous) => applyWaveguideSettingsToDraft(previous, {
@@ -3547,7 +3777,7 @@ export default function App() {
 </> : null}
 
           {activeTab === "projects" ? <section className="library-stack workspace-fit-view"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Workspace Snapshots</h2><p>Save the current wafer analysis context so you can reopen the same workspace state later, including selected views and analysis settings.</p></div><div className="library-action-row"><button type="button" onClick={saveCurrentProject}>Save Workspace Snapshot</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Back To Analysis</button></div></div><div className="translator-metrics"><div><strong>{projectName}</strong><span>Project</span></div><div><strong>{getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }).slot}</strong><span>Slot</span></div><div><strong>{datasetSummary.rows}</strong><span>Rows</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Workspace Snapshots</h2><p>Stored locally in this browser for reopening the same workspace state.</p></div></div><LibraryTable columns={["Project", "Slot", "Waveguide Type", "Measurement Mode", "Measurement Type", "Dataset", "Rows", "Saved", "Actions"]} rows={[...bundledProjectRows, ...currentProjectRows]} emptyMessage="No bundled or saved projects are available yet." /></article></section> : null}
-          {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} currentDatasetMeta={currentDatasetMeta} currentDatasetNamingDraft={datasetNamingDraft} onCurrentDatasetNamingChange={updateCurrentDatasetNaming} onResetCurrentDatasetNaming={() => resetCurrentDatasetNaming()} onApplyCurrentNamingToLoadedSnapshot={applyCurrentNamingToLoadedSnapshot} canApplyCurrentNamingToLoadedSnapshot={Boolean(selectedLocalDatasetId(quickDatasetSelection))} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={refreshRemoteLibrary} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
+          {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} currentDatasetMeta={currentDatasetMeta} currentDatasetNamingDraft={datasetNamingDraft} onCurrentDatasetNamingChange={updateCurrentDatasetNaming} onResetCurrentDatasetNaming={() => resetCurrentDatasetNaming()} onApplyCurrentNamingToLoadedSnapshot={applyCurrentNamingToLoadedSnapshot} canApplyCurrentNamingToLoadedSnapshot={Boolean(selectedLocalDatasetId(quickDatasetSelection))} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={refreshRemoteLibrary} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} selectedPublishedDataset={selectedPublishedDataset} publishedDatasetDraft={publishedDatasetDraft} onSelectPublishedDataset={selectPublishedDatasetForEdit} onPublishedDatasetDraftChange={updatePublishedDatasetDraft} onSavePublishedDatasetMetadata={savePublishedDatasetMetadata} isSavingPublishedDataset={isSavingPublishedDataset} loadedGithubDataset={loadedGithubDataset} currentPublishedDatasetReview={currentPublishedDatasetReview} canSaveCurrentReviewToPublishedDataset={canSaveCurrentReviewToPublishedDataset} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "manual-conversion-advanced" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} advanced /> : null}
           {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}

@@ -171,6 +171,8 @@ const GITHUB_LIBRARY_MANIFEST_PATH = "public/sample-data/wst/library-index.json"
 const GITHUB_LIBRARY_MANIFEST_MIRROR_PATH = "sample-data/wst/library-index.json";
 const GITHUB_LIBRARY_MANIFEST_V2_PATH = "public/sample-data/wst/library-index-v2.json";
 const GITHUB_LIBRARY_MANIFEST_V2_MIRROR_PATH = "sample-data/wst/library-index-v2.json";
+const GITHUB_LIBRARY_ANALYTICS_PATH = "public/sample-data/wst/library-analytics.json";
+const GITHUB_LIBRARY_ANALYTICS_MIRROR_PATH = "sample-data/wst/library-analytics.json";
 const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "main", token: "" };
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
@@ -2584,6 +2586,8 @@ export default function App() {
         mirrorManifestPath: GITHUB_LIBRARY_MANIFEST_MIRROR_PATH,
         manifestPathV2: GITHUB_LIBRARY_MANIFEST_V2_PATH,
         mirrorManifestPathV2: GITHUB_LIBRARY_MANIFEST_V2_MIRROR_PATH,
+        analyticsIndexPath: GITHUB_LIBRARY_ANALYTICS_PATH,
+        analyticsIndexMirrorPath: GITHUB_LIBRARY_ANALYTICS_MIRROR_PATH,
         dataset,
         metadata: nextMetadata,
         existingManifest: remoteLibraryDatasets,
@@ -3369,6 +3373,7 @@ export default function App() {
     try {
       let catalog = [];
       let schemaVersion = 1;
+      let analyticsIndex = [];
       const v2Response = await fetch(bundledAssetUrl("sample-data/wst/library-index-v2.json"), { cache: "no-store" });
       if (v2Response.ok) {
         catalog = await v2Response.json();
@@ -3378,9 +3383,31 @@ export default function App() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         catalog = await response.json();
       }
-      const normalized = Array.isArray(catalog) ? catalog.map(normalizeLibraryDataset) : [];
+      const analyticsResponse = await fetch(bundledAssetUrl("sample-data/wst/library-analytics.json"), { cache: "no-store" });
+      if (analyticsResponse.ok) {
+        analyticsIndex = await analyticsResponse.json();
+      }
+      const analyticsById = new Map(
+        (Array.isArray(analyticsIndex) ? analyticsIndex : []).map((entry) => [
+          entry.id || entry.datasetId || entry.label,
+          entry
+        ])
+      );
+      const mergedCatalog = Array.isArray(catalog)
+        ? catalog.map((entry) => {
+            const analyticsEntry = analyticsById.get(entry.id || entry.datasetId || entry.label);
+            return analyticsEntry
+              ? {
+                  ...entry,
+                  analyticsSummary: analyticsEntry.analyticsSummary || entry.analyticsSummary,
+                  analyticsReview: analyticsEntry.analyticsReview || entry.analyticsReview
+                }
+              : entry;
+          })
+        : [];
+      const normalized = mergedCatalog.map(normalizeLibraryDataset);
       setRemoteLibraryDatasets(normalized.length ? normalized : BUNDLED_LIBRARY_DATASETS.map(normalizeLibraryDataset));
-      setRemoteLibraryStatus(`GitHub measurement library refreshed. ${normalized.length} dataset folder(s) are currently published${schemaVersion >= 2 ? " with v2 metadata" : ""}.`);
+      setRemoteLibraryStatus(`GitHub measurement library refreshed. ${normalized.length} dataset folder(s) are currently published${schemaVersion >= 2 ? " with v2 metadata" : ""}${analyticsById.size ? ` and ${analyticsById.size} saved analytics records` : ""}.`);
       if (!silent) pushToast("Library refreshed", `${normalized.length} GitHub measurement dataset${normalized.length === 1 ? "" : "s"} ready.`, "success");
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Unknown error";
@@ -3417,6 +3444,8 @@ export default function App() {
         mirrorManifestPath: GITHUB_LIBRARY_MANIFEST_MIRROR_PATH,
         manifestPathV2: GITHUB_LIBRARY_MANIFEST_V2_PATH,
         mirrorManifestPathV2: GITHUB_LIBRARY_MANIFEST_V2_MIRROR_PATH,
+        analyticsIndexPath: GITHUB_LIBRARY_ANALYTICS_PATH,
+        analyticsIndexMirrorPath: GITHUB_LIBRARY_ANALYTICS_MIRROR_PATH,
         packageData,
         existingManifest: remoteLibraryDatasets,
         existingManifestV2: remoteLibraryDatasets,

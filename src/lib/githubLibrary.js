@@ -262,6 +262,39 @@ export function normalizeDatasetAnalyticsReview(review = {}) {
   };
 }
 
+export function buildLibraryAnalyticsEntry(dataset = {}) {
+  return {
+    id: dataset.id || dataset.datasetId || dataset.label,
+    datasetId: dataset.datasetId || dataset.id || dataset.label,
+    label: dataset.label || "",
+    projectName: dataset.projectName || "",
+    waferName: dataset.waferName || "",
+    selectedDate: dataset.selectedDate || "",
+    folder: dataset.folder || dataset.traceFolder || "",
+    measurementType: dataset.measurementType || "",
+    measurementMode: dataset.measurementMode || "",
+    mpw: dataset.mpw || "",
+    slot: dataset.slot || "",
+    waveguideType: dataset.waveguideType || dataset.waveguideFamily || "",
+    platformId: dataset.platformId || "",
+    platformLabel: dataset.platformLabel || "",
+    buildingBlockId: dataset.buildingBlockId || "",
+    buildingBlockLabel: dataset.buildingBlockLabel || "",
+    traceCount: Number(dataset.traceCount) || 0,
+    rowCount: Number(dataset.rowCount) || 0,
+    chipCount: Number(dataset.chipCount) || 0,
+    waveguideCount: Number(dataset.waveguideCount) || 0,
+    analyticsSummary: normalizeDatasetAnalyticsSummary(dataset.analyticsSummary),
+    analyticsReview: normalizeDatasetAnalyticsReview(dataset.analyticsReview)
+  };
+}
+
+export function buildLibraryAnalyticsIndex(datasets = []) {
+  return datasets
+    .map((dataset) => buildLibraryAnalyticsEntry(dataset))
+    .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
+}
+
 export function buildDatasetAnalyticsSummary(dataset) {
   const rawRows = Array.isArray(dataset?.rawRows) ? dataset.rawRows : [];
   if (!rawRows.length) {
@@ -666,6 +699,8 @@ export async function publishDatasetPackageToGithub({
   mirrorManifestPath,
   manifestPathV2,
   mirrorManifestPathV2,
+  analyticsIndexPath,
+  analyticsIndexMirrorPath,
   packageData,
   existingManifest = [],
   existingManifestV2 = [],
@@ -682,6 +717,7 @@ export async function publishDatasetPackageToGithub({
       .map((entry) => upgradeManifestEntryToV2(entry))
       .filter((entry) => entry.id !== packageData.manifestEntryV2.id)
   ].sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
+  const analyticsIndex = buildLibraryAnalyticsIndex(nextManifestV2);
 
   const filesToWrite = [
     ...packageData.traceFiles.flatMap((file) => [
@@ -700,6 +736,12 @@ export async function publishDatasetPackageToGithub({
       ? [
           { path: manifestPathV2, content: JSON.stringify(nextManifestV2, null, 2) + "\n" },
           { path: mirrorManifestPathV2, content: JSON.stringify(nextManifestV2, null, 2) + "\n" }
+        ]
+      : []),
+    ...(analyticsIndexPath && analyticsIndexMirrorPath
+      ? [
+          { path: analyticsIndexPath, content: JSON.stringify(analyticsIndex, null, 2) + "\n" },
+          { path: analyticsIndexMirrorPath, content: JSON.stringify(analyticsIndex, null, 2) + "\n" }
         ]
       : [])
   ];
@@ -736,6 +778,8 @@ export async function updatePublishedDatasetMetadataOnGithub({
   mirrorManifestPath,
   manifestPathV2,
   mirrorManifestPathV2,
+  analyticsIndexPath,
+  analyticsIndexMirrorPath,
   dataset,
   metadata,
   existingManifest = [],
@@ -743,6 +787,11 @@ export async function updatePublishedDatasetMetadataOnGithub({
   onProgress
 }) {
   const manifestEntry = buildUpdatedPublishedDatasetManifestEntry(dataset, metadata.namingOverrides, metadata);
+  const nextManifest = [manifestEntry, ...existingManifest.filter((entry) => entry.id !== dataset.id)]
+    .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
+  const nextManifestV2 = [manifestEntry, ...existingManifestV2.filter((entry) => entry.id !== dataset.id)]
+    .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
+  const analyticsIndex = buildLibraryAnalyticsIndex(nextManifestV2);
   const filesToWrite = [
     {
       path: `public/${dataset.folder}/metadata.json`,
@@ -754,41 +803,33 @@ export async function updatePublishedDatasetMetadataOnGithub({
     },
     {
       path: manifestPath,
-      content: JSON.stringify(
-        [manifestEntry, ...existingManifest.filter((entry) => entry.id !== dataset.id)]
-          .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label))),
-        null,
-        2
-      ) + "\n"
+      content: JSON.stringify(nextManifest, null, 2) + "\n"
     },
     {
       path: mirrorManifestPath,
-      content: JSON.stringify(
-        [manifestEntry, ...existingManifest.filter((entry) => entry.id !== dataset.id)]
-          .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label))),
-        null,
-        2
-      ) + "\n"
+      content: JSON.stringify(nextManifest, null, 2) + "\n"
     },
     ...(manifestPathV2 && mirrorManifestPathV2
       ? [
           {
             path: manifestPathV2,
-            content: JSON.stringify(
-              [manifestEntry, ...existingManifestV2.filter((entry) => entry.id !== dataset.id)]
-                .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label))),
-              null,
-              2
-            ) + "\n"
+            content: JSON.stringify(nextManifestV2, null, 2) + "\n"
           },
           {
             path: mirrorManifestPathV2,
-            content: JSON.stringify(
-              [manifestEntry, ...existingManifestV2.filter((entry) => entry.id !== dataset.id)]
-                .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label))),
-              null,
-              2
-            ) + "\n"
+            content: JSON.stringify(nextManifestV2, null, 2) + "\n"
+          }
+        ]
+      : []),
+    ...(analyticsIndexPath && analyticsIndexMirrorPath
+      ? [
+          {
+            path: analyticsIndexPath,
+            content: JSON.stringify(analyticsIndex, null, 2) + "\n"
+          },
+          {
+            path: analyticsIndexMirrorPath,
+            content: JSON.stringify(analyticsIndex, null, 2) + "\n"
           }
         ]
       : [])
@@ -809,11 +850,6 @@ export async function updatePublishedDatasetMetadataOnGithub({
     completed += 1;
     onProgress?.({ completed, total: filesToWrite.length, path: file.path });
   }
-
-  const nextManifest = [manifestEntry, ...existingManifest.filter((entry) => entry.id !== dataset.id)]
-    .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
-  const nextManifestV2 = [manifestEntry, ...existingManifestV2.filter((entry) => entry.id !== dataset.id)]
-    .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
 
   return {
     manifest: nextManifest,

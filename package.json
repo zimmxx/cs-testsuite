@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:library-analytics": "powershell -NoLogo -File scripts/build-library-analytics.ps1"
   },
   "dependencies": {
     "docx": "^9.7.1",

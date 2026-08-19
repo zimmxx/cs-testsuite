@@ -1,0 +1,963 @@
+[
+    {
+        "id":  "measurement_slot5_waveguide_manual_data",
+        "datasetId":  "measurement_slot5_waveguide_manual_data",
+        "label":  "Measurement Slot5 Waveguide Manual Raw Data",
+        "projectName":  "Measurement_Slot5_Waveguide",
+        "waferName":  "WaferSLOT5_Slot5_slot5_manual",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/Measurement_Slot5_waveguide_manual_data",
+        "measurementType":  "MeasurementTypeUndefined",
+        "measurementMode":  "Manual",
+        "mpw":  "MPWUNDEFINED",
+        "slot":  "Slot5",
+        "waveguideType":  "WaveguideUndefined",
+        "platformId":  "platform_undefined",
+        "platformLabel":  "Platform Undefined",
+        "buildingBlockId":  "measurement_block",
+        "buildingBlockLabel":  "Measurement Block",
+        "traceCount":  30,
+        "rowCount":  570030,
+        "chipCount":  5,
+        "waveguideCount":  6,
+        "analyticsSummary":  {
+                                 "propagationAverage":  4.378473755562,
+                                 "yield":  100,
+                                 "measuredChips":  5,
+                                 "computedAt":  "2026-08-19T11:48:41.9813136Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  5,
+                                "selectedChipCount":  5,
+                                "measuredChips":  5,
+                                "fittedChips":  5,
+                                "failedFits":  0,
+                                "savedAt":  "2026-08-19T11:48:41.9813136Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mit_220nmsoipassive_slot14_ribwaveguide_propagationloss_manuala",
+        "datasetId":  "mit_220nmsoipassive_slot14_ribwaveguide_propagationloss_manuala",
+        "label":  "MIT_220NMSOIPASSIVE_SLOT14_RIBWAVEGUIDE_PROPAGATIONLOSS_MANUAL",
+        "projectName":  "MIT",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MIT_220NMSOIPASSIVE_SLOT14_RIBWAVEGUIDE_PROPAGATIONLOSS_MANUALa",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPWUNDEFINED",
+        "slot":  "Slot14",
+        "waveguideType":  "RibWaveguide",
+        "platformId":  "220nm_soi_passive",
+        "platformLabel":  "220nm SOI Passive",
+        "buildingBlockId":  "propagation_loss_rib",
+        "buildingBlockLabel":  "Propagation Loss Rib",
+        "traceCount":  102,
+        "rowCount":  1938102,
+        "chipCount":  17,
+        "waveguideCount":  6,
+        "analyticsSummary":  {
+                                 "propagationAverage":  2.78592198638,
+                                 "yield":  100,
+                                 "measuredChips":  17,
+                                 "computedAt":  "2026-08-19T11:49:01.9067975Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  17,
+                                "selectedChipCount":  17,
+                                "measuredChips":  17,
+                                "fittedChips":  17,
+                                "failedFits":  0,
+                                "savedAt":  "2026-08-19T11:49:01.9067975Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw30_slot13_rib_data",
+        "datasetId":  "mpw30_slot13_rib_data",
+        "label":  "MPW30 Slot13 Rib WST Raw Data",
+        "projectName":  "MPW30_Slot13_Rib",
+        "waferName":  "WaferMPW_30_slot13_rib_wg",
+        "selectedDate":  "2024-04-16",
+        "folder":  "sample-data/wst/MPW30_slot13_rib_data",
+        "measurementType":  "MeasurementTypeUndefined",
+        "measurementMode":  "WST",
+        "mpw":  "MPW30",
+        "slot":  "Slot13",
+        "waveguideType":  "RibWaveguide",
+        "platformId":  "platform_undefined",
+        "platformLabel":  "Platform Undefined",
+        "buildingBlockId":  "measurement_block",
+        "buildingBlockLabel":  "Measurement Block",
+        "traceCount":  60,
+        "rowCount":  480060,
+        "chipCount":  10,
+        "waveguideCount":  6,
+        "analyticsSummary":  {
+                                 "propagationAverage":  2.546337550295,
+                                 "yield":  90,
+                                 "measuredChips":  10,
+                                 "computedAt":  "2026-08-19T11:49:06.6453848Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  10,
+                                "selectedChipCount":  10,
+                                "measuredChips":  10,
+                                "fittedChips":  9,
+                                "failedFits":  1,
+                                "savedAt":  "2026-08-19T11:49:06.6453848Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw43_step84a_220nmsoi_slot11_ribwaveguidenoimplant",
+        "datasetId":  "mpw43_step84a_220nmsoi_slot11_ribwaveguidenoimplant",
+        "label":  "MPW43_STEP84A_220NMSOI_SLOT11_RIBWAVEGUIDENOIMPLANT",
+        "projectName":  "MPW43_STEP84A",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW43_STEP84A_220NMSOI_SLOT11_RIBWAVEGUIDENOIMPLANT",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual converted",
+        "mpw":  "MPW43_STEP84A",
+        "slot":  "Slot11",
+        "waveguideType":  "Waveguide",
+        "platformId":  "220nm_soi",
+        "platformLabel":  "220nm SOI",
+        "buildingBlockId":  "propagation_loss_rib",
+        "buildingBlockLabel":  "Propagation Loss Rib",
+        "traceCount":  35,
+        "rowCount":  665035,
+        "chipCount":  5,
+        "waveguideCount":  7,
+        "analyticsSummary":  {
+                                 "propagationAverage":  7.08550301716,
+                                 "yield":  80,
+                                 "measuredChips":  5,
+                                 "computedAt":  "2026-08-19T11:49:12.1008017Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  5,
+                                "selectedChipCount":  5,
+                                "measuredChips":  5,
+                                "fittedChips":  4,
+                                "failedFits":  1,
+                                "savedAt":  "2026-08-19T11:49:12.1008017Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw43_step84a_220nmsoi_slot3_ribwaveguidenoimplant",
+        "datasetId":  "mpw43_step84a_220nmsoi_slot3_ribwaveguidenoimplant",
+        "label":  "MPW43_STEP84A_220NMSOI_SLOT3_RIBWAVEGUIDENOIMPLANT",
+        "projectName":  "MPW43_STEP84A",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW43_STEP84A_220NMSOI_SLOT3_RIBWAVEGUIDENOIMPLANT",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW43_STEP84A",
+        "slot":  "Slot3",
+        "waveguideType":  "RibWaveguide",
+        "platformId":  "220nm_soi",
+        "platformLabel":  "220nm SOI",
+        "buildingBlockId":  "propagation_loss_rib",
+        "buildingBlockLabel":  "Propagation Loss Rib",
+        "traceCount":  35,
+        "rowCount":  665035,
+        "chipCount":  5,
+        "waveguideCount":  7,
+        "analyticsSummary":  {
+                                 "propagationAverage":  6.008243891471,
+                                 "yield":  100,
+                                 "measuredChips":  5,
+                                 "computedAt":  "2026-08-19T11:49:18.2342661Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  5,
+                                "selectedChipCount":  5,
+                                "measuredChips":  5,
+                                "fittedChips":  5,
+                                "failedFits":  0,
+                                "savedAt":  "2026-08-19T11:49:18.2342661Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw46_slot5_waveguide_manual_data",
+        "datasetId":  "mpw46_slot5_waveguide_manual_data",
+        "label":  "MPW46 Slot5 Waveguide Manual Raw Data",
+        "projectName":  "MPW46",
+        "waferName":  "Slot5",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW46_Slot5_waveguide_manual_data",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW46",
+        "slot":  "Slot5",
+        "waveguideType":  "StripWaveguide",
+        "platformId":  "platform_undefined",
+        "platformLabel":  "Platform Undefined",
+        "buildingBlockId":  "measurement_block",
+        "buildingBlockLabel":  "Measurement Block",
+        "traceCount":  48,
+        "rowCount":  912048,
+        "chipCount":  8,
+        "waveguideCount":  6,
+        "analyticsSummary":  {
+                                 "propagationAverage":  1.261152917277,
+                                 "yield":  87.5,
+                                 "measuredChips":  8,
+                                 "computedAt":  "2026-08-19T11:49:27.1434040Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  8,
+                                "selectedChipCount":  8,
+                                "measuredChips":  8,
+                                "fittedChips":  7,
+                                "failedFits":  1,
+                                "savedAt":  "2026-08-19T11:49:27.1434040Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw47_slot11_waveguide_manual_data",
+        "datasetId":  "mpw47_slot11_waveguide_manual_data",
+        "label":  "MPW47 Slot11 Waveguide Manual Raw Data",
+        "projectName":  "MPW47",
+        "waferName":  "Slot11",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW47_Slot11_waveguide_manual_data",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW47",
+        "slot":  "Slot11",
+        "waveguideType":  "StripWaveguide",
+        "platformId":  "platform_undefined",
+        "platformLabel":  "Platform Undefined",
+        "buildingBlockId":  "measurement_block",
+        "buildingBlockLabel":  "Measurement Block",
+        "traceCount":  49,
+        "rowCount":  931049,
+        "chipCount":  7,
+        "waveguideCount":  7,
+        "analyticsSummary":  {
+                                 "propagationAverage":  4.199005697958,
+                                 "yield":  100,
+                                 "measuredChips":  7,
+                                 "computedAt":  "2026-08-19T11:49:36.1934163Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  7,
+                                "selectedChipCount":  7,
+                                "measuredChips":  7,
+                                "fittedChips":  7,
+                                "failedFits":  0,
+                                "savedAt":  "2026-08-19T11:49:36.1934163Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw47_slot5_waveguide_manual_data",
+        "datasetId":  "mpw47_slot5_waveguide_manual_data",
+        "label":  "MPW47 Slot5 Waveguide Manual Raw Data",
+        "projectName":  "MPW47",
+        "waferName":  "Slot5",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW47_Slot5_waveguide_manual_data",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW47",
+        "slot":  "Slot5",
+        "waveguideType":  "StripWaveguide",
+        "platformId":  "platform_undefined",
+        "platformLabel":  "Platform Undefined",
+        "buildingBlockId":  "measurement_block",
+        "buildingBlockLabel":  "Measurement Block",
+        "traceCount":  49,
+        "rowCount":  931049,
+        "chipCount":  7,
+        "waveguideCount":  7,
+        "analyticsSummary":  {
+                                 "propagationAverage":  6.901640181932,
+                                 "yield":  42.857142857143,
+                                 "measuredChips":  7,
+                                 "computedAt":  "2026-08-19T11:49:45.7321744Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  7,
+                                "selectedChipCount":  7,
+                                "measuredChips":  7,
+                                "fittedChips":  3,
+                                "failedFits":  4,
+                                "savedAt":  "2026-08-19T11:49:45.7321744Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw47_slot7_waveguide_manual_data",
+        "datasetId":  "mpw47_slot7_waveguide_manual_data",
+        "label":  "MPW47 Slot7 Waveguide Manual Raw Data",
+        "projectName":  "MPW47",
+        "waferName":  "Slot7",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW47_Slot7_waveguide_manual_data",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW47",
+        "slot":  "Slot7",
+        "waveguideType":  "StripWaveguide",
+        "platformId":  "platform_undefined",
+        "platformLabel":  "Platform Undefined",
+        "buildingBlockId":  "measurement_block",
+        "buildingBlockLabel":  "Measurement Block",
+        "traceCount":  49,
+        "rowCount":  931049,
+        "chipCount":  7,
+        "waveguideCount":  7,
+        "analyticsSummary":  {
+                                 "propagationAverage":  4.787355674626,
+                                 "yield":  100,
+                                 "measuredChips":  7,
+                                 "computedAt":  "2026-08-19T11:49:56.3703673Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  7,
+                                "selectedChipCount":  7,
+                                "measuredChips":  7,
+                                "fittedChips":  7,
+                                "failedFits":  0,
+                                "savedAt":  "2026-08-19T11:49:56.3703673Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw47_slot9_waveguide_manual_data",
+        "datasetId":  "mpw47_slot9_waveguide_manual_data",
+        "label":  "MPW47 Slot9 Waveguide Manual Raw Data",
+        "projectName":  "MPW47",
+        "waferName":  "Slot9",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW47_Slot9_waveguide_manual_data",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW47",
+        "slot":  "Slot9",
+        "waveguideType":  "StripWaveguide",
+        "platformId":  "platform_undefined",
+        "platformLabel":  "Platform Undefined",
+        "buildingBlockId":  "measurement_block",
+        "buildingBlockLabel":  "Measurement Block",
+        "traceCount":  49,
+        "rowCount":  931049,
+        "chipCount":  7,
+        "waveguideCount":  7,
+        "analyticsSummary":  {
+                                 "propagationAverage":  4.50957439399,
+                                 "yield":  100,
+                                 "measuredChips":  7,
+                                 "computedAt":  "2026-08-19T11:50:06.0666151Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  7,
+                                "selectedChipCount":  7,
+                                "measuredChips":  7,
+                                "fittedChips":  7,
+                                "failedFits":  0,
+                                "savedAt":  "2026-08-19T11:50:06.0666151Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw48_slot5_rib",
+        "datasetId":  "mpw48_slot5_rib",
+        "label":  "MPW48_Slot5_Rib_",
+        "projectName":  "MPW48",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW48_Slot5_Rib",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW48",
+        "slot":  "Slot5",
+        "waveguideType":  "StripWaveguide",
+        "platformId":  "220nm_soi",
+        "platformLabel":  "220nm SOI",
+        "buildingBlockId":  "propagation_loss_rib",
+        "buildingBlockLabel":  "Propagation Loss Rib",
+        "traceCount":  80,
+        "rowCount":  1520080,
+        "chipCount":  10,
+        "waveguideCount":  4,
+        "analyticsSummary":  {
+                                 "propagationAverage":  1.851904819075,
+                                 "yield":  60,
+                                 "measuredChips":  10,
+                                 "computedAt":  "2026-08-19T11:50:41.3069097Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  10,
+                                "selectedChipCount":  10,
+                                "measuredChips":  10,
+                                "fittedChips":  6,
+                                "failedFits":  4,
+                                "savedAt":  "2026-08-19T11:50:41.3069097Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw48_slot5_ribwg",
+        "datasetId":  "mpw48_slot5_ribwg",
+        "label":  "MPW48_Slot5_Ribwg",
+        "projectName":  "MPW48",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW48_Slot5_Ribwg",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW48",
+        "slot":  "Slot5",
+        "waveguideType":  "RibWaveguide",
+        "platformId":  "220nm_soi",
+        "platformLabel":  "220nm SOI",
+        "buildingBlockId":  "propagation_loss_rib",
+        "buildingBlockLabel":  "Propagation Loss Rib",
+        "traceCount":  40,
+        "rowCount":  760040,
+        "chipCount":  10,
+        "waveguideCount":  4,
+        "analyticsSummary":  {
+                                 "propagationAverage":  1.373094619264,
+                                 "yield":  80,
+                                 "measuredChips":  10,
+                                 "computedAt":  "2026-08-19T11:50:49.0518322Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  10,
+                                "selectedChipCount":  10,
+                                "measuredChips":  10,
+                                "fittedChips":  8,
+                                "failedFits":  2,
+                                "savedAt":  "2026-08-19T11:50:49.0518322Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw48_slot5_strip",
+        "datasetId":  "mpw48_slot5_strip",
+        "label":  "MPW48_Slot5_Strip",
+        "projectName":  "MPW48",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW48_Slot5_Strip",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW48",
+        "slot":  "Slot5",
+        "waveguideType":  "StripWaveguide",
+        "platformId":  "220nm_soi",
+        "platformLabel":  "220nm SOI",
+        "buildingBlockId":  "propagation_loss_strip",
+        "buildingBlockLabel":  "Propagation Loss Strip",
+        "traceCount":  40,
+        "rowCount":  760040,
+        "chipCount":  10,
+        "waveguideCount":  4,
+        "analyticsSummary":  {
+                                 "propagationAverage":  2.418330461266,
+                                 "yield":  100,
+                                 "measuredChips":  10,
+                                 "computedAt":  "2026-08-19T11:50:56.3772336Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  10,
+                                "selectedChipCount":  10,
+                                "measuredChips":  10,
+                                "fittedChips":  10,
+                                "failedFits":  0,
+                                "savedAt":  "2026-08-19T11:50:56.3772336Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw48_slot8_rib",
+        "datasetId":  "mpw48_slot8_rib",
+        "label":  "MPW48_Slot8_Rib",
+        "projectName":  "MPW48",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW48_Slot8_Rib",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW48",
+        "slot":  "Slot8",
+        "waveguideType":  "RibWaveguide",
+        "platformId":  "220nm_soi_passive",
+        "platformLabel":  "220nm SOI Passive",
+        "buildingBlockId":  "propagation_loss_rib",
+        "buildingBlockLabel":  "Propagation Loss Rib",
+        "traceCount":  40,
+        "rowCount":  760040,
+        "chipCount":  10,
+        "waveguideCount":  4,
+        "analyticsSummary":  {
+                                 "propagationAverage":  1.535229797434,
+                                 "yield":  80,
+                                 "measuredChips":  10,
+                                 "computedAt":  "2026-08-19T11:51:04.0030223Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  10,
+                                "selectedChipCount":  10,
+                                "measuredChips":  10,
+                                "fittedChips":  8,
+                                "failedFits":  2,
+                                "savedAt":  "2026-08-19T11:51:04.0030223Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw48_slot8_strip",
+        "datasetId":  "mpw48_slot8_strip",
+        "label":  "MPW48_Slot8_Strip",
+        "projectName":  "MPW48",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW48_Slot8_Strip",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW48",
+        "slot":  "Slot8",
+        "waveguideType":  "StripWaveguide",
+        "platformId":  "220nm_soi_passive",
+        "platformLabel":  "220nm SOI Passive",
+        "buildingBlockId":  "propagation_loss_strip",
+        "buildingBlockLabel":  "Propagation Loss Strip",
+        "traceCount":  40,
+        "rowCount":  760040,
+        "chipCount":  10,
+        "waveguideCount":  4,
+        "analyticsSummary":  {
+                                 "propagationAverage":  2.783857682211,
+                                 "yield":  90,
+                                 "measuredChips":  10,
+                                 "computedAt":  "2026-08-19T11:51:13.2552169Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  10,
+                                "selectedChipCount":  10,
+                                "measuredChips":  10,
+                                "fittedChips":  9,
+                                "failedFits":  1,
+                                "savedAt":  "2026-08-19T11:51:13.2552169Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw48_slot9_strip",
+        "datasetId":  "mpw48_slot9_strip",
+        "label":  "MPW48_Slot9_Strip",
+        "projectName":  "MPW48",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW48_Slot9_Strip",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW48",
+        "slot":  "Slot9",
+        "waveguideType":  "StripWaveguide",
+        "platformId":  "220nm_soi",
+        "platformLabel":  "220nm SOI",
+        "buildingBlockId":  "propagation_loss_strip",
+        "buildingBlockLabel":  "Propagation Loss Strip",
+        "traceCount":  50,
+        "rowCount":  950050,
+        "chipCount":  10,
+        "waveguideCount":  5,
+        "analyticsSummary":  {
+                                 "propagationAverage":  29.448816487079,
+                                 "yield":  80,
+                                 "measuredChips":  10,
+                                 "computedAt":  "2026-08-19T11:51:23.7947535Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  10,
+                                "selectedChipCount":  10,
+                                "measuredChips":  10,
+                                "fittedChips":  8,
+                                "failedFits":  2,
+                                "savedAt":  "2026-08-19T11:51:23.7947535Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw48_slot5_rib_w1_w2",
+        "datasetId":  "mpw48_slot5_rib_w1_w2",
+        "label":  "MPW48_Slot5_rib_W1_W2",
+        "projectName":  "MPW48_Slot5_rib_W1_W2",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW48_Slot5_rib_W1_W2",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW48_SLOT5_RIB_W1_W2",
+        "slot":  "Slot5",
+        "waveguideType":  "RibWaveguide",
+        "platformId":  "220nm_soi",
+        "platformLabel":  "220nm SOI",
+        "buildingBlockId":  "propagation_loss_rib",
+        "buildingBlockLabel":  "Propagation Loss Rib",
+        "traceCount":  32,
+        "rowCount":  608032,
+        "chipCount":  14,
+        "waveguideCount":  4,
+        "analyticsSummary":  {
+                                 "propagationAverage":  2.383782540392,
+                                 "yield":  100,
+                                 "measuredChips":  14,
+                                 "computedAt":  "2026-08-19T11:50:11.5715561Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  14,
+                                "selectedChipCount":  14,
+                                "measuredChips":  14,
+                                "fittedChips":  14,
+                                "failedFits":  0,
+                                "savedAt":  "2026-08-19T11:50:11.5715561Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw48_slot7_rib",
+        "datasetId":  "mpw48_slot7_rib",
+        "label":  "MPW48_Slot7_Rib",
+        "projectName":  "MPW48_Slot7_Rib",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW48_Slot7_Rib",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW48_SLOT7_RIB",
+        "slot":  "Slot7",
+        "waveguideType":  "StripWaveguide",
+        "platformId":  "220nm_soi",
+        "platformLabel":  "220nm SOI",
+        "buildingBlockId":  "propagation_loss_strip",
+        "buildingBlockLabel":  "Propagation Loss Strip",
+        "traceCount":  40,
+        "rowCount":  760040,
+        "chipCount":  10,
+        "waveguideCount":  6,
+        "analyticsSummary":  {
+                                 "propagationAverage":  1.637732958684,
+                                 "yield":  90,
+                                 "measuredChips":  10,
+                                 "computedAt":  "2026-08-19T11:50:19.0390582Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  10,
+                                "selectedChipCount":  10,
+                                "measuredChips":  10,
+                                "fittedChips":  9,
+                                "failedFits":  1,
+                                "savedAt":  "2026-08-19T11:50:19.0390582Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "mpw48_slot7_strip",
+        "datasetId":  "mpw48_slot7_strip",
+        "label":  "MPW48_Slot7_Strip",
+        "projectName":  "MPW48_Slot7_Strip",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/MPW48_Slot7_Strip",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "Manual",
+        "mpw":  "MPW48_SLOT7_STRIP",
+        "slot":  "Slot7",
+        "waveguideType":  "StripWaveguide",
+        "platformId":  "220nm_soi",
+        "platformLabel":  "220nm SOI",
+        "buildingBlockId":  "propagation_loss_strip",
+        "buildingBlockLabel":  "Propagation Loss Strip",
+        "traceCount":  40,
+        "rowCount":  760040,
+        "chipCount":  10,
+        "waveguideCount":  6,
+        "analyticsSummary":  {
+                                 "propagationAverage":  2.388884936185,
+                                 "yield":  80,
+                                 "measuredChips":  10,
+                                 "computedAt":  "2026-08-19T11:50:25.8933956Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  10,
+                                "selectedChipCount":  10,
+                                "measuredChips":  10,
+                                "fittedChips":  8,
+                                "failedFits":  2,
+                                "savedAt":  "2026-08-19T11:50:25.8933956Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    },
+    {
+        "id":  "picbootcamp_220nmsoipassive_slot3_ribwaveguide_propagationloss_wst",
+        "datasetId":  "picbootcamp_220nmsoipassive_slot3_ribwaveguide_propagationloss_wst",
+        "label":  "PICBOOTCAMP_220nmSOIPASSIVE_SLOT3_RIBWAVEGUIDE_PROPAGATIONLOSS_WST",
+        "projectName":  "PICBOOTCAMP",
+        "waferName":  "SlotUndefined",
+        "selectedDate":  "",
+        "folder":  "sample-data/wst/PICBOOTCAMP_220nmSOIPASSIVE_SLOT3_RIBWAVEGUIDE_PROPAGATIONLOSS_WST",
+        "measurementType":  "PropagationLoss",
+        "measurementMode":  "WST",
+        "mpw":  "MPWUNDEFINED",
+        "slot":  "Slot3",
+        "waveguideType":  "RibWaveguide",
+        "platformId":  "platform_undefined",
+        "platformLabel":  "220nm SOI Passive",
+        "buildingBlockId":  "propagation_loss_waveguide",
+        "buildingBlockLabel":  "Propagation Loss Waveguide",
+        "traceCount":  102,
+        "rowCount":  816119,
+        "chipCount":  17,
+        "waveguideCount":  6,
+        "analyticsSummary":  {
+                                 "propagationAverage":  2.363172626478,
+                                 "yield":  100,
+                                 "measuredChips":  17,
+                                 "computedAt":  "2026-08-19T11:51:31.0186116Z"
+                             },
+        "analyticsReview":  {
+                                "excludedChipIds":  [
+
+                                                    ],
+                                "includedChipIds":  [
+
+                                                    ],
+                                "totalChipCount":  17,
+                                "selectedChipCount":  17,
+                                "measuredChips":  17,
+                                "fittedChips":  17,
+                                "failedFits":  0,
+                                "savedAt":  "2026-08-19T11:51:31.0186116Z",
+                                "propagationSettings":  {
+                                                            "propagationTargetWavelengthNm":  1550,
+                                                            "propagationWindowNm":  5,
+                                                            "propagationSpectralStepNm":  10,
+                                                            "propagationMseThreshold":  0.5
+                                                        }
+                            }
+    }
+]
+

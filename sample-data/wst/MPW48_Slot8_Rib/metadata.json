@@ -7,7 +7,7 @@
   "selectedDate": "",
   "mpwRun": "MPW48",
   "slot": "Slot8",
-  "platform": "220nm SOI Passive",
+  "platform": "220nm SOI",
   "platformId": "220nm_soi_passive",
   "buildingBlock": "Propagation Loss Rib",
   "buildingBlockId": "propagation_loss_rib",
@@ -134,5 +134,34 @@
   },
   "legacyFolder": "sample-data/wst/MPW48_Slot8_Rib",
   "metadataFile": "MPW48_Slot8_Rib/metadata.json",
-  "configFile": "MPW48_Slot8_Rib/waveguide-config.json"
+  "configFile": "MPW48_Slot8_Rib/waveguide-config.json",
+  "analyticsSummary": {
+    "propagationAverage": 1.535229797434,
+    "yield": 80,
+    "measuredChips": 10,
+    "computedAt": "2026-08-19T11:51:04.0030223Z"
+  },
+  "analyticsReview": {
+    "excludedChipIds": [],
+    "includedChipIds": [],
+    "totalChipCount": 10,
+    "selectedChipCount": 10,
+    "measuredChips": 10,
+    "fittedChips": 8,
+    "failedFits": 2,
+    "savedAt": "2026-08-19T11:51:04.0030223Z",
+    "propagationSettings": {
+      "propagationTargetWavelengthNm": 1550,
+      "propagationWindowNm": 5,
+      "propagationSpectralStepNm": 10,
+      "propagationMseThreshold": 0.5
+    }
+  },
+  "namingOverrides": {
+    "label": "MPW48_Slot8_Rib",
+    "projectName": "MPW48",
+    "slot": "Slot8",
+    "platformLabel": "220nm SOI",
+    "buildingBlockLabel": "Propagation Loss Rib"
+  }
 }

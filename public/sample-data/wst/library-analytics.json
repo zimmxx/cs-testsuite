@@ -1,49 +1,5 @@
 [
   {
-    "id": "measurement_slot5_waveguide_manual_data",
-    "datasetId": "measurement_slot5_waveguide_manual_data",
-    "label": "Measurement Slot5 Waveguide Manual Raw Data",
-    "projectName": "Measurement_Slot5_Waveguide",
-    "waferName": "WaferSLOT5_Slot5_slot5_manual",
-    "selectedDate": "",
-    "folder": "sample-data/wst/Measurement_Slot5_waveguide_manual_data",
-    "measurementType": "MeasurementTypeUndefined",
-    "measurementMode": "Manual",
-    "mpw": "MPWUNDEFINED",
-    "slot": "Slot5",
-    "waveguideType": "WaveguideUndefined",
-    "platformId": "platform_undefined",
-    "platformLabel": "Platform Undefined",
-    "buildingBlockId": "measurement_block",
-    "buildingBlockLabel": "Measurement Block",
-    "traceCount": 30,
-    "rowCount": 570030,
-    "chipCount": 5,
-    "waveguideCount": 6,
-    "analyticsSummary": {
-      "propagationAverage": 4.378473755562,
-      "yield": 100,
-      "measuredChips": 5,
-      "computedAt": "2026-08-19T11:48:41.9813136Z"
-    },
-    "analyticsReview": {
-      "excludedChipIds": [],
-      "includedChipIds": [],
-      "totalChipCount": 5,
-      "selectedChipCount": 5,
-      "measuredChips": 5,
-      "fittedChips": 5,
-      "failedFits": 0,
-      "savedAt": "2026-08-19T11:48:41.9813136Z",
-      "propagationSettings": {
-        "propagationTargetWavelengthNm": 1550,
-        "propagationWindowNm": 5,
-        "propagationSpectralStepNm": 10,
-        "propagationMseThreshold": 0.5
-      }
-    }
-  },
-  {
     "id": "mpw30_slot13_rib_data",
     "datasetId": "mpw30_slot13_rib_data",
     "label": "MPW30 Slot13 Rib WST Raw Data",

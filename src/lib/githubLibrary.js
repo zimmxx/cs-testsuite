@@ -1,3 +1,6 @@
+import { computePropagationLoss } from "./analysis";
+import { buildNormalizedRows } from "./parsers";
+
 function slugify(value) {
   return String(value || "")
     .trim()
@@ -215,6 +218,74 @@ function formatDateLabel(selectedDate) {
   return selectedDate || new Date().toISOString().slice(0, 10);
 }
 
+export function normalizeDatasetAnalyticsSummary(summary = {}) {
+  return {
+    propagationAverage: Number.isFinite(Number(summary.propagationAverage)) ? Number(summary.propagationAverage) : null,
+    yield: Number.isFinite(Number(summary.yield)) ? Number(summary.yield) : null,
+    measuredChips: Number.isFinite(Number(summary.measuredChips)) ? Number(summary.measuredChips) : null,
+    computedAt: summary.computedAt || ""
+  };
+}
+
+export function normalizeDatasetAnalyticsReview(review = {}) {
+  const excludedChipIds = Array.isArray(review?.excludedChipIds)
+    ? review.excludedChipIds.map((chipId) => String(chipId)).filter(Boolean)
+    : [];
+  const includedChipIds = Array.isArray(review?.includedChipIds)
+    ? review.includedChipIds.map((chipId) => String(chipId)).filter(Boolean)
+    : [];
+  const propagationSettings = review?.propagationSettings || {};
+
+  return {
+    excludedChipIds,
+    includedChipIds,
+    totalChipCount: Number.isFinite(Number(review?.totalChipCount)) ? Number(review.totalChipCount) : null,
+    selectedChipCount: Number.isFinite(Number(review?.selectedChipCount)) ? Number(review.selectedChipCount) : null,
+    measuredChips: Number.isFinite(Number(review?.measuredChips)) ? Number(review.measuredChips) : null,
+    fittedChips: Number.isFinite(Number(review?.fittedChips)) ? Number(review.fittedChips) : null,
+    failedFits: Number.isFinite(Number(review?.failedFits)) ? Number(review.failedFits) : null,
+    savedAt: review?.savedAt || "",
+    propagationSettings: {
+      propagationTargetWavelengthNm: Number.isFinite(Number(propagationSettings.propagationTargetWavelengthNm))
+        ? Number(propagationSettings.propagationTargetWavelengthNm)
+        : null,
+      propagationWindowNm: Number.isFinite(Number(propagationSettings.propagationWindowNm))
+        ? Number(propagationSettings.propagationWindowNm)
+        : null,
+      propagationSpectralStepNm: Number.isFinite(Number(propagationSettings.propagationSpectralStepNm))
+        ? Number(propagationSettings.propagationSpectralStepNm)
+        : null,
+      propagationMseThreshold: Number.isFinite(Number(propagationSettings.propagationMseThreshold))
+        ? Number(propagationSettings.propagationMseThreshold)
+        : null
+    }
+  };
+}
+
+export function buildDatasetAnalyticsSummary(dataset) {
+  const rawRows = Array.isArray(dataset?.rawRows) ? dataset.rawRows : [];
+  if (!rawRows.length) {
+    return normalizeDatasetAnalyticsSummary(dataset?.analyticsSummary);
+  }
+
+  const columnMap = dataset?.columnMap || {};
+  const sourceMeta = dataset?.sourceMeta || {};
+  const normalizedRows = buildNormalizedRows(rawRows, columnMap, sourceMeta);
+  const propagation = computePropagationLoss(normalizedRows, {
+    targetWavelengthNm: sourceMeta.propagationTargetWavelengthNm,
+    windowNm: sourceMeta.propagationWindowNm,
+    spectralStepNm: sourceMeta.propagationSpectralStepNm,
+    mseThreshold: sourceMeta.propagationMseThreshold
+  });
+
+  return normalizeDatasetAnalyticsSummary({
+    propagationAverage: propagation.summaryStats.avgPropagationLossDbPerCm,
+    yield: propagation.passRate,
+    measuredChips: propagation.summaryStats.measuredChips,
+    computedAt: new Date().toISOString()
+  });
+}
+
 function upgradeManifestEntryToV2(entry = {}) {
   if ((entry.schemaVersion || entry.librarySchemaVersion) >= 2) return entry;
   return {
@@ -285,6 +356,7 @@ export function buildWaveguideConfig(sourceMeta = {}) {
 
 export function buildDatasetMetadata(dataset, identity, traceFiles, waveguideConfig) {
   const sourceMeta = dataset?.sourceMeta || {};
+  const analyticsSummary = buildDatasetAnalyticsSummary(dataset);
   return {
     schemaVersion: 2,
     datasetId: identity.id,
@@ -308,6 +380,8 @@ export function buildDatasetMetadata(dataset, identity, traceFiles, waveguideCon
     waveguideCount: identity.waveguideCount,
     wavelengthMinNm: identity.wavelengthMinNm,
     wavelengthMaxNm: identity.wavelengthMaxNm,
+    analyticsSummary,
+    analyticsReview: normalizeDatasetAnalyticsReview(dataset?.analyticsReview),
     copiedToFolder: true,
     processedInTestingSuite: true,
     notes: sourceMeta.notes || "",
@@ -429,6 +503,8 @@ export function buildDatasetManifestEntry(identity, traceFiles, waveguideConfig,
     metadataFile: `${identity.folderName}/metadata.json`,
     configFile: `${identity.folderName}/waveguide-config.json`,
     waveguideConfig,
+    analyticsSummary: normalizeDatasetAnalyticsSummary(metadata?.analyticsSummary),
+    analyticsReview: normalizeDatasetAnalyticsReview(metadata?.analyticsReview),
     notes: metadata?.notes || "",
     source: "github-library",
     librarySchemaVersion: 1
@@ -468,6 +544,8 @@ export function buildDatasetManifestEntryV2(identity, traceFiles, waveguideConfi
     metadataFile: `${identity.folderName}/metadata.json`,
     configFile: `${identity.folderName}/waveguide-config.json`,
     waveguideConfig,
+    analyticsSummary: normalizeDatasetAnalyticsSummary(metadata?.analyticsSummary),
+    analyticsReview: normalizeDatasetAnalyticsReview(metadata?.analyticsReview),
     copiedToFolder: metadata?.copiedToFolder ?? true,
     processedInTestingSuite: metadata?.processedInTestingSuite ?? true,
     notes: metadata?.notes || "",
@@ -491,6 +569,32 @@ export function buildDatasetSnapshotMetadata(dataset) {
     shortLabel: identity.label || `${identity.mpw} ${identity.slot} ${identity.waveguideType}`,
     rowLabel: `${identity.rowCount.toLocaleString()} normalized rows`,
     sourceLabel: `${identity.sourceCount} file${identity.sourceCount === 1 ? "" : "s"}`
+  };
+}
+
+export function buildUpdatedPublishedDatasetManifestEntry(dataset, namingOverrides = {}, metadata = {}) {
+  const nextLabel = normalizeOverrideText(namingOverrides.label, dataset.label);
+  const nextProjectName = normalizeOverrideText(namingOverrides.projectName, dataset.projectName);
+  const nextSlot = normalizeOverrideText(namingOverrides.slot, dataset.slot);
+  const nextPlatformLabel = normalizeOverrideText(namingOverrides.platformLabel, dataset.platformLabel);
+  const nextBuildingBlockLabel = normalizeOverrideText(namingOverrides.buildingBlockLabel, dataset.buildingBlockLabel);
+  const analyticsSummary = normalizeDatasetAnalyticsSummary(
+    metadata.analyticsSummary || dataset.analyticsSummary
+  );
+  const analyticsReview = normalizeDatasetAnalyticsReview(
+    metadata.analyticsReview || dataset.analyticsReview
+  );
+
+  return {
+    ...dataset,
+    label: nextLabel,
+    projectName: nextProjectName,
+    slot: nextSlot,
+    mpw: normalizeOverrideText(namingOverrides.mpw || namingOverrides.projectName, dataset.mpw),
+    platformLabel: nextPlatformLabel,
+    buildingBlockLabel: nextBuildingBlockLabel,
+    analyticsSummary,
+    analyticsReview
   };
 }
 
@@ -620,6 +724,101 @@ export async function publishDatasetPackageToGithub({
     manifest: nextManifest,
     manifestV2: nextManifestV2,
     folderUrl: `https://github.com/${owner}/${repo}/tree/${branch}/public/sample-data/wst/${packageData.identity.folderName}`
+  };
+}
+
+export async function updatePublishedDatasetMetadataOnGithub({
+  owner,
+  repo,
+  branch,
+  token,
+  manifestPath,
+  mirrorManifestPath,
+  manifestPathV2,
+  mirrorManifestPathV2,
+  dataset,
+  metadata,
+  existingManifest = [],
+  existingManifestV2 = [],
+  onProgress
+}) {
+  const manifestEntry = buildUpdatedPublishedDatasetManifestEntry(dataset, metadata.namingOverrides, metadata);
+  const filesToWrite = [
+    {
+      path: `public/${dataset.folder}/metadata.json`,
+      content: JSON.stringify(metadata, null, 2) + "\n"
+    },
+    {
+      path: `${dataset.folder}/metadata.json`,
+      content: JSON.stringify(metadata, null, 2) + "\n"
+    },
+    {
+      path: manifestPath,
+      content: JSON.stringify(
+        [manifestEntry, ...existingManifest.filter((entry) => entry.id !== dataset.id)]
+          .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label))),
+        null,
+        2
+      ) + "\n"
+    },
+    {
+      path: mirrorManifestPath,
+      content: JSON.stringify(
+        [manifestEntry, ...existingManifest.filter((entry) => entry.id !== dataset.id)]
+          .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label))),
+        null,
+        2
+      ) + "\n"
+    },
+    ...(manifestPathV2 && mirrorManifestPathV2
+      ? [
+          {
+            path: manifestPathV2,
+            content: JSON.stringify(
+              [manifestEntry, ...existingManifestV2.filter((entry) => entry.id !== dataset.id)]
+                .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label))),
+              null,
+              2
+            ) + "\n"
+          },
+          {
+            path: mirrorManifestPathV2,
+            content: JSON.stringify(
+              [manifestEntry, ...existingManifestV2.filter((entry) => entry.id !== dataset.id)]
+                .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label))),
+              null,
+              2
+            ) + "\n"
+          }
+        ]
+      : [])
+  ];
+
+  let completed = 0;
+  for (const file of filesToWrite) {
+    onProgress?.({ completed, total: filesToWrite.length, path: file.path });
+    await putGithubFile({
+      owner,
+      repo,
+      branch,
+      token,
+      path: file.path,
+      content: file.content,
+      message: `Update measurement dataset metadata ${manifestEntry.label}`
+    });
+    completed += 1;
+    onProgress?.({ completed, total: filesToWrite.length, path: file.path });
+  }
+
+  const nextManifest = [manifestEntry, ...existingManifest.filter((entry) => entry.id !== dataset.id)]
+    .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
+  const nextManifestV2 = [manifestEntry, ...existingManifestV2.filter((entry) => entry.id !== dataset.id)]
+    .sort((a, b) => String(a.projectName || a.label).localeCompare(String(b.projectName || b.label)));
+
+  return {
+    manifest: nextManifest,
+    manifestV2: nextManifestV2,
+    folderUrl: `https://github.com/${owner}/${repo}/tree/${branch}/public/${dataset.folder}`
   };
 }
 

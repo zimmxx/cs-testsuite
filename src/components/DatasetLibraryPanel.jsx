@@ -54,6 +54,15 @@ export default function DatasetLibraryPanel({
   onRefreshLibrary,
   remoteLibraryStatus,
   remoteDatasets,
+  selectedPublishedDataset,
+  publishedDatasetDraft,
+  onSelectPublishedDataset,
+  onPublishedDatasetDraftChange,
+  onSavePublishedDatasetMetadata,
+  isSavingPublishedDataset,
+  loadedGithubDataset,
+  currentPublishedDatasetReview,
+  canSaveCurrentReviewToPublishedDataset,
   localDatasets,
   onSaveCurrentDataset,
   onClearWorkspace,
@@ -212,12 +221,13 @@ export default function DatasetLibraryPanel({
                   <td>{dataset.measurementType || "MeasurementTypeUndefined"}</td>
                   <td>{dataset.platformLabel || dataset.platformDisplayName || "--"}</td>
                   <td>{dataset.buildingBlockLabel || "--"}</td>
-                  <td>{dataset.traceCount ?? dataset.files?.length ?? "--"}</td>
-                  <td>{dataset.rowCount ? Number(dataset.rowCount).toLocaleString() : `${dataset.traceCount ?? 0} raw traces`}</td>
-                  <td className="library-table-actions">
-                    <button type="button" onClick={() => onLoadRemoteDataset(dataset)} disabled={loadingBundledId === dataset.id}>{loadingBundledId === dataset.id ? "Loading..." : "Load"}</button>
-                  </td>
-                </tr>
+                    <td>{dataset.traceCount ?? dataset.files?.length ?? "--"}</td>
+                    <td>{dataset.rowCount ? Number(dataset.rowCount).toLocaleString() : `${dataset.traceCount ?? 0} raw traces`}</td>
+                    <td className="library-table-actions">
+                      <button type="button" className="secondary-action" onClick={() => onSelectPublishedDataset(dataset)}>Edit</button>
+                      <button type="button" onClick={() => onLoadRemoteDataset(dataset)} disabled={loadingBundledId === dataset.id}>{loadingBundledId === dataset.id ? "Loading..." : "Load"}</button>
+                    </td>
+                  </tr>
               )) : (
                 <tr>
                   <td colSpan="11"><div className="chart-empty compact">No GitHub library datasets found yet.</div></td>
@@ -225,6 +235,61 @@ export default function DatasetLibraryPanel({
               )}
             </tbody>
           </table>
+        </div>
+      </article>
+
+      <article className="analysis-card">
+        <div className="analysis-card-head stacked">
+          <div>
+            <h2>Published Dataset Editor</h2>
+            <p>Edit the naming metadata for an already published GitHub dataset, then save the corrected label, project details, and reviewed analytics back to the repository manifest and metadata file.</p>
+          </div>
+          <div className="library-action-row">
+            <button type="button" onClick={() => onSavePublishedDatasetMetadata(selectedPublishedDataset)} disabled={!selectedPublishedDataset || isSavingPublishedDataset}>
+              {isSavingPublishedDataset ? "Saving..." : canSaveCurrentReviewToPublishedDataset ? "Save Metadata + Current Review to GitHub" : "Save Metadata to GitHub"}
+            </button>
+          </div>
+        </div>
+        <div className="settings-grid settings-grid-extended">
+          <label className="mapping-field">
+            <span>Dataset label</span>
+            <input value={publishedDatasetDraft?.label || ""} onChange={(event) => onPublishedDatasetDraftChange("label", event.target.value)} disabled={!selectedPublishedDataset} />
+          </label>
+          <label className="mapping-field">
+            <span>Project / MPW</span>
+            <input value={publishedDatasetDraft?.projectName || ""} onChange={(event) => onPublishedDatasetDraftChange("projectName", event.target.value)} disabled={!selectedPublishedDataset} />
+          </label>
+          <label className="mapping-field">
+            <span>Slot</span>
+            <input value={publishedDatasetDraft?.slot || ""} onChange={(event) => onPublishedDatasetDraftChange("slot", event.target.value)} disabled={!selectedPublishedDataset} />
+          </label>
+          <label className="mapping-field">
+            <span>Platform</span>
+            <input value={publishedDatasetDraft?.platformLabel || ""} onChange={(event) => onPublishedDatasetDraftChange("platformLabel", event.target.value)} disabled={!selectedPublishedDataset} />
+          </label>
+          <label className="mapping-field">
+            <span>Building block</span>
+            <input value={publishedDatasetDraft?.buildingBlockLabel || ""} onChange={(event) => onPublishedDatasetDraftChange("buildingBlockLabel", event.target.value)} disabled={!selectedPublishedDataset} />
+          </label>
+          <label className="mapping-field">
+            <span>Published folder</span>
+            <input value={selectedPublishedDataset?.folder || ""} disabled />
+          </label>
+        </div>
+        <div className="translator-metrics github-library-metrics">
+          <div><strong>{selectedPublishedDataset?.label || "No published dataset selected"}</strong><span>Selected dataset</span></div>
+          <div><strong>{selectedPublishedDataset?.projectName || "--"}</strong><span>Current project</span></div>
+          <div><strong>{selectedPublishedDataset?.analyticsSummary?.propagationAverage ?? "--"}</strong><span>Saved avg propagation</span></div>
+          <div><strong>{selectedPublishedDataset?.analyticsSummary?.yield ?? "--"}</strong><span>Saved yield</span></div>
+        </div>
+        <div className="chart-empty compact">
+          {selectedPublishedDataset
+            ? canSaveCurrentReviewToPublishedDataset
+              ? `The loaded workspace matches this published dataset. Saving now will also store the current reviewed analytics, including ${currentPublishedDatasetReview?.analyticsReview?.excludedChipIds?.length || 0} excluded chips and the current propagation settings.`
+              : loadedGithubDataset
+                ? `The workspace currently has ${loadedGithubDataset.label} loaded. To save reviewed analytics for this dataset, load ${selectedPublishedDataset.label} first and then exclude or include chips as needed.`
+                : "Load a published GitHub dataset into the workspace if you want to save reviewed analytics such as excluded chips and the final average propagation/yield."
+            : "Select a published dataset to edit its naming metadata or save reviewed analytics."}
         </div>
       </article>
 

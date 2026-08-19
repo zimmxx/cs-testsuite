@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "datasetId": "picbootcamp_220nmsoipassive_slot3_ribwaveguide_propagationloss_wst",
-  "label": "PICBOOTCAMP_220nmSOIPASSIVE_SLOT3_RIBWAVEGUIDE_PROPAGATIONLOSS_WST",
+  "label": "PICBOOTCAMP_Slot3_Rib",
   "projectName": "PICBOOTCAMP",
   "waferName": "SlotUndefined",
   "selectedDate": "",
@@ -266,5 +266,34 @@
   },
   "legacyFolder": "sample-data/wst/PICBOOTCAMP_220nmSOIPASSIVE_SLOT3_RIBWAVEGUIDE_PROPAGATIONLOSS_WST",
   "metadataFile": "PICBOOTCAMP_220nmSOIPASSIVE_SLOT3_RIBWAVEGUIDE_PROPAGATIONLOSS_WST/metadata.json",
-  "configFile": "PICBOOTCAMP_220nmSOIPASSIVE_SLOT3_RIBWAVEGUIDE_PROPAGATIONLOSS_WST/waveguide-config.json"
+  "configFile": "PICBOOTCAMP_220nmSOIPASSIVE_SLOT3_RIBWAVEGUIDE_PROPAGATIONLOSS_WST/waveguide-config.json",
+  "analyticsSummary": {
+    "propagationAverage": 2.363172626478,
+    "yield": 100,
+    "measuredChips": 17,
+    "computedAt": "2026-08-19T11:51:31.0186116Z"
+  },
+  "analyticsReview": {
+    "excludedChipIds": [],
+    "includedChipIds": [],
+    "totalChipCount": 17,
+    "selectedChipCount": 17,
+    "measuredChips": 17,
+    "fittedChips": 17,
+    "failedFits": 0,
+    "savedAt": "2026-08-19T11:51:31.0186116Z",
+    "propagationSettings": {
+      "propagationTargetWavelengthNm": 1550,
+      "propagationWindowNm": 5,
+      "propagationSpectralStepNm": 10,
+      "propagationMseThreshold": 0.5
+    }
+  },
+  "namingOverrides": {
+    "label": "PICBOOTCAMP_Slot3_Rib",
+    "projectName": "PICBOOTCAMP",
+    "slot": "Slot3",
+    "platformLabel": "220nm SOI Passive",
+    "buildingBlockLabel": "Propagation Loss Waveguide"
+  }
 }

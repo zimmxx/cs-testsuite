@@ -136,20 +136,32 @@
   "metadataFile": "MPW48_Slot8_Strip/metadata.json",
   "configFile": "MPW48_Slot8_Strip/waveguide-config.json",
   "analyticsSummary": {
-    "propagationAverage": 2.783857682211,
-    "yield": 90,
-    "measuredChips": 10,
-    "computedAt": "2026-08-19T11:51:13.2552169Z"
+    "propagationAverage": 2.783857682211349,
+    "yield": 100,
+    "measuredChips": 9,
+    "computedAt": "2026-08-19T12:05:24.864Z"
   },
   "analyticsReview": {
-    "excludedChipIds": [],
-    "includedChipIds": [],
+    "excludedChipIds": [
+      "Chip13"
+    ],
+    "includedChipIds": [
+      "Chip35",
+      "Chip38",
+      "Chip41",
+      "Chip45",
+      "Chip51",
+      "Chip57",
+      "Chip61",
+      "Chip67",
+      "Chip89"
+    ],
     "totalChipCount": 10,
-    "selectedChipCount": 10,
-    "measuredChips": 10,
+    "selectedChipCount": 9,
+    "measuredChips": 9,
     "fittedChips": 9,
-    "failedFits": 1,
-    "savedAt": "2026-08-19T11:51:13.2552169Z",
+    "failedFits": 0,
+    "savedAt": "2026-08-19T12:05:24.864Z",
     "propagationSettings": {
       "propagationTargetWavelengthNm": 1550,
       "propagationWindowNm": 5,

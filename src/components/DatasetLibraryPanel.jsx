@@ -61,7 +61,7 @@ export default function DatasetLibraryPanel({
   onSavePublishedDatasetMetadata,
   isSavingPublishedDataset,
   onDeletePublishedDataset,
-  isDeletingPublishedDataset,
+  deletingPublishedDatasetId,
   loadedGithubDataset,
   currentPublishedDatasetReview,
   canSaveCurrentReviewToPublishedDataset,
@@ -83,6 +83,7 @@ export default function DatasetLibraryPanel({
     branch: githubConfig?.branch || "main",
     token: githubConfig?.token || ""
   };
+  const activeDeleteId = String(deletingPublishedDatasetId || "");
 
   return (
     <section className="library-stack workspace-fit-view">
@@ -227,8 +228,8 @@ export default function DatasetLibraryPanel({
                     <td>{dataset.rowCount ? Number(dataset.rowCount).toLocaleString() : `${dataset.traceCount ?? 0} raw traces`}</td>
                     <td className="library-table-actions">
                       <button type="button" className="secondary-action" onClick={() => onSelectPublishedDataset(dataset)}>Edit</button>
-                      <button type="button" className="danger-action" onClick={() => onDeletePublishedDataset(dataset)} disabled={isDeletingPublishedDataset}>
-                        {isDeletingPublishedDataset ? "Deleting..." : "Delete"}
+                      <button type="button" className="danger-action" onClick={() => onDeletePublishedDataset(dataset)} disabled={Boolean(activeDeleteId)}>
+                        {activeDeleteId === String(dataset.id || "") ? "Deleting..." : "Delete"}
                       </button>
                       <button type="button" onClick={() => onLoadRemoteDataset(dataset)} disabled={loadingBundledId === dataset.id}>{loadingBundledId === dataset.id ? "Loading..." : "Load"}</button>
                     </td>
@@ -253,8 +254,8 @@ export default function DatasetLibraryPanel({
             <button type="button" onClick={() => onSavePublishedDatasetMetadata(selectedPublishedDataset)} disabled={!selectedPublishedDataset || isSavingPublishedDataset}>
               {isSavingPublishedDataset ? "Saving..." : canSaveCurrentReviewToPublishedDataset ? "Save Metadata + Current Review to GitHub" : "Save Metadata to GitHub"}
             </button>
-            <button type="button" className="danger-action" onClick={() => onDeletePublishedDataset(selectedPublishedDataset)} disabled={!selectedPublishedDataset || isDeletingPublishedDataset}>
-              {isDeletingPublishedDataset ? "Deleting..." : "Delete Published Dataset"}
+            <button type="button" className="danger-action" onClick={() => onDeletePublishedDataset(selectedPublishedDataset)} disabled={!selectedPublishedDataset || Boolean(activeDeleteId)}>
+              {activeDeleteId === String(selectedPublishedDataset?.id || "") ? "Deleting..." : "Delete Published Dataset"}
             </button>
           </div>
         </div>

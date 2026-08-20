@@ -753,6 +753,18 @@ async function normalizePptxBlob(blob) {
     }
   });
 
+  const appPropertiesXml = parseZipXml(zipEntries, "docProps/app.xml");
+  if (appPropertiesXml) {
+    const notesCounts = Array.from(appPropertiesXml.getElementsByTagNameNS(
+      "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties",
+      "Notes"
+    ));
+    notesCounts.forEach((node) => {
+      node.textContent = "0";
+    });
+    writeZipXml(zipEntries, "docProps/app.xml", appPropertiesXml);
+  }
+
   const entryNames = new Set(Object.keys(zipEntries).map((name) => normalizeZipPath(name)));
 
   const contentTypesXml = parseZipXml(zipEntries, "[Content_Types].xml");

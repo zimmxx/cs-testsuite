@@ -714,6 +714,41 @@ function renumberSlideShapeIds(zipEntries, partName) {
   writeZipXml(zipEntries, partName, slideXml);
 }
 
+function addPowerPointTableIds(zipEntries, partName) {
+  const slideXml = parseZipXml(zipEntries, partName);
+  if (!slideXml) return;
+
+  const drawingNamespace = "http://schemas.openxmlformats.org/drawingml/2006/main";
+  const drawing2014Namespace = "http://schemas.microsoft.com/office/drawing/2014/main";
+  const columnExtensionUri = "{9D8B030D-6E8A-4147-A177-3AD203B41FA5}";
+  const rowExtensionUri = "{0D108BD9-81ED-4DB2-BD59-A6C34878D82A}";
+
+  const appendIdExtension = (parent, elementName, extensionUri, value) => {
+    const extensionList = slideXml.createElementNS(drawingNamespace, "a:extLst");
+    const extension = slideXml.createElementNS(drawingNamespace, "a:ext");
+    const idElement = slideXml.createElementNS(drawing2014Namespace, `a16:${elementName}`);
+    extension.setAttribute("uri", extensionUri);
+    idElement.setAttribute("val", String(value));
+    extension.appendChild(idElement);
+    extensionList.appendChild(extension);
+    parent.appendChild(extensionList);
+  };
+
+  const columns = Array.from(slideXml.getElementsByTagNameNS(drawingNamespace, "gridCol"));
+  columns.forEach((column, index) => {
+    const hasColumnId = Array.from(column.getElementsByTagNameNS(drawing2014Namespace, "colId")).length > 0;
+    if (!hasColumnId) appendIdExtension(column, "colId", columnExtensionUri, 20000 + index);
+  });
+
+  const rows = Array.from(slideXml.getElementsByTagNameNS(drawingNamespace, "tr"));
+  rows.forEach((row, index) => {
+    const hasRowId = Array.from(row.getElementsByTagNameNS(drawing2014Namespace, "rowId")).length > 0;
+    if (!hasRowId) appendIdExtension(row, "rowId", rowExtensionUri, 10000 + index);
+  });
+
+  writeZipXml(zipEntries, partName, slideXml);
+}
+
 function removeRelationshipsByType(zipEntries, relsPartName, typeSuffixes) {
   const relsXml = parseZipXml(zipEntries, relsPartName);
   if (!relsXml) return;
@@ -782,6 +817,7 @@ async function normalizePptxBlob(blob) {
   Object.keys(zipEntries).forEach((name) => {
     if (name.startsWith("ppt/slides/slide") && name.endsWith(".xml")) {
       renumberSlideShapeIds(zipEntries, name);
+      addPowerPointTableIds(zipEntries, name);
     }
   });
 

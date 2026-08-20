@@ -704,9 +704,45 @@ function writeZipXml(zipEntries, partName, xmlDocument) {
   zipEntries[partName] = strToU8(serializer.serializeToString(xmlDocument));
 }
 
+function removeRelationshipsByType(zipEntries, relsPartName, typeSuffixes) {
+  const relsXml = parseZipXml(zipEntries, relsPartName);
+  if (!relsXml) return;
+  const suffixes = Array.isArray(typeSuffixes) ? typeSuffixes : [typeSuffixes];
+  const relationships = Array.from(relsXml.getElementsByTagNameNS("http://schemas.openxmlformats.org/package/2006/relationships", "Relationship"));
+  relationships.forEach((relationship) => {
+    const relationshipType = relationship.getAttribute("Type") || "";
+    if (suffixes.some((suffix) => relationshipType.endsWith(suffix))) {
+      relationship.parentNode?.removeChild(relationship);
+    }
+  });
+  writeZipXml(zipEntries, relsPartName, relsXml);
+}
+
 async function normalizePptxBlob(blob) {
   const buffer = await blob.arrayBuffer();
   const zipEntries = unzipSync(new Uint8Array(buffer));
+
+  Object.keys(zipEntries).forEach((name) => {
+    if (name.startsWith("ppt/notesSlides/") || name.startsWith("ppt/notesMasters/")) {
+      delete zipEntries[name];
+    }
+  });
+
+  const presentationXml = parseZipXml(zipEntries, "ppt/presentation.xml");
+  if (presentationXml) {
+    const notesMasterLists = Array.from(presentationXml.getElementsByTagNameNS("http://schemas.openxmlformats.org/presentationml/2006/main", "notesMasterIdLst"));
+    notesMasterLists.forEach((node) => node.parentNode?.removeChild(node));
+    writeZipXml(zipEntries, "ppt/presentation.xml", presentationXml);
+  }
+
+  removeRelationshipsByType(zipEntries, "ppt/_rels/presentation.xml.rels", "notesMaster");
+
+  Object.keys(zipEntries).forEach((name) => {
+    if (name.startsWith("ppt/slides/_rels/") && name.endsWith(".rels")) {
+      removeRelationshipsByType(zipEntries, name, "notesSlide");
+    }
+  });
+
   const entryNames = new Set(Object.keys(zipEntries).map((name) => normalizeZipPath(name)));
 
   const contentTypesXml = parseZipXml(zipEntries, "[Content_Types].xml");

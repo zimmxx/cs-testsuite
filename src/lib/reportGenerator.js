@@ -749,6 +749,22 @@ function addPowerPointTableIds(zipEntries, partName) {
   writeZipXml(zipEntries, partName, slideXml);
 }
 
+function sanitizePowerPointTableCells(zipEntries, partName) {
+  const slideXml = parseZipXml(zipEntries, partName);
+  if (!slideXml) return;
+
+  const drawingNamespace = "http://schemas.openxmlformats.org/drawingml/2006/main";
+  const cellProperties = Array.from(slideXml.getElementsByTagNameNS(drawingNamespace, "tcPr"));
+  cellProperties.forEach((cell) => {
+    // PowerPoint rejects these PptxGenJS table-cell attributes and repairs the deck.
+    cell.removeAttribute("marT");
+    cell.removeAttribute("marB");
+    cell.removeAttribute("anchor");
+  });
+
+  writeZipXml(zipEntries, partName, slideXml);
+}
+
 function removeRelationshipsByType(zipEntries, relsPartName, typeSuffixes) {
   const relsXml = parseZipXml(zipEntries, relsPartName);
   if (!relsXml) return;
@@ -818,6 +834,7 @@ async function normalizePptxBlob(blob) {
     if (name.startsWith("ppt/slides/slide") && name.endsWith(".xml")) {
       renumberSlideShapeIds(zipEntries, name);
       addPowerPointTableIds(zipEntries, name);
+      sanitizePowerPointTableCells(zipEntries, name);
     }
   });
 

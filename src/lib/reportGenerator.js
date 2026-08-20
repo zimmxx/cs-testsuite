@@ -1,6 +1,5 @@
 import PptxGenJS from "pptxgenjs";
 import { jsPDF } from "jspdf";
-import { strFromU8, strToU8, unzipSync, zipSync } from "../../node_modules/.pnpm/fflate@0.8.3/node_modules/fflate/esm/browser.js";
 import {
   AlignmentType,
   Document,
@@ -40,6 +39,7 @@ const BODY_FONT = "Aptos";
 const SLIDE_WIDTH = 13.333;
 const SLIDE_HEIGHT = 7.5;
 const TABLE_ROWS_PER_SLIDE = 12;
+const WAFERMAP_IMAGE_BOX_HEIGHT = 5.28;
 
 function formatNumber(value, digits = 2) {
   return value === null || value === undefined || Number.isNaN(value) ? "--" : Number(value).toFixed(digits);
@@ -447,7 +447,8 @@ function addWafermapSlides(pptx, context, wafermapViews) {
         x: layout.imageX,
         y: 1.62,
         w: layout.imageW,
-        h: 5.28
+        h: WAFERMAP_IMAGE_BOX_HEIGHT,
+        sizing: { type: "contain", w: layout.imageW, h: WAFERMAP_IMAGE_BOX_HEIGHT }
       });
     });
   });
@@ -667,115 +668,6 @@ function addPdfImageContain(pdf, dataUrl, box) {
   pdf.addImage(dataUrl, "PNG", x, y, width, height, undefined, "FAST");
 }
 
-function normalizeZipPath(path) {
-  return String(path || "")
-    .replace(/\\/g, "/")
-    .replace(/\/+/g, "/")
-    .replace(/^\.\//, "");
-}
-
-function resolveZipTarget(sourcePart, target) {
-  const sourceSegments = normalizeZipPath(sourcePart).split("/").filter(Boolean);
-  sourceSegments.pop();
-  const targetSegments = normalizeZipPath(target).split("/").filter(Boolean);
-  const combined = [...sourceSegments];
-  targetSegments.forEach((segment) => {
-    if (segment === ".") return;
-    if (segment === "..") {
-      combined.pop();
-      return;
-    }
-    combined.push(segment);
-  });
-  return combined.join("/");
-}
-
-function parseZipXml(zipEntries, partName) {
-  const part = zipEntries[partName];
-  if (!part) return null;
-  const parser = new DOMParser();
-  return parser.parseFromString(strFromU8(part), "application/xml");
-}
-
-function writeZipXml(zipEntries, partName, xmlDocument) {
-  const serializer = new XMLSerializer();
-  zipEntries[partName] = strToU8(serializer.serializeToString(xmlDocument));
-}
-
-function removeRelationshipsByType(zipEntries, relsPartName, typeSuffixes) {
-  const relsXml = parseZipXml(zipEntries, relsPartName);
-  if (!relsXml) return;
-  const suffixes = Array.isArray(typeSuffixes) ? typeSuffixes : [typeSuffixes];
-  const relationships = Array.from(relsXml.getElementsByTagNameNS("http://schemas.openxmlformats.org/package/2006/relationships", "Relationship"));
-  relationships.forEach((relationship) => {
-    const relationshipType = relationship.getAttribute("Type") || "";
-    if (suffixes.some((suffix) => relationshipType.endsWith(suffix))) {
-      relationship.parentNode?.removeChild(relationship);
-    }
-  });
-  writeZipXml(zipEntries, relsPartName, relsXml);
-}
-
-async function normalizePptxBlob(blob) {
-  const buffer = await blob.arrayBuffer();
-  const zipEntries = unzipSync(new Uint8Array(buffer));
-
-  Object.keys(zipEntries).forEach((name) => {
-    if (name.startsWith("ppt/notesSlides/") || name.startsWith("ppt/notesMasters/")) {
-      delete zipEntries[name];
-    }
-  });
-
-  const presentationXml = parseZipXml(zipEntries, "ppt/presentation.xml");
-  if (presentationXml) {
-    const notesMasterLists = Array.from(presentationXml.getElementsByTagNameNS("http://schemas.openxmlformats.org/presentationml/2006/main", "notesMasterIdLst"));
-    notesMasterLists.forEach((node) => node.parentNode?.removeChild(node));
-    writeZipXml(zipEntries, "ppt/presentation.xml", presentationXml);
-  }
-
-  removeRelationshipsByType(zipEntries, "ppt/_rels/presentation.xml.rels", "notesMaster");
-
-  Object.keys(zipEntries).forEach((name) => {
-    if (name.startsWith("ppt/slides/_rels/") && name.endsWith(".rels")) {
-      removeRelationshipsByType(zipEntries, name, "notesSlide");
-    }
-  });
-
-  const contentTypesXml = parseZipXml(zipEntries, "[Content_Types].xml");
-  if (!contentTypesXml) return blob;
-
-  const entryNames = new Set(Object.keys(zipEntries).map((name) => normalizeZipPath(name)));
-  const overrides = Array.from(contentTypesXml.getElementsByTagNameNS("http://schemas.openxmlformats.org/package/2006/content-types", "Override"));
-  overrides.forEach((override) => {
-    const partName = normalizeZipPath((override.getAttribute("PartName") || "").replace(/^\/+/, ""));
-    if (partName && !entryNames.has(partName)) {
-      override.parentNode?.removeChild(override);
-    }
-  });
-
-  Object.keys(zipEntries).forEach((name) => {
-    if (!name.endsWith(".rels")) return;
-    const relsXml = parseZipXml(zipEntries, name);
-    if (!relsXml) return;
-    const sourcePart = name
-      .replace(/_rels\//, "")
-      .replace(/\.rels$/, "");
-    const relationships = Array.from(relsXml.getElementsByTagNameNS("http://schemas.openxmlformats.org/package/2006/relationships", "Relationship"));
-    relationships.forEach((relationship) => {
-      const target = relationship.getAttribute("Target") || "";
-      if (!target || /^[a-zA-Z]+:/.test(target)) return;
-      const resolvedTarget = resolveZipTarget(sourcePart, target);
-      if (!entryNames.has(resolvedTarget)) {
-        relationship.parentNode?.removeChild(relationship);
-      }
-    });
-    writeZipXml(zipEntries, name, relsXml);
-  });
-
-  writeZipXml(zipEntries, "[Content_Types].xml", contentTypesXml);
-  return new Blob([zipSync(zipEntries)], { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
-}
-
 export async function generatePowerPointReport({
   projectCode,
   slotLabel,
@@ -839,8 +731,7 @@ export async function generatePowerPointReport({
   }
 
   onProgress?.("Finalizing PowerPoint file...");
-  const rawBlob = await pptx.write({ outputType: "blob" });
-  const blob = await normalizePptxBlob(rawBlob);
+  const blob = await pptx.write({ outputType: "blob" });
   const fileBase = buildReportFileBase("post_processed_report", context, generatedAt);
 
   return {

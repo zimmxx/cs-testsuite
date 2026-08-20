@@ -704,6 +704,16 @@ function writeZipXml(zipEntries, partName, xmlDocument) {
   zipEntries[partName] = strToU8(serializer.serializeToString(xmlDocument));
 }
 
+function renumberSlideShapeIds(zipEntries, partName) {
+  const slideXml = parseZipXml(zipEntries, partName);
+  if (!slideXml) return;
+  const shapeProps = Array.from(slideXml.getElementsByTagNameNS("http://schemas.openxmlformats.org/presentationml/2006/main", "cNvPr"));
+  shapeProps.forEach((node, index) => {
+    node.setAttribute("id", String(index + 1));
+  });
+  writeZipXml(zipEntries, partName, slideXml);
+}
+
 function removeRelationshipsByType(zipEntries, relsPartName, typeSuffixes) {
   const relsXml = parseZipXml(zipEntries, relsPartName);
   if (!relsXml) return;
@@ -756,6 +766,12 @@ async function normalizePptxBlob(blob) {
     });
     writeZipXml(zipEntries, "[Content_Types].xml", contentTypesXml);
   }
+
+  Object.keys(zipEntries).forEach((name) => {
+    if (name.startsWith("ppt/slides/slide") && name.endsWith(".xml")) {
+      renumberSlideShapeIds(zipEntries, name);
+    }
+  });
 
   Object.keys(zipEntries).forEach((name) => {
     if (!name.endsWith(".rels")) return;

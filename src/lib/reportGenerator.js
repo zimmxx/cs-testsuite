@@ -40,7 +40,9 @@ const BODY_FONT = "Aptos";
 const SLIDE_WIDTH = 13.333;
 const SLIDE_HEIGHT = 7.5;
 const TABLE_ROWS_PER_SLIDE = 12;
-const WAFERMAP_IMAGE_BOX_HEIGHT = 5.28;
+const WAFERMAP_EXPORT_SCALE = 0.24;
+const WAFERMAP_EXPORT_WIDTH = (2464 / 96) * WAFERMAP_EXPORT_SCALE;
+const WAFERMAP_EXPORT_HEIGHT = (1672 / 96) * WAFERMAP_EXPORT_SCALE;
 
 function formatNumber(value, digits = 2) {
   return value === null || value === undefined || Number.isNaN(value) ? "--" : Number(value).toFixed(digits);
@@ -424,18 +426,18 @@ function addWafermapSlides(pptx, context, wafermapViews) {
     const slide = pptx.addSlide();
     addSlideFrame(slide, "Wafermaps", `${context.projectCode} | ${context.slotLabel} | Spatial summary of measured chips`, `Wafermaps ${index + 1}/${groups.length}`);
     const layouts = group.length === 1
-      ? [{ titleX: 0.54, imageX: 1.02, imageW: 11.0 }]
+      ? [{ imageX: (SLIDE_WIDTH - WAFERMAP_EXPORT_WIDTH) / 2 }]
       : [
-        { titleX: 0.54, imageX: 0.46, imageW: 5.88 },
-        { titleX: 6.98, imageX: 6.98, imageW: 5.88 }
+        { imageX: 0.46 },
+        { imageX: SLIDE_WIDTH - 0.46 - WAFERMAP_EXPORT_WIDTH }
       ];
 
     group.forEach((view, itemIndex) => {
       const layout = layouts[itemIndex];
       slide.addText(view.title.replace("Wafermap - ", ""), {
-        x: layout.titleX,
+        x: layout.imageX,
         y: 1.28,
-        w: layout.imageW,
+        w: WAFERMAP_EXPORT_WIDTH,
         h: 0.22,
         fontFace: TITLE_FONT,
         fontSize: 16,
@@ -447,9 +449,8 @@ function addWafermapSlides(pptx, context, wafermapViews) {
         data: view.dataUrl,
         x: layout.imageX,
         y: 1.62,
-        w: layout.imageW,
-        h: WAFERMAP_IMAGE_BOX_HEIGHT,
-        sizing: { type: "contain", w: layout.imageW, h: WAFERMAP_IMAGE_BOX_HEIGHT }
+        w: WAFERMAP_EXPORT_WIDTH,
+        h: WAFERMAP_EXPORT_HEIGHT
       });
     });
   });

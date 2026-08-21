@@ -2,6 +2,8 @@
 
 This project now uses a simple documentation versioning structure so future upgrades can be tracked cleanly.
 
+**Documentation owner:** Aiman Hazim Shafizam — Research Technician, Testing and Characterisation, CORNERSTONE
+
 ## Documentation Structure
 
 Top-level docs:

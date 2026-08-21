@@ -1,6 +1,8 @@
 # Changelog
 # Version: v0.4.0
 
+**Release prepared by:** Aiman Hazim Shafizam — Research Technician, Testing and Characterisation, CORNERSTONE
+
 ## Added
 
 - CORNERSTONE logo asset and external website link

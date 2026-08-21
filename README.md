@@ -2,6 +2,8 @@
 
 Unified web application for processing and analysing optical and electrical silicon photonics wafer measurements.
 
+**Created by:** Aiman Hazim Shafizam — Research Technician, Testing and Characterisation, CORNERSTONE
+
 This app is designed to unify two measurement routes into one analysis pipeline:
 
 - Wafer-scale tester exports, typically from `.txt` or delimited text files

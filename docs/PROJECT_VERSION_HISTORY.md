@@ -2,6 +2,8 @@
 
 This file tracks the development history of the Wafer Post-Processing Suite from the beginning of the project, including major updates, upgrades, and deployment milestones.
 
+**Created and maintained by:** Aiman Hazim Shafizam — Research Technician, Testing and Characterisation, CORNERSTONE
+
 ## Timeline
 
 ### 2026-06-25

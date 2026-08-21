@@ -2,6 +2,8 @@
 # Features Reference
 # Version: v0.4.0
 
+**Created by:** Aiman Hazim Shafizam — Research Technician, Testing and Characterisation, CORNERSTONE
+
 ## Release Summary
 
 Version `v0.4.0` is a substantial usability and analysis-workflow release. It aligns the application with CORNERSTONE branding, improves user feedback during processing, clarifies propagation-loss metrics, and makes chip-to-chip comparison practical at a standard 100% desktop browser view.

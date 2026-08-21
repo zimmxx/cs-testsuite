@@ -138,11 +138,26 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 - Added advanced wavelength-window zoom and vertical axis controls for the advanced viewer, including corrected dB-axis handling for loss bounds.
 - Refined advanced spectrum upload behavior so the advanced viewer keeps its own traces and no longer locks the library navigation after upload.
 
+### 2026-08-20 to 2026-08-21
+
+#### `v0.4.0` CORNERSTONE interface and propagation-workspace upgrade
+- Added the CORNERSTONE logo to the application shell and linked it to the CORNERSTONE website.
+- Added visible startup, dataset-loading, success, and failure feedback so users can distinguish processing time from an unresponsive interface.
+- Reorganised the sidebar into focused Workspace, Library, and Settings groups; removed the duplicate Workspace Snapshot entry and simplified user settings.
+- Corrected propagation summary semantics so Measured Chips includes every measured chip and Avg Propagation Loss represents the filtered wafer average.
+- Replaced R2-focused summary content with MSE fit-quality reporting and retained detailed MSE values in the fit inspector.
+- Added silicon-photonics-oriented icons to summary metrics and navigation without decorative icon borders.
+- Reworked the propagation workspace so Propagation Loss Fit, Propagation Loss Spectrum, Transmission Spectrum, and the wafermap can be compared within a 100% desktop view.
+- Moved wafermap controls below the map, redesigned the colour scale, populated min/mid/max from the active chip data, and added editable empty states plus Reset Scale.
+- Removed duplicated post-processed export actions from the propagation workspace while preserving report-generator export capability.
+- Added a visual development archive and a presentation-ready overview for CORNERSTONE technical and non-technical stakeholders.
+
 ## Current Development State
 
 Latest recorded working-tree update:
-- Date: `2026-08-17`
-- Theme: `Spectrum viewer split and advanced zoom control refinement`
+- Date: `2026-08-21`
+- Version: `v0.4.0`
+- Theme: `CORNERSTONE-branded interface and propagation-workspace usability`
 
 ## How To Extend This File
 

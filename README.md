@@ -1,6 +1,6 @@
-# Wafer Post-Processing Suite
+# CORNERSTONE Wafer Post-Processing Suite
 
-Web-based post-processing dashboard for wafer-scale silicon photonics measurements.
+Unified web application for processing and analysing optical and electrical silicon photonics wafer measurements.
 
 This app is designed to unify two measurement routes into one analysis pipeline:
 
@@ -40,9 +40,19 @@ Live deployment:
 
 ## Current Release
 
-- App version: `v0.3.1`
-- Release date: `2026-08-17`
-- Focus: `Spectrum viewer split and advanced zoom control refinement`
+- App version: `v0.4.0`
+- Release date: `2026-08-21`
+- Focus: `CORNERSTONE-branded interface, clearer processing feedback, propagation-analysis refinements, and compact wafermap comparison workflow`
+
+Key updates in this release:
+
+- CORNERSTONE logo in the application shell, linked to the CORNERSTONE website
+- startup, dataset-loading, completion, and error feedback for long-running actions
+- corrected propagation summary metrics, including all measured chips and wafer-average propagation loss
+- MSE-based fit-quality reporting and simplified propagation summary cards
+- compact propagation-fit, propagation-spectrum, transmission-spectrum, and wafermap layout for 100% browser view
+- professional wafermap colour scaling with dataset-derived values, editable inputs, and reset-to-data controls
+- reorganised Workspace and Library navigation, simplified display settings, and consistent silicon-photonics icons
 
 ## Tech Stack
 
@@ -80,9 +90,7 @@ pnpm preview
 
 ## Deployment
 
-Deployment is handled through:
-
-- [.github/workflows/deploy-pages.yml](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\.github\workflows\deploy-pages.yml)
+Deployment is handled through [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml).
 
 On push to `main`, GitHub Actions:
 
@@ -92,33 +100,40 @@ On push to `main`, GitHub Actions:
 
 ## Main Source Files
 
-- [src/App.jsx](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\App.jsx)
+- [`src/App.jsx`](src/App.jsx)
   Main UI layout, tabs, sidebar, upload flow, charts, wafermap, report preview, and library integration
 
-- [src/styles.css](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\styles.css)
+- [`src/styles.css`](src/styles.css)
   Visual styling, layout, typography, component appearance, and responsive rules
 
-- [src/lib/parsers.js](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\lib\parsers.js)
+- [`src/lib/parsers.js`](src/lib/parsers.js)
   File parsing, column mapping, normalization, and CSV export
 
-- [src/lib/analysis.js](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\lib\analysis.js)
+- [`src/lib/analysis.js`](src/lib/analysis.js)
   Metric calculations, wafer summaries, report state generation, and propagation spectrum logic
 
-- [src/lib/manualConversion.js](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\lib\manualConversion.js)
+- [`src/lib/manualConversion.js`](src/lib/manualConversion.js)
   Manual `.xlsx` to WST-compatible trace conversion and zip/manifest export
 
-- [src/lib/filenameStandardization.js](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\src\lib\filenameStandardization.js)
+- [`src/lib/filenameStandardization.js`](src/lib/filenameStandardization.js)
   Shared naming rules for datasets, traces, archive exports, and filename conversion
 
 ## Documentation Index
 
-- [Local Git And GitHub Workflow](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\LOCAL_GIT_GITHUB_WORKFLOW.md)
-- [Versioning And Documentation Guide](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\VERSIONING_AND_DOCUMENTATION.md)
-- [Dataset And Filename Standard](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\DATASET_FILENAME_STANDARD.md)
-- [Release Features: v0.3.1](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.3.1\FEATURES.md)
-- [Release Changelog: v0.3.1](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\releases\v0.3.1\CHANGELOG.md)
-- [Suggested Next Updates](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\suggested_update.md)
-- [Full Project Version History](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\PROJECT_VERSION_HISTORY.md)
+- [Local Git and GitHub Workflow](docs/LOCAL_GIT_GITHUB_WORKFLOW.md)
+- [Versioning and Documentation Guide](docs/VERSIONING_AND_DOCUMENTATION.md)
+- [Dataset and Filename Standard](docs/DATASET_FILENAME_STANDARD.md)
+- [Release Features: v0.4.0](docs/releases/v0.4.0/FEATURES.md)
+- [Release Changelog: v0.4.0](docs/releases/v0.4.0/CHANGELOG.md)
+- [Release Checklist: v0.4.0](docs/releases/v0.4.0/RELEASE_CHECKLIST.md)
+- [Suggested Next Updates](docs/suggested_update.md)
+- [Full Project Version History](docs/PROJECT_VERSION_HISTORY.md)
+- [App Development Screenshots](Screenshot%20-%20App%20Development/README.md)
+- [CORNERSTONE Presentation](docs/CORNERSTONE_Wafer_Post-Processing_Suite_Overview_v0.4.0.pptx)
+
+## Brand Asset
+
+The application uses [`public/assets/CORNERSTONE_Logo.png`](public/assets/CORNERSTONE_Logo.png). Keep this file in the repository so local development and GitHub Pages use the same approved logo.
 
 ## Recommended Repository Hygiene
 

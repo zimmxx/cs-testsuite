@@ -1,21 +1,21 @@
 :root {
   color-scheme: light;
-  --page-bg: #eff4f5;
+  --page-bg: #f4f6fa;
   --panel: #ffffff;
-  --panel-soft: #f8fbfb;
-  --line: #d9e4e7;
-  --line-strong: #bfd3d8;
-  --text: #162126;
-  --muted: #6f7e84;
-  --teal: #0f8a83;
-  --teal-strong: #0a726d;
+  --panel-soft: #f8f9fc;
+  --line: #dde1eb;
+  --line-strong: #c7cddd;
+  --text: #171b3c;
+  --muted: #68708a;
+  --teal: #352a86;
+  --teal-strong: #241c68;
   --blue: #4f8df3;
   --orange: #ff8f45;
   --copper: #c87736;
   --rose: #ef735b;
   --yield: #24a58a;
-  --shadow: 0 22px 54px rgba(32, 64, 76, 0.1);
-  --body-start: #f6fbfc;
+  --shadow: 0 16px 38px rgba(31, 35, 78, 0.08);
+  --body-start: #ffffff;
   --shell-surface: rgba(255, 255, 255, 0.92);
   --shell-border: rgba(224, 233, 236, 0.9);
   --input-bg: #ffffff;
@@ -148,12 +148,6 @@ label.upload-measurement-button {
   background: linear-gradient(180deg, var(--teal), var(--teal-strong));
   color: white;
   box-shadow: 0 10px 24px rgba(15, 138, 131, 0.24);
-}
-
-.rail-glyph {
-  width: 14px;
-  color: inherit;
-  font-size: 0.8rem;
 }
 
 .rail-user {
@@ -332,8 +326,8 @@ label.upload-measurement-button {
 .shell-stat-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 9px;
 }
 
 .shell-stat-head span {
@@ -342,10 +336,34 @@ label.upload-measurement-button {
   font-weight: 600;
 }
 
-.shell-stat-head em {
-  color: var(--muted);
-  font-style: normal;
-  font-size: 0.72rem;
+.metric-icon-wrap {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: #392b8b;
+}
+
+.metric-icon {
+  width: 22px;
+  height: 22px;
+  overflow: visible;
+}
+
+.metric-icon text {
+  fill: currentColor;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.metric-icon-fitted {
+  color: #148366;
+}
+
+.metric-icon-failed {
+  color: #bd3545;
 }
 
 .shell-stat strong {
@@ -1473,6 +1491,17 @@ tbody tr:last-child td {
   color: var(--muted);
 }
 
+.matlab-summary-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.matlab-summary-head > span {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .matlab-summary-card span,
 .matlab-summary-card strong,
 .matlab-summary-card p {
@@ -2473,26 +2502,100 @@ body {
 }
 
 .wafer-side-scale {
-  grid-template-columns: 18px 42px;
-  grid-template-rows: auto 146px auto;
+  grid-template-columns: 14px minmax(48px, 1fr);
+  grid-template-rows: auto 154px auto;
   align-items: center;
-  justify-content: center;
+  align-content: center;
+  justify-content: stretch;
   column-gap: 8px;
+  row-gap: 8px;
+  min-width: 0;
+  padding: 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafb 100%);
 }
 
 .wafer-side-scale .wafer-scale-bar {
   grid-column: 1;
   grid-row: 2;
+  position: relative;
+  width: 12px;
+  height: 154px;
+  border: 1px solid rgba(28, 37, 77, 0.16);
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42), 0 2px 8px rgba(28, 37, 77, 0.08);
 }
 
 .wafer-side-scale .wafer-scale-labels {
   grid-column: 2;
   grid-row: 2;
-  height: 146px;
+  height: 154px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 0;
+}
+
+.wafer-scale-title,
+.wafer-scale-unit {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.wafer-scale-title {
+  grid-row: 1;
+}
+
+.wafer-scale-unit {
+  grid-row: 3;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.wafer-scale-tick {
+  position: absolute;
+  left: 100%;
+  width: 7px;
+  height: 1px;
+  background: #8c96a8;
+}
+
+.wafer-scale-tick.high {
+  top: 0;
+}
+
+.wafer-scale-tick.medium {
+  top: 50%;
+}
+
+.wafer-scale-tick.low {
+  bottom: 0;
+}
+
+.wafer-scale-labels > span {
+  display: grid;
+  line-height: 1.05;
+}
+
+.wafer-scale-labels > span strong {
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.wafer-scale-labels > span small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .wafer-scale-caption {
@@ -2559,6 +2662,19 @@ body {
   margin-top: 10px !important;
   font-size: 0.78rem;
   line-height: 1.45;
+}
+
+.wafer-scale-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.wafer-scale-reset {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding-inline: 14px;
 }
 
 @media (max-width: 1200px) {
@@ -2950,4 +3066,569 @@ body {
 
 .insertion-overlay-grid .spectrum-overlay-plot .plotly-figure {
   min-height: 220px;
+}
+
+/* CORNERSTONE interface refresh */
+.dashboard-page {
+  padding: 0;
+}
+
+.dashboard-shell {
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 0;
+  min-height: 100vh;
+}
+
+.dashboard-rail,
+.dashboard-main {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.dashboard-rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
+  padding: 18px 10px 24px;
+  gap: 16px;
+  border-width: 0 1px 0 0;
+}
+
+.brand-mark {
+  min-height: 88px;
+  padding: 2px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand-mark a {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  border-radius: 10px;
+}
+
+.brand-mark a:focus-visible {
+  outline: 3px solid rgba(53, 42, 134, 0.24);
+  outline-offset: 3px;
+}
+
+.brand-logo {
+  width: clamp(109px, 65.8%, 137px);
+  max-width: 100%;
+  max-height: 76px;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+.rail-section {
+  gap: 7px;
+}
+
+.rail-section p {
+  padding-inline: 10px;
+  color: #7b8197;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.rail-items {
+  gap: 3px;
+}
+
+.rail-item {
+  position: relative;
+  gap: 9px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 550;
+  line-height: 1.25;
+}
+
+.rail-item:hover {
+  background: rgba(53, 42, 134, 0.06);
+  color: var(--text);
+}
+
+.rail-item.active {
+  background: #efedff;
+  color: #2f247d;
+  box-shadow: none;
+}
+
+.rail-item.active::before {
+  content: "";
+  position: absolute;
+  inset: 7px auto 7px -10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--teal);
+}
+
+.rail-icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  opacity: 0.78;
+}
+
+.rail-item.active .rail-icon {
+  opacity: 1;
+}
+
+.dashboard-main {
+  position: relative;
+  padding: 24px 22px 32px;
+  gap: 14px;
+  border: 0;
+  background: var(--panel);
+}
+
+.dashboard-main::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, #098bc4 0%, #4c2e91 24%, #ea0b69 52%, #f28a1b 74%, #56a845 100%);
+}
+
+.dashboard-header {
+  grid-template-columns: minmax(260px, 0.8fr) minmax(520px, 1.35fr);
+  align-items: end;
+  gap: 20px;
+  padding: 4px 0 2px;
+}
+
+.dashboard-title-block h1 {
+  font-family: inherit;
+  font-size: 1.65rem;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+}
+
+.dashboard-title-block p {
+  margin-top: 5px;
+  font-size: 0.86rem;
+}
+
+.dashboard-header-filters {
+  grid-template-columns: minmax(340px, 1fr) auto;
+}
+
+.filter-field > div,
+.upload-measurement-button {
+  min-height: 46px;
+  border-radius: 9px;
+}
+
+.upload-measurement-button {
+  background: var(--teal);
+  box-shadow: none;
+  font-size: 0.84rem;
+}
+
+.workspace-progress-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 12px 15px;
+  border: 1px solid #d9d4f2;
+  border-radius: 10px;
+  background: #f8f7ff;
+  color: var(--text);
+}
+
+.workspace-progress-notice strong,
+.workspace-progress-notice span {
+  display: block;
+}
+
+.workspace-progress-notice strong {
+  font-size: 0.9rem;
+}
+
+.workspace-progress-notice div > span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.workspace-progress-spinner {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border: 3px solid #d4d0ec;
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: workspace-spin 800ms linear infinite;
+}
+
+@keyframes workspace-spin {
+  to { transform: rotate(360deg); }
+}
+
+.hero-stats-row {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.shell-stat,
+.matlab-summary-card,
+.analysis-card {
+  border-radius: 10px;
+  box-shadow: 0 5px 18px rgba(28, 31, 70, 0.045);
+}
+
+.shell-stat {
+  min-width: 0;
+  padding: 13px 14px;
+  background: var(--panel);
+}
+
+.shell-stat strong {
+  margin-top: 7px;
+  font-size: clamp(1.25rem, 1.6vw, 1.6rem);
+}
+
+.shell-stat p {
+  min-height: 2.2em;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.shell-stat-head span {
+  color: var(--text);
+  font-size: 0.76rem;
+}
+
+.matlab-summary-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.matlab-summary-card {
+  padding: 13px 14px;
+  background: var(--panel-soft);
+}
+
+.matlab-summary-card strong {
+  margin: 7px 0 4px;
+  font-size: 1.3rem;
+}
+
+.matlab-summary-card p {
+  font-size: 0.74rem;
+}
+
+.propagation-settings-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.propagation-settings-head {
+  align-items: center;
+  margin: 0;
+  padding: 13px 14px;
+  background: var(--panel-soft);
+}
+
+.propagation-settings-fields {
+  padding: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.settings-collapse-action {
+  min-height: 36px;
+  padding-inline: 12px;
+  border-color: #cfc9ed;
+  background: #fff;
+  color: #30247d;
+  font-weight: 700;
+}
+
+.collapse-chevron {
+  width: 18px;
+  height: 18px;
+  overflow: visible;
+  background: transparent;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 160ms ease;
+}
+
+.collapse-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.propagation-overview-grid {
+  grid-template-columns: minmax(0, 1.04fr) minmax(560px, 0.96fr);
+  grid-template-areas:
+    "fit wafer"
+    "spectra wafer";
+  gap: 14px;
+  align-items: start;
+}
+
+.propagation-overview-grid .overview-fit-card {
+  min-height: 0;
+  height: auto;
+  align-self: start;
+}
+
+.propagation-overview-grid .overview-wafer-card {
+  min-height: 0;
+  align-self: stretch;
+  height: 100%;
+}
+
+.propagation-overview-grid .overview-spectra-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.overview-spectra-grid .analysis-card {
+  min-height: 0;
+  height: 100%;
+}
+
+.overview-fit-card .analysis-card-head {
+  margin-bottom: 8px;
+}
+
+.overview-fit-card .split-layout {
+  grid-template-columns: minmax(0, 1fr) 172px;
+  align-items: start;
+}
+
+.wafer-map-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+.wafer-map-workspace > .wafer-card-layout,
+.wafer-map-workspace .wafer-outline-shell {
+  min-width: 0;
+}
+
+.wafer-map-workspace .wafer-outline-shell {
+  overflow: hidden;
+}
+
+.wafer-map-workspace .wafermap-svg {
+  display: block;
+  max-width: 100%;
+}
+
+.overview-wafer-card .wafer-card-layout {
+  width: min(100%, 500px);
+  grid-template-columns: minmax(0, 1fr) 82px;
+  gap: 8px;
+  margin-inline: auto;
+}
+
+.overview-wafer-card .wafer-outline {
+  padding: 12px;
+}
+
+.wafer-control-rail {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.wafer-control-rail .wafer-footer-bar {
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 0;
+}
+
+.wafer-control-rail .wafer-scale-hint {
+  margin: 0 !important;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.wafer-control-rail .wafer-scale-actions {
+  padding-top: 2px;
+}
+
+.chip-summary-card {
+  min-height: 390px;
+}
+
+.interface-preferences-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.interface-motion-toggle {
+  margin: 0;
+  min-height: 100%;
+}
+
+.dashboard-page[data-density="compact"] .dashboard-main {
+  gap: 10px;
+  padding: 18px 16px 26px;
+}
+
+.dashboard-page[data-density="compact"] .shell-stat,
+.dashboard-page[data-density="compact"] .matlab-summary-card,
+.dashboard-page[data-density="compact"] .analysis-card {
+  padding: 10px;
+}
+
+.dashboard-page[data-reduce-motion="true"] *,
+.dashboard-page[data-reduce-motion="true"] *::before,
+.dashboard-page[data-reduce-motion="true"] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+@media (max-width: 1380px) {
+  .dashboard-shell {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+
+  .dashboard-rail {
+    display: flex;
+  }
+
+  .hero-stats-row {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .matlab-summary-grid {
+    grid-template-columns: repeat(5, minmax(150px, 1fr));
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 1100px) {
+  .dashboard-shell {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+
+  .dashboard-header {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .hero-stats-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .propagation-overview-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "fit"
+      "wafer"
+      "spectra";
+  }
+}
+
+@media (max-width: 840px) {
+  .dashboard-shell {
+    display: block;
+  }
+
+  .dashboard-rail {
+    position: static;
+    min-height: auto;
+    max-height: none;
+    border-width: 0 0 1px;
+  }
+
+  .brand-mark {
+    min-height: 68px;
+  }
+
+  .brand-logo {
+    width: clamp(104px, 36.4vw, 125px);
+    max-height: 57px;
+  }
+
+  .rail-section {
+    display: block;
+  }
+
+  .rail-section p {
+    margin-bottom: 6px;
+  }
+
+  .rail-items {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 5px;
+  }
+
+  .rail-item {
+    flex: 0 0 auto;
+  }
+
+  .dashboard-main {
+    padding: 18px 12px 24px;
+  }
+
+  .dashboard-header-filters,
+  .hero-stats-row,
+  .interface-preferences-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .matlab-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+  }
+
+  .propagation-overview-grid .overview-spectra-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wafer-map-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .wafer-control-rail {
+    padding: 12px 0 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .wafer-control-rail .wafer-footer-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wafer-scale-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .wafer-scale-reset {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .matlab-summary-grid {
+    grid-template-columns: 1fr;
+  }
 }

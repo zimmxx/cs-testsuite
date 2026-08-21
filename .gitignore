@@ -1,6 +1,15 @@
 node_modules
 dist
 tmp
+.pnpm-store
+.codex-tmp
+qa-screenshots
+tmp*.mjs
+tmp*.cjs
+tmp*.js
+tmp_inspect_*
+inspect-*.mjs
+*.inspect.ndjson
 _tmp_*
 Wafer-PostProcessing-Suite.html
 Wafer-PostProcessing-Suite-Offline.html

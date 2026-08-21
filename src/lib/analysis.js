@@ -673,7 +673,7 @@ export function buildReportState(metrics, datasetSummary, options = {}) {
       `${selectedHeater.length} selected chips produced heater-efficiency estimates.`
     ],
     matlabSummary: {
-      measuredChips: selectedPropagation.length,
+      measuredChips: totalChipCount,
       failedFits: selectedPropagation.filter((item) => item.mse !== null && item.mse > metrics.propagation.mseThreshold).length,
       fittedChips: selectedValidPropagation.length,
       avgPropagationLossDbPerCm,

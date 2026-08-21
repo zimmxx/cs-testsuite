@@ -1,16 +1,16 @@
 # Suggested Updates
 
-This document captures the most useful next steps after the `v0.3.1` update.
+This document captures the most useful next steps after the `v0.4.0` update.
 
 ## Recommended Next Step
 
-The strongest next improvement is to extract the spectrum viewer workflows into smaller dedicated components and shared utilities, so the standard and advanced viewers can keep evolving without adding more complexity to `src/App.jsx`.
+The strongest next improvement is to split the large workspace orchestration in `src/App.jsx` into smaller analysis and navigation components, then add repeatable browser-level regression tests for loading, scaling, chip selection, and export flows.
 
 Why this should be next:
 
-- it reduces regression risk when one viewer is tuned without affecting the other
-- it makes the advanced controls easier to test and reason about
-- it prepares the project for future spectrum analysis features such as batch metrics, annotations, and saved view presets
+- it reduces regression risk when one workspace is tuned without affecting another
+- it makes the newly refined propagation and wafer-scale controls easier to test
+- it prepares the project for future spectrum analysis, batch metrics, annotations, and saved view presets
 
 ## Suggested Spectrum Architecture
 

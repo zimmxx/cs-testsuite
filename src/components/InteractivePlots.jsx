@@ -679,8 +679,8 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
       data={plot?.data || []}
       layout={plot?.layout || {}}
       config={plot?.config || {}}
-      windowTitle={`Loss Spectrum - ${chipId || "Chip"}`}
-      emptyMessage="No loss spectra are available for the selected chip."
+      windowTitle={`Transmission Spectrum - ${chipId || "Chip"}`}
+      emptyMessage="No transmission spectra are available for the selected chip."
       height={220}
     />
   );

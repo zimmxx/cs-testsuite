@@ -112,8 +112,7 @@ export function buildPropagationPlotSpec({ chip, projectCode, slotLabel, targetW
   const y = chip.samples.map((row) => row.transmission_db);
   const confidenceBand = buildConfidenceBand(chip.samples, chip.fit);
   const lossValue = formatNumber(chip.lossDbPerCm, 2);
-  const rSquared = chip.mse !== null && chip.mse !== undefined ? formatNumber(1 - chip.mse, 3) : "--";
-  const rmse = chip.mse !== null && chip.mse !== undefined ? formatNumber(Math.sqrt(chip.mse), 3) : "--";
+  const mse = chip.mse !== null && chip.mse !== undefined ? formatNumber(chip.mse, 4) : "--";
 
   const data = [
     {
@@ -197,8 +196,7 @@ export function buildPropagationPlotSpec({ chip, projectCode, slotLabel, targetW
             `<b>Fit Results</b>`,
             `Propagation loss: ${lossValue} dB/cm`,
             `Intercept: ${formatNumber(chip.interceptDb, 2)} dB`,
-            `R2: ${rSquared}`,
-            `RMSE: ${rmse} dB`,
+            `MSE: ${mse} dB²`,
             `Fit points: ${chip.samples.length}`,
             `Lambda0: ${targetWavelengthNm} nm`,
             `Window: +/- ${windowNm} nm`,
@@ -507,8 +505,7 @@ function workbookBytes({ projectCode, slotLabel, selectedDate, summaryRows, prop
     DieY: row.dieY,
     PropagationLoss_dB_per_cm: row.lossDbPerCm,
     Intercept_dB: row.interceptDb,
-    R2: row.rSquared,
-    RMSE_dB: row.rmseDb,
+    MSE_dB2: row.mseDb2,
     FitPoints: row.fitPoints,
     PeakWavelength_nm: row.peakWavelengthNm,
     PeakTransmission_dB: row.peakTransmissionDb,
@@ -559,8 +556,7 @@ function chipSummaryRows(chips, waferCells = []) {
       dieY: coordinate?.dieY ?? chip.dieY,
       lossDbPerCm: chip.lossDbPerCm,
       interceptDb: chip.interceptDb,
-      rSquared: chip.mse !== null && chip.mse !== undefined ? 1 - chip.mse : null,
-      rmseDb: chip.mse !== null && chip.mse !== undefined ? Math.sqrt(chip.mse) : null,
+      mseDb2: chip.mse,
       fitPoints: chip.samples?.length || 0,
       peakWavelengthNm: chip.transmissionSummary?.peakWavelengthNm ?? null,
       peakTransmissionDb: chip.transmissionSummary?.peakTransmissionDb ?? null,

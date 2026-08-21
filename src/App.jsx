@@ -34,7 +34,7 @@ import { getDatasetPresentation } from "./lib/datasetPresentation";
 import { buildStandardDatasetBaseName } from "./lib/filenameStandardization";
 import { parseHeaterMeasurementFiles } from "./lib/heaterMeasurement";
 import { generatePostProcessedArchive } from "./lib/postProcessingExport";
-import { buildWaferMapFigureModel, buildWaferMapPng, buildWaferMapSvgDocument, downloadBlob as downloadAssetBlob, openWaferMapFigureWindow } from "./lib/wafermapFigure";
+import { buildWaferMapFigureModel, buildWaferMapPng, buildWaferMapSvgDocument, downloadBlob as downloadAssetBlob, openWaferMapFigureWindow, resolveWaferColorRange } from "./lib/wafermapFigure";
 import {
   InteractiveHeaterTuningPlot,
   InteractivePropagationPlot,
@@ -53,9 +53,9 @@ import ReportGeneratorPanel from "./components/ReportGeneratorPanel";
 import ToastTray from "./components/ToastTray";
 
 const APP_TABS = [
-  { id: "propagation", label: "Propagation Loss" },
-  { id: "insertion", label: "Insertion Loss" },
-  { id: "heater", label: "Heater Efficiency" }
+  { id: "propagation", label: "Propagation Loss", icon: "pulse" },
+  { id: "insertion", label: "Insertion Loss", icon: "trend" },
+  { id: "heater", label: "Heater Efficiency", icon: "thermometer" }
 ];
 
 const RAIL_SECTIONS = [
@@ -63,21 +63,25 @@ const RAIL_SECTIONS = [
   {
     title: "Library",
     items: [
-      { id: "projects", label: "Workspace Snapshots" },
-      { id: "datasets", label: "Dataset Snapshots" },
-      { id: "manual-conversion", label: "Manual Conversion" },
-      { id: "manual-conversion-advanced", label: "Manual Conversion (Advanced)" },
-      { id: "comparison", label: "Comparison" },
-      { id: "cd-sem", label: "CD-SEM Data" },
-      { id: "dashboard", label: "Dashboard" },
-      { id: "spectrum-viewer", label: "Spectrum Viewer" },
-      { id: "spectrum-viewer-advanced", label: "Spectrum Viewer (Advanced)" },
-      { id: "filename-conversion", label: "Filename Conversion" },
-      { id: "wafermaps", label: "Wafermaps" },
-      { id: "report-generator", label: "Report Generator" },
-      { id: "settings", label: "Settings" },
-      { id: "audit", label: "Audit Log" },
-      { id: "help", label: "Help" }
+      { id: "dashboard", label: "Dashboard", icon: "grid" },
+      { id: "datasets", label: "Dataset Snapshots", icon: "database" },
+      { id: "comparison", label: "Comparison", icon: "compare" },
+      { id: "manual-conversion", label: "Manual Conversion", icon: "document" },
+      { id: "manual-conversion-advanced", label: "Manual Conversion (Advanced)", icon: "document-settings" },
+      { id: "filename-conversion", label: "Filename Conversion", icon: "tag" },
+      { id: "cd-sem", label: "CD-SEM Data", icon: "scan" },
+      { id: "spectrum-viewer", label: "Spectrum Viewer", icon: "spectrum" },
+      { id: "spectrum-viewer-advanced", label: "Spectrum Viewer (Advanced)", icon: "sliders" },
+      { id: "wafermaps", label: "Wafermaps", icon: "wafer" },
+      { id: "report-generator", label: "Report Generator", icon: "report" }
+    ]
+  },
+  {
+    title: "Settings",
+    items: [
+      { id: "settings", label: "Settings", icon: "settings" },
+      { id: "audit", label: "Audit Log", icon: "audit" },
+      { id: "help", label: "Help", icon: "help" }
     ]
   }
 ];
@@ -126,6 +130,8 @@ const DEFAULT_SETTINGS = {
   operatorName: "s.engineer",
   operatorRole: "Engineer",
   themePreference: "system",
+  interfaceDensity: "comfortable",
+  reduceMotion: false,
   defaultWavelengthNm: 1550,
   defaultMetricFamily: "propagation",
   autoSaveUploads: false,
@@ -147,10 +153,14 @@ const THEME_PREFERENCE_OPTIONS = [
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" }
 ];
+const INTERFACE_DENSITY_OPTIONS = [
+  { value: "comfortable", label: "Comfortable" },
+  { value: "compact", label: "Compact" }
+];
 const HELP_TOPICS = [
   {
-    title: "Projects",
-    body: "Save the current workspace context, including wafer metadata, source file context, selected views, and translation settings."
+    title: "Workspace",
+    body: "Move between propagation loss, insertion loss, and heater efficiency while keeping the active dataset in view."
   },
   {
     title: "Datasets",
@@ -178,8 +188,8 @@ const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
-  { label: "Feature Guide v0.3.1", path: "docs/releases/v0.3.1/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.3.1/FEATURES.md` },
-  { label: "Change Log v0.3.1", path: "docs/releases/v0.3.1/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.3.1/CHANGELOG.md` },
+  { label: "Feature Guide v0.4.0", path: "docs/releases/v0.4.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.4.0/FEATURES.md` },
+  { label: "Change Log v0.4.0", path: "docs/releases/v0.4.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.4.0/CHANGELOG.md` },
   { label: "Suggested Next Updates", path: "docs/suggested_update.md", href: `${REPO_DOC_BASE}docs/suggested_update.md` },
   { label: "Dataset Filename Standard", path: "docs/DATASET_FILENAME_STANDARD.md", href: `${REPO_DOC_BASE}docs/DATASET_FILENAME_STANDARD.md` }
 ];
@@ -440,6 +450,12 @@ function initialsFromName(name) {
       .map((part) => part[0]?.toUpperCase() || "")
       .join("") || "SE"
   );
+}
+
+function waitForNextPaint() {
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => window.setTimeout(resolve, 0));
+  });
 }
 
 function formatMetric(metricKey, value) {
@@ -822,7 +838,7 @@ function buildReviewedAnalyticsPayload(reportState, includedChipIds, allChipIds,
   const excludedChipIds = Array.isArray(allChipIds)
     ? allChipIds.map((chipId) => String(chipId)).filter((chipId) => !includedIds.includes(chipId))
     : [];
-  const yieldValue = measuredChips ? (fittedChips / measuredChips) * 100 : null;
+  const yieldValue = selectedChipCount ? (fittedChips / selectedChipCount) * 100 : null;
 
   return {
     analyticsSummary: normalizeDatasetAnalyticsSummary({
@@ -878,16 +894,93 @@ function measurementDisplay(row) {
   return null;
 }
 
+const METRIC_ICON_PATHS = {
+  propagation: ["M2 15h3.5c2.5 0 2.5-6 5-6s2.5 6 5 6 2.5-6 5-6H22"],
+  chip: ["M6 5h12v14H6z", "M9 8h6v8H9z", "M9 2v3M13 2v3M17 2v3M9 19v3M13 19v3M17 19v3M2 9h4M2 13h4M2 17h4M18 9h4M18 13h4M18 17h4"],
+  devices: ["M3 8h5l3 4-3 4H3M21 8h-5l-3 4 3 4h5", "M11 12h2"],
+  source: ["M6 3h8l4 4v14H6z", "M14 3v5h4", "M9 12h6M9 16h6"],
+  "wafer-yield": ["M12 3a9 9 0 1 0 6.5 15.2L16.5 16h-9L5.5 18.2", "M8.5 11.5 11 14l4.8-5"],
+  fitted: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "M7.5 12.2 10.5 15l6-6.5"],
+  failed: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "M8.5 8.5l7 7M15.5 8.5l-7 7"],
+  insertion: ["M4 12h15", "M14 7l5 5-5 5"],
+  bandwidth: ["M2 12c2.2-6 4.2-6 6.4 0s4.2 6 6.4 0 4.2-6 7.2 0"],
+  heater: ["M4 12h3l2-4 3 8 3-8 2 4h3", "M5 5c1-1 1-2 0-3M12 5c1-1 1-2 0-3M19 5c1-1 1-2 0-3"]
+};
+
+function MetricIcon({ name }) {
+  if (name === "wavelength" || name === "peak") {
+    return (
+      <span className="metric-icon-wrap metric-icon-wavelength" aria-hidden="true">
+        <svg className="metric-icon" viewBox="0 0 24 24"><text x="12" y="18" textAnchor="middle">λ</text></svg>
+      </span>
+    );
+  }
+  const paths = METRIC_ICON_PATHS[name] || METRIC_ICON_PATHS.devices;
+  return (
+    <span className={`metric-icon-wrap metric-icon-${name}`} aria-hidden="true">
+      <svg className="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        {paths.map((path, index) => <path key={`${name}-${index}`} d={path} />)}
+      </svg>
+    </span>
+  );
+}
+
+function formatScaleInputValue(value) {
+  return Number.isFinite(Number(value)) ? Number(Number(value).toFixed(3)) : "";
+}
+
 function ShellStat({ label, value, note, tone, icon }) {
   return (
     <article className={`shell-stat shell-stat-${tone}`}>
       <div className="shell-stat-head">
+        <MetricIcon name={icon} />
         <span>{label}</span>
-        <em>{icon}</em>
       </div>
       <strong>{value}</strong>
       <p>{note}</p>
     </article>
+  );
+}
+
+function WorkspaceProgressNotice({ activity }) {
+  if (!activity) return null;
+  return (
+    <section className="workspace-progress-notice" role="status" aria-live="polite">
+      <span className="workspace-progress-spinner" aria-hidden="true" />
+      <div>
+        <strong>{activity.title}</strong>
+        <span>{activity.message}</span>
+      </div>
+    </section>
+  );
+}
+
+const RAIL_ICON_PATHS = {
+  pulse: ["M3 12h4l2.1-6 4.1 12 2.6-8 2.2 2h3"],
+  trend: ["M4 17 9 12l3 3 7-8", "M15 7h4v4"],
+  thermometer: ["M10 14.8V5a2 2 0 1 1 4 0v9.8a4 4 0 1 1-4 0Z", "M12 10v7"],
+  grid: ["M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"],
+  database: ["M4 6c0 1.7 3.6 3 8 3s8-1.3 8-3-3.6-3-8-3-8 1.3-8 3Z", "M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6", "M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"],
+  compare: ["M4 18V9h4v9H4Zm6 0V4h4v14h-4Zm6 0v-6h4v6h-4Z"],
+  document: ["M6 3h8l4 4v14H6z", "M14 3v5h4", "M9 12h6M9 16h6"],
+  "document-settings": ["M5 3h9l4 4v5", "M14 3v5h4", "M8 12h4M8 16h3", "M16.5 15.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z", "M16.5 14v1.5M16.5 21.5V23M13.5 18.5H12M21 18.5h-1.5"],
+  tag: ["M3 12 12 3h7l2 2v7l-9 9Z", "M16.5 7.5h.01"],
+  scan: ["M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4", "M8 12h8M10 9v6M14 9v6"],
+  spectrum: ["M3 15h3l2-7 3 10 3-13 3 10h4"],
+  sliders: ["M4 7h7M15 7h5M4 17h3M11 17h9", "M11 4v6M7 14v6"],
+  wafer: ["M12 3a9 9 0 1 0 6.4 15.3L16 16h-8l-2.4 2.3", "M8 8h8M6.5 12h11M8 16h8M12 4v12"],
+  report: ["M6 3h9l4 4v14H6z", "M15 3v5h4", "M9 12h6M9 16h6"],
+  settings: ["M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z", "M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"],
+  audit: ["M5 4h14v17H5z", "M8 2h8v4H8z", "M8 11h8M8 15h5"],
+  help: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "M9.7 9a2.4 2.4 0 1 1 3.1 2.3c-.8.4-.8 1-.8 1.7", "M12 17h.01"]
+};
+
+function RailIcon({ name }) {
+  const paths = RAIL_ICON_PATHS[name] || RAIL_ICON_PATHS.grid;
+  return (
+    <svg className="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {paths.map((path, index) => <path key={`${name}-${index}`} d={path} />)}
+    </svg>
   );
 }
 
@@ -903,7 +996,7 @@ function SidebarSection({ section, activeTab, onSelect }) {
             className={item.id === activeTab ? "rail-item active" : "rail-item"}
             onClick={() => onSelect(item.id)}
           >
-            <span className="rail-glyph">{item.id === activeTab ? "�" : "?"}</span>
+            <RailIcon name={item.icon} />
             <span>{item.label}</span>
           </button>
         ))}
@@ -1115,6 +1208,7 @@ function WaferMapPanel({
     colorScaleMid,
     colorScaleMax
   });
+  const scaleUnit = metricKey === "propagation" ? "dB/cm" : metricKey === "heater" ? "mW/π" : "dB";
 
   return (
     <div className="wafer-card-layout">
@@ -1179,15 +1273,19 @@ function WaferMapPanel({
           })}
         </svg>
       </div>
-      <div className="wafer-side-scale">
-        <span className="wafer-scale-caption high">High</span>
-        <div className="wafer-scale-bar" />
-        <div className="wafer-scale-labels">
-          <span>{figure.range ? figure.range.max.toFixed(2) : "--"}</span>
-          <span>{figure.range ? figure.range.mid.toFixed(2) : "--"}</span>
-          <span>{figure.range ? figure.range.min.toFixed(2) : "--"}</span>
+      <div className="wafer-side-scale" aria-label={`${metricLabel(metricKey)} colour scale`}>
+        <span className="wafer-scale-title">Scale</span>
+        <div className="wafer-scale-bar" aria-hidden="true">
+          <i className="wafer-scale-tick high" />
+          <i className="wafer-scale-tick medium" />
+          <i className="wafer-scale-tick low" />
         </div>
-        <span className="wafer-scale-caption low">Low</span>
+        <div className="wafer-scale-labels">
+          <span className="high"><strong>{figure.range ? figure.range.max.toFixed(2) : "--"}</strong><small>High</small></span>
+          <span className="medium"><strong>{figure.range ? figure.range.mid.toFixed(2) : "--"}</strong><small>Mid</small></span>
+          <span className="low"><strong>{figure.range ? figure.range.min.toFixed(2) : "--"}</strong><small>Low</small></span>
+        </div>
+        <span className="wafer-scale-unit">{scaleUnit}</span>
       </div>
     </div>
   );
@@ -1356,12 +1454,11 @@ function MetricInspector({ metricKey, item, sourceMeta, insertionDeviceLabel = "
   if (metricKey === "propagation") {
     return (
       <aside className="fit-results-card metric-inspector-card">
-        <h3>Fit Results</h3>
+        <h3>Propagation Loss Fit Results</h3>
         <ResultKeyValue label="Chip" value={item.chipId} />
         <ResultKeyValue label="Propagation loss" value={formatMetric("propagation", item.lossDbPerCm ?? null)} />
         <ResultKeyValue label="Intercept" value={item.interceptDb !== null && item.interceptDb !== undefined ? `${item.interceptDb.toFixed(2)} dB` : "--"} />
-        <ResultKeyValue label="R2" value={item.mse !== null && item.mse !== undefined ? (1 - item.mse).toFixed(3) : "--"} />
-        <ResultKeyValue label="RMSE" value={item.mse !== null && item.mse !== undefined ? `${Math.sqrt(item.mse).toFixed(2)} dB` : "--"} />
+        <ResultKeyValue label="MSE" value={item.mse !== null && item.mse !== undefined ? `${item.mse.toFixed(4)} dB²` : "--"} />
         <ResultKeyValue label="Wavelength band" value={`${sourceMeta.propagationTargetWavelengthNm - sourceMeta.propagationWindowNm} - ${sourceMeta.propagationTargetWavelengthNm + sourceMeta.propagationWindowNm} nm`} />
         <ResultKeyValue label="Fit points" value={String(item.samples?.length ?? 0)} />
       </aside>
@@ -1735,20 +1832,21 @@ function TransmissionSpectrumPlot({ series, targetWavelengthNm, chipId }) {
 
 function MatlabSummaryPanel({ summary }) {
   const cards = [
-    { label: "Measured chips", value: summary?.measuredChips ?? "--", note: "Unique chip locations parsed" },
-    { label: "Valid fitted chips", value: summary?.fittedChips ?? "--", note: "Passing the propagation fit threshold" },
-    { label: "Failed fits", value: summary?.failedFits ?? "--", note: "Above the allowed MSE threshold" },
-    { label: "Avg propagation", value: summary?.avgPropagationLossDbPerCm !== null && summary?.avgPropagationLossDbPerCm !== undefined ? `${summary.avgPropagationLossDbPerCm.toFixed(2)} dB/cm` : "--", note: "Filtered wafer average" },
-    { label: "Avg peak wavelength", value: summary?.avgPeakWavelengthNm !== null && summary?.avgPeakWavelengthNm !== undefined ? `${summary.avgPeakWavelengthNm.toFixed(1)} nm` : "--", note: "Derived from WG1 transmission peak" },
-    { label: "Avg insertion loss", value: summary?.avgInsertionLossDb !== null && summary?.avgInsertionLossDb !== undefined ? `${summary.avgInsertionLossDb.toFixed(2)} dB` : "--", note: "Estimated from the strongest transmission" },
-    { label: "Avg 3 dB bandwidth", value: summary?.avgBandwidth3dBNm !== null && summary?.avgBandwidth3dBNm !== undefined ? `${summary.avgBandwidth3dBNm.toFixed(1)} nm` : "--", note: "Average passband width from WG1" }
+    { label: "Valid fitted chips", value: summary?.fittedChips ?? "--", note: "Passing the propagation fit threshold", icon: "fitted" },
+    { label: "Failed fits", value: summary?.failedFits ?? "--", note: "Above the allowed MSE threshold", icon: "failed" },
+    { label: "Avg peak wavelength", value: summary?.avgPeakWavelengthNm !== null && summary?.avgPeakWavelengthNm !== undefined ? `${summary.avgPeakWavelengthNm.toFixed(1)} nm` : "--", note: "Derived from WG1 transmission peak", icon: "peak" },
+    { label: "Avg insertion loss", value: summary?.avgInsertionLossDb !== null && summary?.avgInsertionLossDb !== undefined ? `${summary.avgInsertionLossDb.toFixed(2)} dB` : "--", note: "Estimated from the strongest transmission", icon: "insertion" },
+    { label: "Avg 3 dB bandwidth", value: summary?.avgBandwidth3dBNm !== null && summary?.avgBandwidth3dBNm !== undefined ? `${summary.avgBandwidth3dBNm.toFixed(1)} nm` : "--", note: "Average passband width from WG1", icon: "bandwidth" }
   ];
 
   return (
     <section className="matlab-summary-grid">
       {cards.map((card) => (
         <article key={card.label} className="matlab-summary-card">
-          <span>{card.label}</span>
+          <div className="matlab-summary-head">
+            <MetricIcon name={card.icon} />
+            <span>{card.label}</span>
+          </div>
           <strong>{card.value}</strong>
           <p>{card.note}</p>
         </article>
@@ -1883,7 +1981,7 @@ function PropagationSettingsPanel({
       <div className="analysis-card-head propagation-settings-head">
         <div>
           <h2>Propagation Processing Settings</h2>
-          <p>{isExpanded ? "Edit values freely, then apply them once to update the analysis and plots." : "Settings are collapsed to keep the analysis workspace in view."}</p>
+          <p>{isExpanded ? "Edit the processing assumptions, then apply once to update every propagation result." : "Review or adjust the processing assumptions used for this dataset."}</p>
         </div>
         <div className="analysis-card-controls propagation-settings-actions">
           <button
@@ -1893,8 +1991,10 @@ function PropagationSettingsPanel({
             aria-controls="propagation-settings-fields"
             onClick={onToggleExpanded}
           >
-            <span aria-hidden="true" className={isExpanded ? "collapse-chevron expanded" : "collapse-chevron"}>v</span>
-            {isExpanded ? "Collapse" : "Expand"}
+            <svg className={isExpanded ? "collapse-chevron expanded" : "collapse-chevron"} viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M5 7.5 10 12.5 15 7.5" />
+            </svg>
+            {isExpanded ? "Hide settings" : "Show settings"}
           </button>
           <span className={isApplying ? "dataset-status-chip progress" : hasChanges ? "dataset-status-chip progress" : "dataset-status-chip success"}>
             {isApplying ? "Updating analysis..." : hasChanges ? "Changes not applied" : "Analysis current"}
@@ -1951,6 +2051,7 @@ export default function App() {
   const [rawRows, setRawRows] = useState([]);
   const [columnMap, setColumnMap] = useState({});
   const [sourceMeta, setSourceMeta] = useState(() => buildDefaultSourceMeta(initialSettings));
+  const [waferScaleDraft, setWaferScaleDraft] = useState({ min: "", mid: "", max: "" });
   const [propagationDraft, setPropagationDraft] = useState(() => propagationDraftFromSourceMeta(buildDefaultSourceMeta(initialSettings)));
   const [pendingPropagationFingerprint, setPendingPropagationFingerprint] = useState("");
   const [statusMessage, setStatusMessage] = useState("Workspace ready. Load a project or upload measurement files to begin.");
@@ -1981,7 +2082,9 @@ export default function App() {
   const [brandLogoAvailable, setBrandLogoAvailable] = useState(true);
   const [publishingDatasetId, setPublishingDatasetId] = useState("");
   const [remoteLibraryDatasets, setRemoteLibraryDatasets] = useState(() => BUNDLED_LIBRARY_DATASETS.map(normalizeLibraryDataset));
-  const [remoteLibraryStatus, setRemoteLibraryStatus] = useState("GitHub measurement library ready. Refresh to pull the latest published folders.");
+  const [remoteLibraryStatus, setRemoteLibraryStatus] = useState("Setting up the measurement library...");
+  const [isLibraryInitializing, setIsLibraryInitializing] = useState(true);
+  const [workspaceActivity, setWorkspaceActivity] = useState(null);
   const [githubConfig, setGithubConfig] = useState(() => ({ ...DEFAULT_GITHUB_CONFIG, ...readStoredJson(STORAGE_KEYS.github, {}) }));
   const [toastItems, setToastItems] = useState([]);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
@@ -2190,6 +2293,72 @@ export default function App() {
       };
     });
   }, [excludedPropagationChipIds, insertionByChip, insertionMetricField, insertionProfile.label, metrics, propagationAllWaferCells, selectedWaferMetric, waferMapDisplayMode, waferTemplateLayout]);
+  const automaticWaferColorRange = useMemo(
+    () => resolveWaferColorRange(currentWaferCells, null, null, null),
+    [currentWaferCells]
+  );
+  const effectiveWaferColorRange = useMemo(
+    () => resolveWaferColorRange(
+      currentWaferCells,
+      sourceMeta.waferColorScaleMin,
+      sourceMeta.waferColorScaleMid,
+      sourceMeta.waferColorScaleMax
+    ),
+    [currentWaferCells, sourceMeta.waferColorScaleMax, sourceMeta.waferColorScaleMid, sourceMeta.waferColorScaleMin]
+  );
+  useEffect(() => {
+    setWaferScaleDraft({
+      min: String(formatScaleInputValue(effectiveWaferColorRange?.min)),
+      mid: String(formatScaleInputValue(effectiveWaferColorRange?.mid)),
+      max: String(formatScaleInputValue(effectiveWaferColorRange?.max))
+    });
+  }, [effectiveWaferColorRange?.max, effectiveWaferColorRange?.mid, effectiveWaferColorRange?.min]);
+  const hasCustomWaferColorRange = [sourceMeta.waferColorScaleMin, sourceMeta.waferColorScaleMid, sourceMeta.waferColorScaleMax]
+    .some((value) => value !== null && value !== undefined && value !== "");
+
+  function updateWaferColorThreshold(draftField, sourceField, rawValue) {
+    setWaferScaleDraft((previous) => ({ ...previous, [draftField]: rawValue }));
+    if (rawValue === "") return;
+    const nextValue = Number(rawValue);
+    if (!Number.isFinite(nextValue)) return;
+    setSourceMeta((previous) => {
+      const currentRange = resolveWaferColorRange(
+        currentWaferCells,
+        previous.waferColorScaleMin,
+        previous.waferColorScaleMid,
+        previous.waferColorScaleMax
+      ) || automaticWaferColorRange;
+      return {
+        ...previous,
+        waferColorScaleMin: formatScaleInputValue(currentRange?.min),
+        waferColorScaleMid: formatScaleInputValue(currentRange?.mid),
+        waferColorScaleMax: formatScaleInputValue(currentRange?.max),
+        [sourceField]: nextValue
+      };
+    });
+  }
+
+  function restoreEmptyWaferScaleDraft(draftField, fallbackValue) {
+    setWaferScaleDraft((previous) => previous[draftField] === ""
+      ? { ...previous, [draftField]: String(formatScaleInputValue(fallbackValue)) }
+      : previous);
+  }
+
+  function resetWaferColorScale() {
+    setSourceMeta((previous) => ({
+      ...previous,
+      waferColorScaleMin: null,
+      waferColorScaleMid: null,
+      waferColorScaleMax: null
+    }));
+    setWaferScaleDraft({
+      min: String(formatScaleInputValue(automaticWaferColorRange?.min)),
+      mid: String(formatScaleInputValue(automaticWaferColorRange?.mid)),
+      max: String(formatScaleInputValue(automaticWaferColorRange?.max))
+    });
+    setStatusMessage(`Wafermap scale reset to the ${metricLabel(selectedWaferMetric).toLowerCase()} data range.`);
+    pushToast("Wafermap scale reset", "Minimum, midpoint and maximum now follow the loaded chip data.", "success");
+  }
   const propagationLead = metrics.propagation.byChip.find((item) => item.chipId === selectedChip) || metrics.propagation.byChip[0] || null;
   const insertionLead = insertionByChip.find((item) => item.chipId === selectedChip) || insertionByChip[0] || null;
   const heaterLead = metrics.heater.byChip.find((item) => item.chipId === selectedChip) || metrics.heater.byChip[0] || null;
@@ -2199,14 +2368,13 @@ export default function App() {
     points: (item.points || []).map((point) => ({ wavelengthNm: point.wavelengthNm, transmissionDb: point.lossDb }))
   })), [heaterLead]);
   const selectedMetricDetail = selectedWaferMetric === "heater" ? heaterLead : selectedWaferMetric === "insertion" ? insertionLead : propagationLead;
-  const propagationMean = average(metrics.propagation.byChip.map((item) => item.lossDbPerCm).filter((value) => value !== null));
+  const selectedPropagationMean = reportState.matlabSummary.avgPropagationLossDbPerCm;
   const insertionMean = average(insertionByChip.map((item) => item[insertionMetricField]).filter((value) => value !== null && value !== undefined));
   const heaterMean = average(metrics.heater.byChip.map((item) => item.efficiencyMwPerPi));
   const propagationYield = metrics.propagation.passRate;
   const matchedDevices = Math.max(datasetSummary.rows - 2, 0);
   const unmatchedDevices = datasetSummary.rows - matchedDevices;
   const isWorkspaceTab = APP_TABS.some((tab) => tab.id === activeTab);
-  const railAvatar = useMemo(() => initialsFromName(appSettings.operatorName), [appSettings.operatorName]);
   const chipSelectionRows = useMemo(
     () => metrics.propagation.byChip
       .map((item) => ({
@@ -2233,18 +2401,22 @@ export default function App() {
     [excludedPropagationChipIds, metrics.propagation.byChip]
   );
   const primaryMetric = activeTab === "heater"
-    ? { key: "heater", value: heaterMean, title: "Mean Heater Efficiency", icon: "Thermal" }
+    ? { key: "heater", value: heaterMean, title: "Mean Heater Efficiency", icon: "heater" }
     : activeTab === "insertion"
-      ? { key: "insertion", value: insertionMean, title: insertionMetricLabel(insertionMetricField), icon: "Blocks" }
-      : { key: "propagation", value: propagationMean, title: "Mean Propagation Loss", icon: "Trend" };
+      ? { key: "insertion", value: insertionMean, title: insertionMetricLabel(insertionMetricField), icon: "insertion" }
+      : { key: "propagation", value: selectedPropagationMean, title: "Avg Propagation Loss", icon: "propagation" };
   const secondaryMetric = activeTab === "heater"
-    ? { label: "Heater Chips", value: metrics.heater.byChip.length.toLocaleString(), note: "Dies with heater-efficiency estimates", icon: "Heater" }
+    ? { label: "Heater Chips", value: metrics.heater.byChip.length.toLocaleString(), note: "Dies with heater-efficiency estimates", icon: "chip" }
     : activeTab === "insertion"
-      ? { label: insertionProfile.label || "Building Block", value: insertionByChip.length.toLocaleString(), note: insertionProfile.description || "Device-specific insertion-loss analysis across the wafer.", icon: "Blocks" }
-      : { label: "Fit R2", value: propagationLead?.mse !== null && propagationLead?.mse !== undefined ? (1 - propagationLead.mse).toFixed(3) : "--", note: "Selected wavelength-window fit quality", icon: "Fit" };
+      ? { label: insertionProfile.label || "Building Block", value: insertionByChip.length.toLocaleString(), note: insertionProfile.description || "Device-specific insertion-loss analysis across the wafer.", icon: "devices" }
+      : { label: "Measured Chips", value: metrics.propagation.summaryStats.measuredChips.toLocaleString(), note: "All measured chips in the dataset", icon: "chip" };
   const primaryMetricDisplay = activeTab === "insertion"
     ? formatInsertionMetric(insertionMetricField, primaryMetric.value)
     : formatMetric(primaryMetric.key, primaryMetric.value);
+  const activeWorkspaceNotice = workspaceActivity || (isLibraryInitializing ? {
+    title: "Setting up workspace...",
+    message: "Loading the latest dataset catalogue. Quick Load Dataset will be ready shortly."
+  } : null);
   const activeMetricItems = activeTab === "heater"
     ? metrics.heater.byChip
     : activeTab === "insertion"
@@ -2464,9 +2636,11 @@ export default function App() {
   function pushToast(title, message, tone = "info") {
     const id = createId("toast");
     setToastItems((previous) => [...previous, { id, title, message, tone }].slice(-4));
-    window.setTimeout(() => {
-      setToastItems((previous) => previous.filter((item) => item.id !== id));
-    }, 3200);
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        setToastItems((previous) => previous.filter((item) => item.id !== id));
+      }, 4200);
+    });
   }
   function updateTab(tabId) {
     startTransition(() => {
@@ -2677,6 +2851,11 @@ export default function App() {
     const files = Array.from(event.target.files || []);
     if (!files.length || isUploadingFiles) return;
     setIsUploadingFiles(true);
+    setWorkspaceActivity({
+      title: "Reading measurement files...",
+      message: `Preparing ${files.length} selected file${files.length === 1 ? "" : "s"} for analysis.`
+    });
+    await waitForNextPaint();
     try {
       const rows = await readFilesInBatches(
         files,
@@ -2689,6 +2868,10 @@ export default function App() {
         UPLOAD_BATCH_SIZE,
         (completed, total) => {
           setStatusMessage(`Reading measurement files... ${completed}/${total} processed.`);
+          setWorkspaceActivity({
+            title: "Reading measurement files...",
+            message: `${completed} of ${total} files processed. Results will appear automatically when analysis is complete.`
+          });
         }
       );
       if (!rows.length) {
@@ -2729,6 +2912,7 @@ export default function App() {
       pushToast("Upload failed", detail, "danger");
     } finally {
       setIsUploadingFiles(false);
+      setWorkspaceActivity(null);
       if (event.target) event.target.value = "";
     }
   }
@@ -2998,6 +3182,11 @@ export default function App() {
   }
   async function loadBundledDataset(definition, libraryKind = "dataset") {
     setLoadingBundledId(definition.id);
+    setWorkspaceActivity({
+      title: "Loading dataset...",
+      message: `${definition.label} is being downloaded and analysed.`
+    });
+    await waitForNextPaint();
     try {
       const {
         fileNames,
@@ -3054,6 +3243,7 @@ export default function App() {
       appendAudit("dataset", "Bundled dataset load failed", `Failed to load ${definition.label}: ${detail}`);
     } finally {
       setLoadingBundledId("");
+      setWorkspaceActivity(null);
     }
   }
   async function analyzeBundledDataset(definition) {
@@ -3411,7 +3601,29 @@ export default function App() {
   function loadProject(project) { const presented = presentDataset(project); setProjectName(presented.projectDisplayName); setWaferName(presented.waferDisplayName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setQuickDatasetSelection(""); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setExcludedPropagationChipIds(project.excludedPropagationChipIds || {}); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${presented.projectDisplayName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${presented.projectDisplayName} for wafer run ${presented.waferDisplayName}.`); }
   function deleteProject(projectId) { const target = savedProjects.find((project) => project.id === projectId); setSavedProjects((previous) => previous.filter((project) => project.id !== projectId)); appendAudit("project", "Project deleted", `Deleted saved project ${target?.projectName || projectId}.`); }
   function saveCurrentDataset(autoSaved = false) { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Dataset save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("dataset", autoSaved ? "Dataset auto-save skipped" : "Dataset save skipped", detail); pushToast(autoSaved ? "Auto-save skipped" : "Dataset save skipped", "This dataset is too large for reliable browser storage.", "progress"); return; } const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
-  function loadDataset(dataset) { const presented = presentDataset(dataset); const rows = dataset.rawRows || []; const nextSourceMeta = dataset.sourceMeta || buildDefaultSourceMeta(appSettings); setProjectName(presented.projectDisplayName || projectName); setWaferName(presented.waferDisplayName || waferName); setSelectedDate(dataset.selectedDate || selectedDate); setRawRows(rows); setColumnMap(dataset.columnMap || {}); setSourceMeta(nextSourceMeta); setDatasetNamingDraft(createDatasetNamingDraft({ ...dataset, projectName: presented.projectDisplayName || dataset.projectName, waferName: presented.waferDisplayName || dataset.waferName, selectedDate: dataset.selectedDate || selectedDate, rawRows: rows, sourceMeta: nextSourceMeta })); setQuickDatasetSelection(`local:${dataset.id}`); setSelectedChip(rows[0]?.chip_id || ""); setExcludedPropagationChipIds({}); setActiveTab("propagation"); setSelectedWaferMetric("propagation"); setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`); appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${presented.projectDisplayName}.`); }
+  async function loadDataset(dataset) {
+    const presented = presentDataset(dataset);
+    const rows = dataset.rawRows || [];
+    const nextSourceMeta = dataset.sourceMeta || buildDefaultSourceMeta(appSettings);
+    setWorkspaceActivity({ title: "Loading dataset...", message: `${dataset.label} is being restored and analysed.` });
+    await waitForNextPaint();
+    setProjectName(presented.projectDisplayName || projectName);
+    setWaferName(presented.waferDisplayName || waferName);
+    setSelectedDate(dataset.selectedDate || selectedDate);
+    setRawRows(rows);
+    setColumnMap(dataset.columnMap || {});
+    setSourceMeta(nextSourceMeta);
+    setDatasetNamingDraft(createDatasetNamingDraft({ ...dataset, projectName: presented.projectDisplayName || dataset.projectName, waferName: presented.waferDisplayName || dataset.waferName, selectedDate: dataset.selectedDate || selectedDate, rawRows: rows, sourceMeta: nextSourceMeta }));
+    setQuickDatasetSelection(`local:${dataset.id}`);
+    setSelectedChip(rows[0]?.chip_id || "");
+    setExcludedPropagationChipIds({});
+    setActiveTab("propagation");
+    setSelectedWaferMetric("propagation");
+    setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`);
+    appendAudit("dataset", "Dataset loaded", `Loaded dataset ${dataset.label} for project ${presented.projectDisplayName}.`);
+    pushToast("Dataset loaded", `${dataset.label} is ready to inspect.`, "success");
+    window.setTimeout(() => setWorkspaceActivity(null), 0);
+  }
   async function handleQuickDatasetLoad(value) {
     if (!value) return;
     setQuickDatasetSelection(value);
@@ -3424,7 +3636,7 @@ export default function App() {
       return;
     }
     const dataset = currentDatasetRows.find((item) => String(item.id) === datasetId);
-    if (dataset) loadDataset(dataset);
+    if (dataset) await loadDataset(dataset);
   }
   function deleteDataset(datasetId) { const target = savedDatasets.find((dataset) => dataset.id === datasetId); setSavedDatasets((previous) => previous.filter((dataset) => dataset.id !== datasetId)); appendAudit("dataset", "Dataset deleted", `Deleted dataset snapshot ${target?.label || datasetId}.`); }
   function updateGithubConfig(field, value) { setGithubConfig((previous) => ({ ...previous, [field]: value })); }
@@ -3532,7 +3744,15 @@ export default function App() {
     }
   }
   useEffect(() => {
-    refreshRemoteLibrary(true);
+    let active = true;
+    refreshRemoteLibrary(true).finally(() => {
+      if (!active) return;
+      setIsLibraryInitializing(false);
+      pushToast("Workspace ready", "The dataset catalogue is ready to use.", "success");
+    });
+    return () => {
+      active = false;
+    };
   }, []);
   useEffect(() => {
     if (!selectedPublishedDatasetId) return;
@@ -3574,8 +3794,8 @@ export default function App() {
       }
     }));
   }
-  function saveSettings() { const nextSettings = hydrateSettings(settingsDraft); setAppSettings(nextSettings); setSourceMeta((previous) => applyWaveguideSettingsToSourceMeta({ ...previous, defaultMetricFamily: nextSettings.defaultMetricFamily, defaultWavelengthNm: nextSettings.defaultWavelengthNm, launchPowerDbm: nextSettings.launchPowerDbm, propagationTargetWavelengthNm: nextSettings.propagationTargetWavelengthNm, propagationWindowNm: nextSettings.propagationWindowNm, propagationSpectralStepNm: nextSettings.propagationSpectralStepNm, propagationMseThreshold: nextSettings.propagationMseThreshold, propagationWaveguideCount: nextSettings.propagationWaveguideCount, propagationWaveguideStartMm: nextSettings.propagationWaveguideStartMm, propagationWaveguideIntervalMm: nextSettings.propagationWaveguideIntervalMm, propagationWaveguideManualMode: nextSettings.propagationWaveguideManualMode, waveguideLengthByIndex: nextSettings.propagationWaveguideLengthsMm, waferTemplateId: previous.waferTemplateId || nextSettings.defaultWaferTemplateId }, {})); appendAudit("settings", "Settings saved", `Updated defaults for operator ${nextSettings.operatorName}, launch power ${nextSettings.launchPowerDbm} dBm, wavelength ${nextSettings.propagationTargetWavelengthNm} nm, interval ${nextSettings.propagationSpectralStepNm} nm, and MSE threshold ${nextSettings.propagationMseThreshold}.`); setStatusMessage("Application settings saved in local browser storage."); }
-  function resetSettings() { const reset = hydrateSettings(DEFAULT_SETTINGS); setSettingsDraft(reset); setAppSettings(reset); setSourceMeta(buildDefaultSourceMeta(reset)); appendAudit("settings", "Settings reset", "Restored the default application settings for operator, metric family, propagation window, and launch power."); setStatusMessage("Application settings were reset to the default values."); }
+  function saveSettings() { const nextSettings = hydrateSettings(settingsDraft); setAppSettings(nextSettings); setSourceMeta((previous) => applyWaveguideSettingsToSourceMeta({ ...previous, defaultMetricFamily: nextSettings.defaultMetricFamily, defaultWavelengthNm: nextSettings.defaultWavelengthNm, launchPowerDbm: nextSettings.launchPowerDbm, propagationTargetWavelengthNm: nextSettings.propagationTargetWavelengthNm, propagationWindowNm: nextSettings.propagationWindowNm, propagationSpectralStepNm: nextSettings.propagationSpectralStepNm, propagationMseThreshold: nextSettings.propagationMseThreshold, propagationWaveguideCount: nextSettings.propagationWaveguideCount, propagationWaveguideStartMm: nextSettings.propagationWaveguideStartMm, propagationWaveguideIntervalMm: nextSettings.propagationWaveguideIntervalMm, propagationWaveguideManualMode: nextSettings.propagationWaveguideManualMode, waveguideLengthByIndex: nextSettings.propagationWaveguideLengthsMm, waferTemplateId: previous.waferTemplateId || nextSettings.defaultWaferTemplateId }, {})); appendAudit("settings", "Interface settings saved", `Updated the ${nextSettings.themePreference} theme preference, ${nextSettings.interfaceDensity} density, and reduced-motion preference.`); setStatusMessage("Interface settings saved in local browser storage."); pushToast("Settings saved", "Your interface preferences are now active.", "success"); }
+  function resetSettings() { const reset = hydrateSettings(DEFAULT_SETTINGS); setSettingsDraft(reset); setAppSettings(reset); appendAudit("settings", "Interface settings reset", "Restored the default theme, density, and motion preferences."); setStatusMessage("Interface settings were reset to the default values."); }
   function clearAuditLog() { setAuditLog([]); setStatusMessage("Audit log cleared from local browser storage."); }
 
   const currentDatasetMeta = currentRows.length ? buildDatasetSnapshotMetadata({ projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta, namingOverrides: datasetNamingDraft }) : null;
@@ -3605,30 +3825,31 @@ export default function App() {
   ));
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page" data-density={appSettings.interfaceDensity} data-reduce-motion={appSettings.reduceMotion ? "true" : "false"}>
       <ToastTray items={toastItems} />
       <div className="dashboard-shell">
         <aside className="dashboard-rail">
           <div className="brand-mark">
-            {brandLogoAvailable ? <img className="brand-logo" src={bundledAssetUrl("cornerstone_logo.png")} alt="CORNERSTONE" onError={() => setBrandLogoAvailable(false)} /> : <div className="brand-wafer" aria-label="CORNERSTONE logo placeholder" />}
+            <a href="https://cornerstone.sotonfab.co.uk/" target="_blank" rel="noreferrer" aria-label="Open the CORNERSTONE website in a new tab">
+              {brandLogoAvailable ? <img className="brand-logo" src={bundledAssetUrl("assets/CORNERSTONE_Logo.png")} alt="CORNERSTONE" onError={() => setBrandLogoAvailable(false)} /> : <div className="brand-wafer" aria-label="CORNERSTONE logo placeholder" />}
+            </a>
           </div>
           {RAIL_SECTIONS.map((section) => <SidebarSection key={section.title} section={section} activeTab={activeTab} onSelect={updateTab} />)}
-          <div className="rail-user"><div className="rail-avatar">{railAvatar}</div><div><strong>{appSettings.operatorName}</strong><span>{appSettings.operatorRole}</span></div></div>
         </aside>
 
         <main className="dashboard-main">
           <header className="dashboard-header">
             <div className="dashboard-title-block">
               <h1>Wafer Post-Processing Suite</h1>
-              <p>Normalize txt and xlsx into one analysis pipeline</p>
+              <p>Unified processing and analysis for silicon photonics wafer measurements.</p>
             </div>
             <div className="dashboard-header-filters">
               <label className="filter-field quick-dataset-field">
                 <span>Quick Load Dataset</span>
                 <div>
                   <i>Data</i>
-                  <select aria-label="Quick Load Dataset" value={quickDatasetSelection} onChange={(event) => handleQuickDatasetLoad(event.target.value)} disabled={Boolean(loadingBundledId)}>
-                    <option value="">{loadingBundledId ? "Loading dataset..." : "Select a GitHub or local dataset"}</option>
+                  <select aria-label="Quick Load Dataset" value={quickDatasetSelection} onChange={(event) => handleQuickDatasetLoad(event.target.value)} disabled={isLibraryInitializing || Boolean(loadingBundledId)}>
+                    <option value="">{isLibraryInitializing ? "Setting up dataset catalogue..." : loadingBundledId ? "Loading dataset..." : "Select a GitHub or local dataset"}</option>
                     <optgroup label="GitHub Measurement Data Library">
                       {remoteLibraryDatasets.map((dataset) => <option key={`quick-github-${dataset.id}`} value={`github:${dataset.id}`}>{quickDatasetLabel(dataset)}</option>)}
                     </optgroup>
@@ -3641,20 +3862,19 @@ export default function App() {
               <label className="upload-measurement-button"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleFileUpload} disabled={isUploadingFiles} /><span>{isUploadingFiles ? "Processing Files..." : "Upload Measurement Files"}</span></label>
             </div>
           </header>
-
-          <nav className="analysis-tabs">
-            {APP_TABS.map((tab) => <button key={tab.id} type="button" className={tab.id === activeTab ? "analysis-tab active" : "analysis-tab"} onClick={() => updateTab(tab.id)}>{tab.label}</button>)}
-          </nav>
+          <WorkspaceProgressNotice activity={activeWorkspaceNotice} />
 
           {isWorkspaceTab ? <>
             <section className="hero-stats-row">
-              <ShellStat label={primaryMetric.title} value={primaryMetricDisplay} note="Across all matched dies" tone="primary" icon={primaryMetric.icon} />
+              <ShellStat label={primaryMetric.title} value={primaryMetricDisplay} note={activeTab === "propagation" ? `Across ${reportState.selectedChipCount} selected chips passing fit criteria` : "Across all matched dies"} tone="primary" icon={primaryMetric.icon} />
               <ShellStat label={secondaryMetric.label} value={secondaryMetric.value} note={secondaryMetric.note} tone="secondary" icon={secondaryMetric.icon} />
-              <ShellStat label="Devices" value={datasetSummary.rows.toLocaleString()} note={`Across ${sourceCount(normalizedRows)} uploaded source files`} tone="mint" icon="Dev" />
-              <ShellStat label="Wavelength" value={`${sourceMeta.propagationTargetWavelengthNm} nm`} note={`Window +/- ${sourceMeta.propagationWindowNm} nm`} tone="orange" icon="WL" />
-              <ShellStat label="Sources" value={(sourceCount(normalizedRows) || (rawRows.length ? 1 : 0)).toString()} note={rawRows.length ? sourceMeta.type : "No source loaded"} tone="rose" icon="Src" />
-              <ShellStat label="Wafer Yield" value={propagationYield !== null && propagationYield !== undefined ? `${propagationYield.toFixed(1)}%` : "--"} note={`Pass criteria: MSE <= ${sourceMeta.propagationMseThreshold}`} tone="yield" icon="Yield" />
+              <ShellStat label="Devices" value={datasetSummary.rows.toLocaleString()} note={`Across ${sourceCount(normalizedRows)} uploaded source files`} tone="mint" icon="devices" />
+              <ShellStat label="Wavelength" value={`${sourceMeta.propagationTargetWavelengthNm} nm`} note={`Window +/- ${sourceMeta.propagationWindowNm} nm`} tone="orange" icon="wavelength" />
+              <ShellStat label="Sources" value={(sourceCount(normalizedRows) || (rawRows.length ? 1 : 0)).toString()} note={rawRows.length ? sourceMeta.type : "No source loaded"} tone="rose" icon="source" />
+              <ShellStat label="Wafer Yield" value={propagationYield !== null && propagationYield !== undefined ? `${propagationYield.toFixed(1)}%` : "--"} note={`Pass criteria: MSE <= ${sourceMeta.propagationMseThreshold}`} tone="yield" icon="wafer-yield" />
             </section>
+
+            {activeTab === "propagation" ? <MatlabSummaryPanel summary={reportState.matlabSummary} /> : null}
 
             {activeTab === "propagation" ? (
               <PropagationSettingsPanel
@@ -3670,14 +3890,12 @@ export default function App() {
               />
             ) : null}
 
-            {activeTab === "propagation" ? <MatlabSummaryPanel summary={reportState.matlabSummary} /> : null}
-
 {activeTab === "heater" ? <HeaterEfficiencyPanel sourceMeta={sourceMeta} heaterMetrics={metrics.heater} statusMessage={statusMessage} isUploading={isUploadingHeaterFiles} onFolderUpload={handleHeaterUpload} onFileUpload={handleHeaterUpload} onConfigChange={(field, value) => setSourceMeta((previous) => ({ ...previous, [field]: value }))} /> : null}
                         <section className={activeTab === "propagation" ? "analysis-top-grid propagation-overview-grid" : "analysis-top-grid"}>
               <article className="analysis-card analysis-chart-card overview-fit-card">
                 <div className="analysis-card-head">
                   <div>
-                    <h2>{activeMetricKey === "heater" ? "Heater Efficiency" : activeMetricKey === "insertion" ? insertionProfile.label || "Insertion Loss" : "Propagation Loss"}</h2>
+                    <h2>{activeMetricKey === "heater" ? "Heater Efficiency" : activeMetricKey === "insertion" ? insertionProfile.label || "Insertion Loss" : "Propagation Loss Fit"}</h2>
                     <PlotLegend items={legendItems} />
                   </div>
                   <div className="analysis-card-controls propagation-headline-controls">
@@ -3686,7 +3904,6 @@ export default function App() {
                       <span>{`Window +/- ${sourceMeta.propagationWindowNm} nm`}</span>
                       <span>{`MSE <= ${sourceMeta.propagationMseThreshold}`}</span>
                       <select value={selectedChip} onChange={(event) => setSelectedChip(event.target.value)}>{activeChipOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
-                      <button type="button" className="secondary-action" onClick={generatePostProcessedFiles} disabled={isGeneratingPostProcessed || !metrics.propagation.byChip.length}>{isGeneratingPostProcessed ? "Generating Files..." : "Generate Post-Processed Files"}</button>
                     </> : activeMetricKey === "insertion" ? <>
                       <label className="inline-select-field compact-inline-field"><span>Device</span><select value={insertionDeviceType} onChange={(event) => setInsertionDeviceType(event.target.value)}>{Object.entries(metrics.insertion.deviceProfiles || {}).map(([key, profile]) => <option key={key} value={key}>{profile.label}</option>)}</select></label>
                       <label className="inline-select-field compact-inline-field"><span>Metric</span><select value={insertionMetricField} onChange={(event) => setInsertionMetricField(event.target.value)}>{insertionMetricOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
@@ -3730,27 +3947,34 @@ export default function App() {
                     </select>
                   </div>
                 </div>
-                <WaferMapPanel
-                  cells={currentWaferCells}
-                  metricKey={selectedWaferMetric}
-                  selectedChip={selectedChip}
-                  onSelect={setSelectedChip}
-                  overlayMode={waferMapOverlayMode}
-                  templateName={currentWaferTemplate?.name || ""}
-                  notchOrientation={currentWaferTemplate?.notchOrientation || "south"}
-                  colorScaleMin={sourceMeta.waferColorScaleMin}
-                  colorScaleMid={sourceMeta.waferColorScaleMid}
-                  colorScaleMax={sourceMeta.waferColorScaleMax}
-                />
-                <div className="wafer-footer-bar">
-                  <label><span>Show</span><select value={waferMapDisplayMode} onChange={(event) => setWaferMapDisplayMode(event.target.value)}><option value="all">All Chips</option><option value="passing">Passed Chips</option><option value="failed">Failed Chips</option><option value="measured">Measured Chips</option></select></label>
-                  <label><span>Overlay</span><select value={waferMapOverlayMode} onChange={(event) => setWaferMapOverlayMode(event.target.value)}><option value="none">None</option><option value="chip">Chip ID</option><option value="value">Metric value</option></select></label>
-                  <label><span>Template</span><select value={currentWaferTemplate?.id || defaultWaferTemplateId()} onChange={(event) => { const match = allWaferTemplates.find((template) => template.id === event.target.value); if (match) useWaferTemplate(match); }}><option value="">Select</option>{allWaferTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select></label>
-                  <label className="wafer-scale-control low"><span><i aria-hidden="true" />Scale Min</span><input type="number" value={sourceMeta.waferColorScaleMin ?? ""} placeholder="Auto" onChange={(event) => setSourceMeta((previous) => ({ ...previous, waferColorScaleMin: event.target.value === "" ? null : Number(event.target.value) }))} /></label>
-                  <label className="wafer-scale-control medium"><span><i aria-hidden="true" />Scale Medium</span><input type="number" value={sourceMeta.waferColorScaleMid ?? ""} placeholder="Auto" onChange={(event) => setSourceMeta((previous) => ({ ...previous, waferColorScaleMid: event.target.value === "" ? null : Number(event.target.value) }))} /></label>
-                  <label className="wafer-scale-control high"><span><i aria-hidden="true" />Scale Max</span><input type="number" value={sourceMeta.waferColorScaleMax ?? ""} placeholder="Auto" onChange={(event) => setSourceMeta((previous) => ({ ...previous, waferColorScaleMax: event.target.value === "" ? null : Number(event.target.value) }))} /></label>
+                <div className="wafer-map-workspace">
+                  <WaferMapPanel
+                    cells={currentWaferCells}
+                    metricKey={selectedWaferMetric}
+                    selectedChip={selectedChip}
+                    onSelect={setSelectedChip}
+                    overlayMode={waferMapOverlayMode}
+                    templateName={currentWaferTemplate?.name || ""}
+                    notchOrientation={currentWaferTemplate?.notchOrientation || "south"}
+                    colorScaleMin={sourceMeta.waferColorScaleMin}
+                    colorScaleMid={sourceMeta.waferColorScaleMid}
+                    colorScaleMax={sourceMeta.waferColorScaleMax}
+                  />
+                  <aside className="wafer-control-rail" aria-label="Wafermap display controls">
+                    <div className="wafer-footer-bar">
+                      <label><span>Show</span><select value={waferMapDisplayMode} onChange={(event) => setWaferMapDisplayMode(event.target.value)}><option value="all">All Chips</option><option value="passing">Passed Chips</option><option value="failed">Failed Chips</option><option value="measured">Measured Chips</option></select></label>
+                      <label><span>Overlay</span><select value={waferMapOverlayMode} onChange={(event) => setWaferMapOverlayMode(event.target.value)}><option value="none">None</option><option value="chip">Chip ID</option><option value="value">Metric value</option></select></label>
+                      <label><span>Template</span><select value={currentWaferTemplate?.id || defaultWaferTemplateId()} onChange={(event) => { const match = allWaferTemplates.find((template) => template.id === event.target.value); if (match) useWaferTemplate(match); }}><option value="">Select</option>{allWaferTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select></label>
+                      <label className="wafer-scale-control low"><span><i aria-hidden="true" />Scale Min</span><input type="number" step="any" value={waferScaleDraft.min} placeholder="Enter value" onChange={(event) => updateWaferColorThreshold("min", "waferColorScaleMin", event.target.value)} onBlur={() => restoreEmptyWaferScaleDraft("min", effectiveWaferColorRange?.min)} /></label>
+                      <label className="wafer-scale-control medium"><span><i aria-hidden="true" />Scale Midpoint</span><input type="number" step="any" value={waferScaleDraft.mid} placeholder="Enter value" onChange={(event) => updateWaferColorThreshold("mid", "waferColorScaleMid", event.target.value)} onBlur={() => restoreEmptyWaferScaleDraft("mid", effectiveWaferColorRange?.mid)} /></label>
+                      <label className="wafer-scale-control high"><span><i aria-hidden="true" />Scale Max</span><input type="number" step="any" value={waferScaleDraft.max} placeholder="Enter value" onChange={(event) => updateWaferColorThreshold("max", "waferColorScaleMax", event.target.value)} onBlur={() => restoreEmptyWaferScaleDraft("max", effectiveWaferColorRange?.max)} /></label>
+                    </div>
+                    <div className="wafer-scale-actions">
+                      <p className="wafer-scale-hint">{hasCustomWaferColorRange ? "Custom scale active." : "Scale calculated from the loaded chip data."} Low values are green, the midpoint is amber, and high values are red.</p>
+                      <button type="button" className="secondary-button wafer-scale-reset" onClick={resetWaferColorScale} disabled={!automaticWaferColorRange}>Reset Scale</button>
+                    </div>
+                  </aside>
                 </div>
-                <p className="wafer-scale-hint">Low values are green, the medium threshold is yellow, and high values are red. Leave fields blank for automatic scaling.</p>
               </article>
 
             {activeTab === "propagation" ? (
@@ -3767,7 +3991,7 @@ export default function App() {
                 <article className="analysis-card wide-span">
                   <div className="analysis-card-head">
                     <div>
-                      <h2>Loss Spectrum</h2>
+                      <h2>Transmission Spectrum</h2>
                       <p>Overlay of all waveguide loss traces for the selected chip, aligned with the raw measurement view rather than launch-power-shifted output power.</p>
                     </div>
                   </div>
@@ -3860,13 +4084,8 @@ export default function App() {
                 onExportNormalizedCsv={exportNormalizedCsv}
               />
             </section>
-            <section className="analysis-bottom-grid analysis-bottom-grid-secondary">
-              <article className="analysis-card"><div className="analysis-card-head stacked"><div><h2>File Translator Status</h2><p>{statusMessage}</p></div></div><TranslationStatus sourceName={sourceMeta.name} sourceType={sourceMeta.type} totalRows={datasetSummary.rows} matchedDevices={matchedDevices} unmatchedDevices={unmatchedDevices} /><button type="button" className="secondary-action" onClick={() => updateTab("audit")}>Open Audit Log</button></article>
-              <article className="analysis-card"><div className="analysis-card-head"><div><h2>Report Preview</h2><p>Export-ready representation of wafer quality.</p></div><button type="button" onClick={exportReportJson}>Open Report</button></div><ReportPreviewCard reportState={reportState} selectedMetricLabel={metricLabel(selectedWaferMetric)} onOpenReport={exportReportJson} /></article>
-            </section>
 </> : null}
 
-          {activeTab === "projects" ? <section className="library-stack workspace-fit-view"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Workspace Snapshots</h2><p>Save the current wafer analysis context so you can reopen the same workspace state later, including selected views and analysis settings.</p></div><div className="library-action-row"><button type="button" onClick={saveCurrentProject}>Save Workspace Snapshot</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Back To Analysis</button></div></div><div className="translator-metrics"><div><strong>{projectName}</strong><span>Project</span></div><div><strong>{getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }).slot}</strong><span>Slot</span></div><div><strong>{datasetSummary.rows}</strong><span>Rows</span></div></div></article><article className="analysis-card"><div className="analysis-card-head"><div><h2>Saved Workspace Snapshots</h2><p>Stored locally in this browser for reopening the same workspace state.</p></div></div><LibraryTable columns={["Project", "Slot", "Waveguide Type", "Measurement Mode", "Measurement Type", "Dataset", "Rows", "Saved", "Actions"]} rows={[...bundledProjectRows, ...currentProjectRows]} emptyMessage="No bundled or saved projects are available yet." /></article></section> : null}
           {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} currentDatasetMeta={currentDatasetMeta} currentDatasetNamingDraft={datasetNamingDraft} onCurrentDatasetNamingChange={updateCurrentDatasetNaming} onResetCurrentDatasetNaming={() => resetCurrentDatasetNaming()} onApplyCurrentNamingToLoadedSnapshot={applyCurrentNamingToLoadedSnapshot} canApplyCurrentNamingToLoadedSnapshot={Boolean(selectedLocalDatasetId(quickDatasetSelection))} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={refreshRemoteLibrary} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} selectedPublishedDataset={selectedPublishedDataset} publishedDatasetDraft={publishedDatasetDraft} onSelectPublishedDataset={selectPublishedDatasetForEdit} onPublishedDatasetDraftChange={updatePublishedDatasetDraft} onSavePublishedDatasetMetadata={savePublishedDatasetMetadata} isSavingPublishedDataset={isSavingPublishedDataset} onDeletePublishedDataset={deletePublishedDataset} deletingPublishedDatasetId={deletingPublishedDatasetId} loadedGithubDataset={loadedGithubDataset} currentPublishedDatasetReview={currentPublishedDatasetReview} canSaveCurrentReviewToPublishedDataset={canSaveCurrentReviewToPublishedDataset} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "manual-conversion-advanced" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} advanced /> : null}
@@ -4134,11 +4353,47 @@ export default function App() {
             </section>
           ) : null}
           {activeTab === "filename-conversion" ? <FilenameConversionPanel /> : null}
-          {activeTab === "settings" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Settings</h2><p>Control persistent defaults for operator identity, wavelength assumptions, upload behavior, and automated propagation processing.</p></div><div className="library-action-row"><button type="button" onClick={saveSettings}>Save Settings</button><button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button></div></div><div className="settings-grid settings-grid-extended"><label className="mapping-field"><span>Operator name</span><input value={settingsDraft.operatorName} onChange={(event) => updateSettingsDraft("operatorName", event.target.value)} /></label><label className="mapping-field"><span>Operator role</span><input value={settingsDraft.operatorRole} onChange={(event) => updateSettingsDraft("operatorRole", event.target.value)} /></label><label className="mapping-field"><span>Theme preference</span><select value={settingsDraft.themePreference} onChange={(event) => updateSettingsDraft("themePreference", event.target.value)}>{THEME_PREFERENCE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="mapping-field"><span>Default wavelength (nm)</span><input type="number" value={settingsDraft.defaultWavelengthNm} onChange={(event) => updateSettingsDraft("defaultWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Default metric family</span><select value={settingsDraft.defaultMetricFamily} onChange={(event) => updateSettingsDraft("defaultMetricFamily", event.target.value)}>{DEFAULT_MAPPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={settingsDraft.launchPowerDbm} onChange={(event) => updateSettingsDraft("launchPowerDbm", Number(event.target.value) || 0)} /></label><label className="mapping-field"><span>Propagation target wavelength (nm)</span><input type="number" value={settingsDraft.propagationTargetWavelengthNm} onChange={(event) => updateSettingsDraft("propagationTargetWavelengthNm", Number(event.target.value) || 1550)} /></label><label className="mapping-field"><span>Propagation averaging window (+/- nm)</span><input type="number" value={settingsDraft.propagationWindowNm} onChange={(event) => updateSettingsDraft("propagationWindowNm", Math.max(Number(event.target.value) || 0, 0))} /></label><label className="mapping-field"><span>Propagation spectral interval (nm)</span><input type="number" min="1" value={settingsDraft.propagationSpectralStepNm} onChange={(event) => updateSettingsDraft("propagationSpectralStepNm", Math.max(Number(event.target.value) || 1, 1))} /></label><label className="mapping-field"><span>Propagation fit MSE threshold</span><input type="number" step="0.01" value={settingsDraft.propagationMseThreshold} onChange={(event) => updateSettingsDraft("propagationMseThreshold", Math.max(Number(event.target.value) || 0, 0))} /></label></div><WaveguideLengthConfigurator count={settingsDraft.propagationWaveguideCount} start={settingsDraft.propagationWaveguideStartMm} interval={settingsDraft.propagationWaveguideIntervalMm} manualMode={settingsDraft.propagationWaveguideManualMode} lengths={settingsDraft.propagationWaveguideLengthsMm} onNumberChange={updateSettingsDraft} onLengthChange={updateSettingsWaveguideLength} onManualModeChange={(checked) => updateSettingsDraft("propagationWaveguideManualMode", checked)} /><div className="chart-empty compact">Uploaded measurement files now stay in the active workspace only. Use <strong>Save Dataset Snapshot</strong> or <strong>Save to GitHub</strong> from <strong>Dataset Snapshots</strong> when you want to keep a dataset.</div></article></section> : null}
+          {activeTab === "settings" ? (
+            <section className="library-stack">
+              <article className="analysis-card interface-settings-card">
+                <div className="analysis-card-head">
+                  <div>
+                    <h2>Interface Settings</h2>
+                    <p>Adjust the appearance of the app on this device. Processing assumptions remain in each analysis workspace.</p>
+                  </div>
+                  <div className="library-action-row">
+                    <button type="button" onClick={saveSettings}>Save Settings</button>
+                    <button type="button" className="ghost-action" onClick={resetSettings}>Reset Defaults</button>
+                  </div>
+                </div>
+                <div className="settings-grid interface-preferences-grid">
+                  <label className="mapping-field">
+                    <span>Theme preference</span>
+                    <select value={settingsDraft.themePreference} onChange={(event) => updateSettingsDraft("themePreference", event.target.value)}>
+                      {THEME_PREFERENCE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="mapping-field">
+                    <span>Interface density</span>
+                    <select value={settingsDraft.interfaceDensity} onChange={(event) => updateSettingsDraft("interfaceDensity", event.target.value)}>
+                      {INTERFACE_DENSITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="toggle-row interface-motion-toggle">
+                    <input type="checkbox" checked={settingsDraft.reduceMotion} onChange={(event) => updateSettingsDraft("reduceMotion", event.target.checked)} />
+                    <div>
+                      <strong>Reduce interface motion</strong>
+                      <span>Minimise spinners and animated transitions where possible.</span>
+                    </div>
+                  </label>
+                </div>
+              </article>
+            </section>
+          ) : null}
           {activeTab === "wafermaps" ? <WafermapsLibrary draft={waferTemplateDraft} onDraftChange={updateWaferTemplateDraft} onSaveTemplate={saveWaferTemplate} templates={allWaferTemplates} selectedTemplateId={currentWaferTemplate?.id || ""} onUseTemplate={useWaferTemplate} onDeleteTemplate={deleteWaferTemplate} /> : null}
           {activeTab === "report-generator" ? <ReportGeneratorPanel reportState={reportState} sourceMeta={sourceMeta} isGeneratingPptReport={isGeneratingPptReport} isGeneratingWordReport={isGeneratingWordReport} isGeneratingPdfReport={isGeneratingPdfReport} isGeneratingPostProcessed={isGeneratingPostProcessed} onGeneratePptReport={generatePowerPointDeck} onGenerateWordReport={generateWordDeck} onGeneratePdfReport={generatePdfDeck} onGeneratePostProcessedFiles={generatePostProcessedFiles} /> : null}
           {activeTab === "audit" ? <section className="library-stack workspace-fit-view"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Audit Log</h2><p>Review the local activity trail for uploads, exports, saves, loads, and settings changes.</p></div><div className="library-action-row"><button type="button" className="ghost-action" onClick={clearAuditLog}>Clear Audit Log</button></div></div><LibraryTable columns={["Action", "Type", "Detail", "Time"]} rows={auditRows} emptyMessage="No audit entries yet." /></article></section> : null}
-          {activeTab === "help" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Help Center</h2><p>Quick in-app guidance for the current release, focused on how data flows through propagation processing, storage, and reporting.</p></div><div className="library-action-row"><button type="button" onClick={() => updateTab("projects")}>Open Workspace Snapshots</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Open Propagation View</button></div></div><div className="help-grid">{HELP_TOPICS.map((topic) => <article key={topic.title} className="help-card"><h3>{topic.title}</h3><p>{topic.body}</p></article>)}</div><div className="doc-link-list">{DOC_LINKS.map((doc) => <a key={doc.label} className="doc-link-item" href={doc.href} target="_blank" rel="noreferrer"><strong>{doc.label}</strong><span>{doc.path}</span></a>)}</div></article></section> : null}
+          {activeTab === "help" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Help Center</h2><p>Quick in-app guidance for the current release, focused on how data flows through propagation processing, storage, and reporting.</p></div><div className="library-action-row"><button type="button" onClick={() => updateTab("datasets")}>Open Dataset Snapshots</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Open Propagation View</button></div></div><div className="help-grid">{HELP_TOPICS.map((topic) => <article key={topic.title} className="help-card"><h3>{topic.title}</h3><p>{topic.body}</p></article>)}</div><div className="doc-link-list">{DOC_LINKS.map((doc) => <a key={doc.label} className="doc-link-item" href={doc.href} target="_blank" rel="noreferrer"><strong>{doc.label}</strong><span>{doc.path}</span></a>)}</div></article></section> : null}
         </main>
       </div>
     </div>

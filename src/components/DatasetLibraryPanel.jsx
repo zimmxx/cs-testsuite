@@ -1,10 +1,62 @@
 import { getDatasetPresentation } from "../lib/datasetPresentation";
+import {
+  DATASET_ALIGNMENT_MODE_OPTIONS,
+  DATASET_BUILDING_BLOCK_OPTIONS,
+  DATASET_MEASUREMENT_TYPE_OPTIONS,
+  DATASET_OPTICAL_MODE_OPTIONS,
+  DATASET_PLATFORM_OPTIONS,
+  isValidProcessStep,
+  validateCanonicalDatasetIdentity
+} from "../lib/githubLibrary";
+
+function ControlledSelect({ label, field, value, options, onChange, disabled = false }) {
+  return (
+    <label className="mapping-field">
+      <span>{label}</span>
+      <select required value={value || ""} onChange={(event) => onChange(field, event.target.value)} disabled={disabled}>
+        <option value="">Select {label.toLowerCase()}...</option>
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function TableDetail({ label, value }) {
+  return (
+    <div className="dataset-table-detail">
+      <span>{label}</span>
+      <strong>{value || "--"}</strong>
+    </div>
+  );
+}
+
+function DatasetDetailGroup({ title, children }) {
+  return (
+    <div className="dataset-detail-group">
+      <div className="dataset-detail-group-title">{title}</div>
+      {children}
+    </div>
+  );
+}
 
 function GitHubStatusBadge({ status }) {
   if (!status) return <span className="dataset-status-chip">Local only</span>;
   const tone = status === "published" ? "success" : status === "publishing" ? "progress" : status === "failed" ? "danger" : "muted";
   const label = status === "published" ? "Saved to GitHub" : status === "publishing" ? "Publishing..." : status === "failed" ? "Publish failed" : "Local only";
   return <span className={`dataset-status-chip ${tone}`}>{label}</span>;
+}
+
+function compactSavedDate(value) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
 
 function safeDatasetDisplay(dataset = {}) {
@@ -24,17 +76,22 @@ function safeDatasetDisplay(dataset = {}) {
     measurementType: display.measurementType || presented.measurementType || "MeasurementTypeUndefined",
     projectName: display.projectName || presented.projectDisplayName || dataset.projectName || "--",
     slot: display.slot || presented.slot || "SlotUndefined",
+    processStep: dataset.namingOverrides?.processStep || dataset.processStep || display.processStep || "StepXX",
+    measurementDate: dataset.namingOverrides?.measurementDate || dataset.measurementDate || dataset.selectedDate || "",
     waveguideType: display.waveguideType || presented.waveguideType || "WaveguideUndefined",
     waferName: display.waferName || presented.waferDisplayName || dataset.waferName || "--",
     sourceLabel: display.sourceLabel || `${rawSourceCount} file${rawSourceCount === 1 ? "" : "s"}`,
     platformLabel: display.platformLabel || dataset.platformLabel || presented.platformDisplayName || "--",
     buildingBlockLabel: display.buildingBlockLabel || dataset.buildingBlockLabel || "--",
+    opticalMode: display.opticalMode || dataset.opticalMode || "--",
+    alignmentMode: display.alignmentMode || dataset.alignmentMode || "--",
+    fileText: Number(display.sourceCount) || rawSourceCount || Number(dataset.traceCount) || "--",
     rowText: Number.isFinite(summaryRows)
       ? summaryRows.toLocaleString()
       : Number.isFinite(displayRows)
         ? displayRows.toLocaleString()
         : "--",
-    savedDisplay: dataset.savedDisplay || (dataset.savedAt ? new Date(dataset.savedAt).toLocaleString() : "--"),
+    savedDisplay: compactSavedDate(dataset.savedAt || dataset.savedDisplay),
     githubStatus: dataset.githubSync?.status || "local"
   };
 }
@@ -126,32 +183,42 @@ export default function DatasetLibraryPanel({
           </label>
           <label className="mapping-field">
             <span>GitHub folder name</span>
-            <input value={currentDatasetNamingDraft?.folderName || ""} onChange={(event) => onCurrentDatasetNamingChange("folderName", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
+            <input value={currentDatasetNamingDraft?.folderName || ""} placeholder="Complete the identity fields below" readOnly disabled={!currentDatasetMeta?.rowCount} />
           </label>
           <label className="mapping-field">
             <span>Project / MPW</span>
-            <input value={currentDatasetNamingDraft?.projectName || ""} onChange={(event) => onCurrentDatasetNamingChange("projectName", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
+            <input required pattern="(?:MPW[0-9]+(?:_[A-Za-z0-9]+)*|DEV_[A-Za-z0-9]+(?:_[A-Za-z0-9]+)*|BSPK_[A-Za-z0-9]+(?:_[A-Za-z0-9]+)*)" title="Use MPW47, MPW47_Rerun_DTU, DEV_MIT, or BSPK_Duality" value={currentDatasetNamingDraft?.projectName || ""} onChange={(event) => onCurrentDatasetNamingChange("projectName", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
           </label>
           <label className="mapping-field">
             <span>Slot</span>
-            <input value={currentDatasetNamingDraft?.slot || ""} onChange={(event) => onCurrentDatasetNamingChange("slot", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
+            <input required pattern="Slot[0-9]+" title="Use Slot5 without zero-padding" value={currentDatasetNamingDraft?.slot || ""} onChange={(event) => onCurrentDatasetNamingChange("slot", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
           </label>
           <label className="mapping-field">
-            <span>Platform</span>
-            <input value={currentDatasetNamingDraft?.platformLabel || ""} onChange={(event) => onCurrentDatasetNamingChange("platformLabel", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
+            <span>Process step</span>
+            <input required pattern="Step(?:XX|[0-9]+[A-Z]?)" title="Use Step36, Step84A, or StepXX" aria-invalid={currentDatasetMeta?.rowCount && !isValidProcessStep(currentDatasetNamingDraft?.processStep) ? "true" : "false"} value={currentDatasetNamingDraft?.processStep || ""} onChange={(event) => onCurrentDatasetNamingChange("processStep", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
           </label>
           <label className="mapping-field">
-            <span>Building block</span>
-            <input value={currentDatasetNamingDraft?.buildingBlockLabel || ""} onChange={(event) => onCurrentDatasetNamingChange("buildingBlockLabel", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
+            <span>Measurement date</span>
+            <input type="date" required value={currentDatasetNamingDraft?.measurementDate || ""} onChange={(event) => onCurrentDatasetNamingChange("measurementDate", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
           </label>
+          <ControlledSelect label="Platform" field="platformLabel" value={currentDatasetNamingDraft?.platformLabel} options={DATASET_PLATFORM_OPTIONS} onChange={onCurrentDatasetNamingChange} disabled={!currentDatasetMeta?.rowCount} />
+          <ControlledSelect label="Optical mode" field="opticalMode" value={currentDatasetNamingDraft?.opticalMode} options={DATASET_OPTICAL_MODE_OPTIONS} onChange={onCurrentDatasetNamingChange} disabled={!currentDatasetMeta?.rowCount} />
+          <ControlledSelect label="Building block" field="buildingBlockLabel" value={currentDatasetNamingDraft?.buildingBlockLabel} options={DATASET_BUILDING_BLOCK_OPTIONS} onChange={onCurrentDatasetNamingChange} disabled={!currentDatasetMeta?.rowCount} />
+          <ControlledSelect label="Measurement type" field="measurementType" value={currentDatasetNamingDraft?.measurementType} options={DATASET_MEASUREMENT_TYPE_OPTIONS} onChange={onCurrentDatasetNamingChange} disabled={!currentDatasetMeta?.rowCount} />
+          <ControlledSelect label="Alignment mode" field="alignmentMode" value={currentDatasetNamingDraft?.alignmentMode} options={DATASET_ALIGNMENT_MODE_OPTIONS} onChange={onCurrentDatasetNamingChange} disabled={!currentDatasetMeta?.rowCount} />
         </div>
         <div className="translator-metrics github-library-metrics">
           <div><strong>{currentDatasetMeta?.label || "No dataset loaded"}</strong><span>Dataset label</span></div>
-          <div><strong>{currentDatasetMeta?.folderName || "--"}</strong><span>GitHub folder name</span></div>
-          <div><strong>{currentDatasetMeta?.projectName || "--"}</strong><span>Project / MPW</span></div>
-          <div><strong>{currentDatasetMeta?.slot || "--"}</strong><span>Slot</span></div>
-          <div><strong>{currentDatasetMeta?.platformLabel || currentDatasetMeta?.platformDisplayName || "--"}</strong><span>Platform</span></div>
-          <div><strong>{currentDatasetMeta?.buildingBlockLabel || "--"}</strong><span>Building block</span></div>
+          <div><strong>{currentDatasetNamingDraft?.folderName || "Complete all naming fields"}</strong><span>GitHub folder name</span></div>
+          <div><strong>{currentDatasetNamingDraft?.projectName || "--"}</strong><span>Project / MPW</span></div>
+          <div><strong>{currentDatasetNamingDraft?.slot || "--"}</strong><span>Slot</span></div>
+          <div><strong>{currentDatasetNamingDraft?.processStep || "Required before publishing"}</strong><span>Process step</span></div>
+          <div><strong>{currentDatasetNamingDraft?.measurementDate || "Required before publishing"}</strong><span>Measurement date</span></div>
+          <div><strong>{currentDatasetNamingDraft?.platformLabel || "Required before publishing"}</strong><span>Platform</span></div>
+          <div><strong>{currentDatasetNamingDraft?.opticalMode || "Required before publishing"}</strong><span>Optical mode</span></div>
+          <div><strong>{currentDatasetNamingDraft?.buildingBlockLabel || "Required before publishing"}</strong><span>Building block</span></div>
+          <div><strong>{currentDatasetNamingDraft?.measurementType || "Required before publishing"}</strong><span>Measurement type</span></div>
+          <div><strong>{currentDatasetNamingDraft?.alignmentMode || "Required before publishing"}</strong><span>Alignment mode</span></div>
         </div>
       </article>
 
@@ -193,20 +260,19 @@ export default function DatasetLibraryPanel({
             <p>These are datasets that are already published to GitHub and available for loading or comparison.</p>
           </div>
         </div>
-        <div className="dashboard-table-wrap">
-          <table>
+        <div className="dashboard-table-wrap dataset-library-wide-table">
+          <table className="dataset-library-compact-table published-dataset-table">
+            <colgroup>
+              <col className="dataset-col-name" />
+              <col className="dataset-col-details" />
+              <col className="dataset-col-volume" />
+              <col className="dataset-col-actions" />
+            </colgroup>
             <thead>
               <tr>
                 <th>Dataset</th>
-                <th>Project</th>
-                <th>Slot</th>
-                <th>Waveguide Type</th>
-                <th>Measurement Mode</th>
-                <th>Measurement Type</th>
-                <th>Platform</th>
-                <th>Building Block</th>
-                <th>Files</th>
-                <th>Rows</th>
+                <th>Details</th>
+                <th>Data</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -215,17 +281,32 @@ export default function DatasetLibraryPanel({
                 <tr key={`remote-${dataset.id || dataset.label}`}>
                   <td>
                     <strong>{dataset.label || "Measurement dataset"}</strong>
-                    <div className="dataset-subcopy">{dataset.mpw || "--"} - {dataset.slot || "--"} - {dataset.waveguideType || "--"}</div>
+                    <div className="dataset-subcopy">{dataset.folder || `${dataset.mpw || "--"} - ${dataset.slot || "--"} - ${dataset.waveguideType || "--"}`}</div>
                   </td>
-                  <td>{dataset.projectDisplayName || dataset.projectName || "--"}</td>
-                  <td>{dataset.slot || "SlotUndefined"}</td>
-                  <td>{dataset.waveguideType || "WaveguideUndefined"}</td>
-                  <td>{dataset.measurementMode || dataset.sourceType || "--"}</td>
-                  <td>{dataset.measurementType || "MeasurementTypeUndefined"}</td>
-                  <td>{dataset.platformLabel || dataset.platformDisplayName || "--"}</td>
-                  <td>{dataset.buildingBlockLabel || "--"}</td>
-                    <td>{dataset.traceCount ?? dataset.files?.length ?? "--"}</td>
-                    <td>{dataset.rowCount ? Number(dataset.rowCount).toLocaleString() : `${dataset.traceCount ?? 0} raw traces`}</td>
+                  <td>
+                    <div className="dataset-details-grid">
+                      <DatasetDetailGroup title="Run">
+                        <TableDetail label="Project" value={dataset.projectDisplayName || dataset.projectName} />
+                        <TableDetail label="Slot" value={dataset.slot || "SlotUndefined"} />
+                        <TableDetail label="Step" value={dataset.processStep || "StepXX"} />
+                      </DatasetDetailGroup>
+                      <DatasetDetailGroup title="Measurement">
+                        <TableDetail label="Type" value={dataset.measurementType || "MeasurementTypeUndefined"} />
+                        <TableDetail label="Optical" value={dataset.opticalMode} />
+                        <TableDetail label="Alignment" value={dataset.alignmentMode} />
+                        <TableDetail label="Source" value={dataset.measurementMode || dataset.sourceType} />
+                      </DatasetDetailGroup>
+                      <DatasetDetailGroup title="Device">
+                        <TableDetail label="Platform" value={dataset.platformLabel || dataset.platformDisplayName} />
+                        <TableDetail label="Block" value={dataset.buildingBlockLabel} />
+                        <TableDetail label="Waveguide" value={dataset.waveguideType || "WaveguideUndefined"} />
+                      </DatasetDetailGroup>
+                    </div>
+                  </td>
+                  <td>
+                    <TableDetail label="Files" value={dataset.traceCount ?? dataset.files?.length ?? "--"} />
+                    <TableDetail label="Rows" value={dataset.rowCount ? Number(dataset.rowCount).toLocaleString() : `${dataset.traceCount ?? 0} raw traces`} />
+                  </td>
                     <td className="library-table-actions">
                       <button type="button" className="secondary-action" onClick={() => onSelectPublishedDataset(dataset)}>Edit</button>
                       <button type="button" className="danger-action" onClick={() => onDeletePublishedDataset(dataset)} disabled={Boolean(activeDeleteId)}>
@@ -236,7 +317,7 @@ export default function DatasetLibraryPanel({
                   </tr>
               )) : (
                 <tr>
-                  <td colSpan="11"><div className="chart-empty compact">No GitHub library datasets found yet.</div></td>
+                  <td colSpan="4"><div className="chart-empty compact">No GitHub library datasets found yet.</div></td>
                 </tr>
               )}
             </tbody>
@@ -273,13 +354,18 @@ export default function DatasetLibraryPanel({
             <input value={publishedDatasetDraft?.slot || ""} onChange={(event) => onPublishedDatasetDraftChange("slot", event.target.value)} disabled={!selectedPublishedDataset} />
           </label>
           <label className="mapping-field">
-            <span>Platform</span>
-            <input value={publishedDatasetDraft?.platformLabel || ""} onChange={(event) => onPublishedDatasetDraftChange("platformLabel", event.target.value)} disabled={!selectedPublishedDataset} />
+            <span>Process step</span>
+            <input pattern="Step(?:XX|[0-9]+[A-Z]?)" title="Use Step36, Step84A, or StepXX" value={publishedDatasetDraft?.processStep || ""} onChange={(event) => onPublishedDatasetDraftChange("processStep", event.target.value)} disabled={!selectedPublishedDataset} />
           </label>
           <label className="mapping-field">
-            <span>Building block</span>
-            <input value={publishedDatasetDraft?.buildingBlockLabel || ""} onChange={(event) => onPublishedDatasetDraftChange("buildingBlockLabel", event.target.value)} disabled={!selectedPublishedDataset} />
+            <span>Measurement date</span>
+            <input type="date" value={publishedDatasetDraft?.measurementDate || ""} onChange={(event) => onPublishedDatasetDraftChange("measurementDate", event.target.value)} disabled={!selectedPublishedDataset} />
           </label>
+          <ControlledSelect label="Platform" field="platformLabel" value={publishedDatasetDraft?.platformLabel} options={DATASET_PLATFORM_OPTIONS} onChange={onPublishedDatasetDraftChange} disabled={!selectedPublishedDataset} />
+          <ControlledSelect label="Optical mode" field="opticalMode" value={publishedDatasetDraft?.opticalMode} options={DATASET_OPTICAL_MODE_OPTIONS} onChange={onPublishedDatasetDraftChange} disabled={!selectedPublishedDataset} />
+          <ControlledSelect label="Building block" field="buildingBlockLabel" value={publishedDatasetDraft?.buildingBlockLabel} options={DATASET_BUILDING_BLOCK_OPTIONS} onChange={onPublishedDatasetDraftChange} disabled={!selectedPublishedDataset} />
+          <ControlledSelect label="Measurement type" field="measurementType" value={publishedDatasetDraft?.measurementType} options={DATASET_MEASUREMENT_TYPE_OPTIONS} onChange={onPublishedDatasetDraftChange} disabled={!selectedPublishedDataset} />
+          <ControlledSelect label="Alignment mode" field="alignmentMode" value={publishedDatasetDraft?.alignmentMode} options={DATASET_ALIGNMENT_MODE_OPTIONS} onChange={onPublishedDatasetDraftChange} disabled={!selectedPublishedDataset} />
           <label className="mapping-field">
             <span>Published folder</span>
             <input value={selectedPublishedDataset?.folder || ""} disabled />
@@ -309,55 +395,73 @@ export default function DatasetLibraryPanel({
             <p>These are local browser snapshots. Load one if you want to revise its naming, then apply the current naming before publishing to GitHub.</p>
           </div>
         </div>
-        <div className="dashboard-table-wrap">
-          <table>
+        <div className="dashboard-table-wrap dataset-library-wide-table">
+          <table className="dataset-library-compact-table saved-dataset-table">
+            <colgroup>
+              <col className="dataset-col-name" />
+              <col className="dataset-col-details" />
+              <col className="dataset-col-volume" />
+              <col className="dataset-col-status" />
+              <col className="dataset-col-actions" />
+            </colgroup>
             <thead>
               <tr>
                 <th>Dataset</th>
-                <th>Project</th>
-                <th>Slot</th>
-                <th>Waveguide Type</th>
-                <th>Measurement Mode</th>
-                <th>Measurement Type</th>
-                <th>Platform</th>
-                <th>Building Block</th>
-                <th>Files</th>
-                <th>Rows</th>
-                <th>Saved</th>
-                <th>GitHub</th>
+                <th>Details</th>
+                <th>Data</th>
+                <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {safeLocalDatasets.length ? safeLocalDatasets.map((dataset) => {
                 const info = safeDatasetDisplay(dataset);
+                const publishValidation = validateCanonicalDatasetIdentity(info);
                 return (
                   <tr key={dataset.id || info.fullLabel}>
                     <td>
                       <strong>{info.shortLabel}</strong>
-                      <div className="dataset-subcopy">{info.fullLabel}</div>
+                      {info.fullLabel !== info.shortLabel ? <div className="dataset-subcopy">{info.fullLabel}</div> : null}
                     </td>
-                    <td>{info.projectName}</td>
-                    <td>{info.slot}</td>
-                    <td>{info.waveguideType}</td>
-                    <td>{info.measurementMode}</td>
-                    <td>{info.measurementType}</td>
-                    <td>{info.platformLabel}</td>
-                    <td>{info.buildingBlockLabel}</td>
-                    <td>{info.sourceLabel}</td>
-                    <td>{info.rowText}</td>
-                    <td>{info.savedDisplay}</td>
-                    <td><GitHubStatusBadge status={info.githubStatus} /></td>
+                    <td>
+                      <div className="dataset-details-grid">
+                        <DatasetDetailGroup title="Run">
+                          <TableDetail label="Project" value={info.projectName} />
+                          <TableDetail label="Slot" value={info.slot} />
+                          <TableDetail label="Step" value={isValidProcessStep(info.processStep) ? info.processStep : "Required"} />
+                          <TableDetail label="Measured" value={info.measurementDate || "Required"} />
+                        </DatasetDetailGroup>
+                        <DatasetDetailGroup title="Measurement">
+                          <TableDetail label="Type" value={info.measurementType} />
+                          <TableDetail label="Optical" value={info.opticalMode} />
+                          <TableDetail label="Alignment" value={info.alignmentMode} />
+                          <TableDetail label="Source" value={info.measurementMode} />
+                        </DatasetDetailGroup>
+                        <DatasetDetailGroup title="Device">
+                          <TableDetail label="Platform" value={info.platformLabel} />
+                          <TableDetail label="Block" value={info.buildingBlockLabel} />
+                          <TableDetail label="Waveguide" value={info.waveguideType} />
+                        </DatasetDetailGroup>
+                      </div>
+                    </td>
+                    <td>
+                      <TableDetail label="Files" value={info.fileText} />
+                      <TableDetail label="Rows" value={info.rowText} />
+                    </td>
+                    <td>
+                      <TableDetail label="Saved" value={info.savedDisplay} />
+                      <div className="dataset-table-status"><GitHubStatusBadge status={info.githubStatus} /></div>
+                    </td>
                     <td className="library-table-actions">
                       <button type="button" onClick={() => onLoadLocalDataset(dataset)}>Load</button>
-                      <button type="button" className="secondary-action" onClick={() => onPublishLocalDataset(dataset)} disabled={publishingDatasetId === dataset.id}>{publishingDatasetId === dataset.id ? "Publishing..." : "Save to GitHub"}</button>
+                      <button type="button" className="secondary-action" onClick={() => onPublishLocalDataset(dataset)} disabled={publishingDatasetId === dataset.id || !info.measurementDate || !publishValidation.valid} title={!info.measurementDate ? "Add a measurement date to this snapshot before publishing" : !publishValidation.valid ? `Complete: ${publishValidation.missing.join(", ")}` : "Publish this dataset to GitHub"}>{publishingDatasetId === dataset.id ? "Publishing..." : "Save to GitHub"}</button>
                       <button type="button" className="danger-action" onClick={() => onDeleteLocalDataset(dataset.id)}>Delete</button>
                     </td>
                   </tr>
                 );
               }) : (
                 <tr>
-                  <td colSpan="13"><div className="chart-empty compact">No local dataset snapshots are available yet.</div></td>
+                  <td colSpan="5"><div className="chart-empty compact">No local dataset snapshots are available yet.</div></td>
                 </tr>
               )}
             </tbody>

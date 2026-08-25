@@ -1,0 +1,29 @@
+{
+  "measurementType": "PropagationLoss",
+  "routes": [
+    {
+      "route": "WG1",
+      "lengthMm": 0
+    },
+    {
+      "route": "WG2",
+      "lengthMm": 2
+    },
+    {
+      "route": "WG3",
+      "lengthMm": 4
+    },
+    {
+      "route": "WG4",
+      "lengthMm": 6
+    },
+    {
+      "route": "WG5",
+      "lengthMm": 8
+    },
+    {
+      "route": "WG6",
+      "lengthMm": 10
+    }
+  ]
+}

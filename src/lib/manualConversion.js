@@ -6,6 +6,20 @@ import {
   detectStandardFilenameMetadata,
   mergeBatchStandardMetadata
 } from "./filenameStandardization";
+import {
+  LEGACY_WAVEGUIDE_CONFIG_FILE_NAME,
+  ROUTE_CONFIG_FILE_NAME,
+  applyDatasetNamingOverrides,
+  buildCanonicalDatasetFolderName,
+  buildDatasetMetadata,
+  buildDatasetReadme,
+  buildDatasetTraceFiles,
+  buildFilenameManifest,
+  inferDatasetIdentity,
+  normalizeMeasurementDate,
+  routeConfigToWaveguideConfig,
+  validateCanonicalDatasetIdentity
+} from "./githubLibrary";
 
 const WAVELENGTH_ALIASES = [
   "wavelength",
@@ -245,6 +259,7 @@ export async function convertManualMeasurementWorkbook(file, options = {}) {
     outputFileName,
     outputFormat,
     content,
+    convertedRows,
     chipId: meta.chipId,
     slotId: meta.slotId,
     waveguideId: meta.waveguideId,
@@ -306,6 +321,127 @@ export function buildManualConversionManifestCsv(entries) {
     entry.standardMeta?.mode
   ].map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","));
   return [header.join(","), ...lines].join("\n");
+}
+
+function manualRowsFromEntries(entries = []) {
+  return entries.flatMap((entry) => (entry.convertedRows || []).map((row) => ({
+    wavelength_nm: row.wavelengthNm,
+    optical_power_w: row.opticalPowerW,
+    chip_id: entry.standardMeta?.chipId || entry.chipId,
+    waveguide_id: entry.standardMeta?.waveguideId || entry.waveguideId,
+    source_name: entry.sourcePath || entry.sourceName,
+    wafer_label: entry.datasetFields?.slot || ""
+  })));
+}
+
+export function validateManualDatasetPackage(entries = [], datasetFields = {}, routeLengths = {}, routeLengthsConfirmed = false) {
+  const identityValidation = validateCanonicalDatasetIdentity(datasetFields);
+  const missing = [...identityValidation.missing];
+  if (!normalizeMeasurementDate(datasetFields.measurementDate)) missing.push("measurement date");
+  if (!entries.length) missing.push("at least one converted trace");
+
+  const traceKeys = entries.map((entry) => `${entry.standardMeta?.chipId || entry.chipId}_${entry.standardMeta?.waveguideId || entry.waveguideId}`);
+  if (entries.some((entry) => !/^Chip\d+$/.test(entry.standardMeta?.chipId || entry.chipId || "") || !/^WG\d+$/.test(entry.standardMeta?.waveguideId || entry.waveguideId || ""))) {
+    missing.push("valid Chip# and WG# identifiers for every trace");
+  }
+  if (new Set(traceKeys).size !== traceKeys.length) missing.push("one unique trace for every Chip#/WG# combination");
+
+  const routes = [...new Set(entries.map((entry) => entry.standardMeta?.waveguideId || entry.waveguideId).filter(Boolean))]
+    .sort((left, right) => Number(left.replace(/\D/g, "")) - Number(right.replace(/\D/g, "")));
+  if (routes.some((route) => !Number.isFinite(Number(routeLengths[route])))) missing.push("a physical length for every WG route");
+  if (routes.length && !routeLengthsConfirmed) missing.push("confirmation of the WG route lengths");
+
+  return {
+    valid: missing.length === 0,
+    missing: [...new Set(missing)],
+    folderName: buildCanonicalDatasetFolderName(datasetFields),
+    routes
+  };
+}
+
+export function buildGithubReadyManualDatasetPackage({
+  entries = [],
+  datasetFields = {},
+  routeLengths = {},
+  routeLengthsConfirmed = false,
+  launchPowerDbm = 10
+}) {
+  const validation = validateManualDatasetPackage(entries, datasetFields, routeLengths, routeLengthsConfirmed);
+  if (!validation.valid) throw new Error(`Complete the required dataset checks: ${validation.missing.join(", ")}.`);
+
+  const rows = manualRowsFromEntries(entries);
+  const sourceMeta = {
+    name: validation.folderName,
+    type: "Operator-aligned manual Excel conversion",
+    platform: datasetFields.platformLabel,
+    platformId: datasetFields.platformLabel,
+    processStep: datasetFields.processStep,
+    opticalMode: datasetFields.opticalMode,
+    buildingBlock: datasetFields.buildingBlockLabel,
+    buildingBlockId: datasetFields.buildingBlockLabel,
+    measurementType: datasetFields.measurementType,
+    alignmentMode: datasetFields.alignmentMode,
+    launchPowerDbm,
+    notes: datasetFields.notes || ""
+  };
+  const inferred = inferDatasetIdentity({
+    projectName: datasetFields.projectName,
+    waferName: datasetFields.slot,
+    sourceMeta,
+    rows,
+    selectedDate: datasetFields.measurementDate
+  });
+  const identity = applyDatasetNamingOverrides(inferred, {
+    label: validation.folderName,
+    folderName: validation.folderName,
+    projectName: datasetFields.projectName,
+    mpw: datasetFields.projectName,
+    waferName: datasetFields.slot,
+    slot: datasetFields.slot,
+    processStep: datasetFields.processStep,
+    platformLabel: datasetFields.platformLabel,
+    opticalMode: datasetFields.opticalMode,
+    buildingBlockLabel: datasetFields.buildingBlockLabel,
+    measurementType: datasetFields.measurementType,
+    alignmentMode: datasetFields.alignmentMode
+  });
+  const traceFiles = buildDatasetTraceFiles(rows, identity);
+  const routeConfig = {
+    measurementType: datasetFields.measurementType,
+    routes: validation.routes.map((route) => ({ route, lengthMm: Number(routeLengths[route]) }))
+  };
+  const waveguideConfig = routeConfigToWaveguideConfig(routeConfig);
+  const dataset = {
+    projectName: datasetFields.projectName,
+    waferName: datasetFields.slot,
+    selectedDate: datasetFields.measurementDate,
+    measurementDate: datasetFields.measurementDate,
+    publishedDate: null,
+    rawRows: rows,
+    sourceMeta
+  };
+  const metadata = buildDatasetMetadata(dataset, identity, traceFiles, routeConfig, waveguideConfig);
+  const filenameManifest = buildFilenameManifest(traceFiles);
+  const readme = buildDatasetReadme(identity, traceFiles, metadata);
+  const packageEntries = [
+    ...traceFiles.map((file) => ({ outputFileName: file.fileName, content: file.content })),
+    { outputFileName: "README.md", content: readme },
+    { outputFileName: "metadata.json", content: `${JSON.stringify(metadata, null, 2)}\n` },
+    { outputFileName: ROUTE_CONFIG_FILE_NAME, content: `${JSON.stringify(routeConfig, null, 2)}\n` },
+    { outputFileName: LEGACY_WAVEGUIDE_CONFIG_FILE_NAME, content: `${JSON.stringify(waveguideConfig, null, 2)}\n` },
+    { outputFileName: "filename-manifest.csv", content: filenameManifest }
+  ];
+
+  return {
+    folderName: validation.folderName,
+    traceFiles,
+    metadata,
+    routeConfig,
+    waveguideConfig,
+    filenameManifest,
+    readme,
+    zip: buildStoredZip(packageEntries, { rootFolderName: validation.folderName })
+  };
 }
 
 const CRC_TABLE = (() => {

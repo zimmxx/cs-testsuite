@@ -8,6 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "audit:wst-library": "node scripts/audit-wst-library.mjs",
+    "validate:pptx": "python scripts/validate-pptx-package.py",
     "build:library-analytics": "powershell -NoLogo -File scripts/build-library-analytics.ps1"
   },
   "dependencies": {

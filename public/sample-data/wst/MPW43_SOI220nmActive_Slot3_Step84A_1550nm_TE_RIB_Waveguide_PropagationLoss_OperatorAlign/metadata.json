@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 4,
+  "datasetId": "mpw43_soi220nmactive_slot3_step84a_1550nm_te_rib_waveguide_propagationloss_operatoralign",
+  "label": "MPW43_SOI220nmActive_Slot3_Step84A_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+  "projectName": "MPW43",
+  "waferName": "Slot3",
+  "measurementDate": "2026-08-18",
+  "publishedDate": null,
+  "selectedDate": "2026-08-18",
+  "mpwRun": "MPW43",
+  "slot": "Slot3",
+  "processStep": "Step84A",
+  "platform": "SOI220nmActive",
+  "platformId": "soi220nmactive",
+  "buildingBlock": "RIB_Waveguide",
+  "buildingBlockId": "rib_waveguide",
+  "measurementType": "PropagationLoss",
+  "opticalMode": "1550nm_TE",
+  "alignmentMode": "OperatorAlign",
+  "pdkMonitorBuildingBlock": "SOI220nm_1550nm_TE_RIB_Waveguide",
+  "measurementMode": "OperatorAlign",
+  "waveguideType": "RIB",
+  "sourceType": "Operator-aligned WST trace set",
+  "traceCount": 35,
+  "rowCount": 665035,
+  "chipCount": 5,
+  "waveguideCount": 7,
+  "wavelengthMinNm": 1525,
+  "wavelengthMaxNm": 1620,
+  "analyticsSummary": {
+    "propagationAverage": 6.008243891471,
+    "yield": 100,
+    "measuredChips": 5,
+    "computedAt": "2026-08-19T11:45:32.0727779Z"
+  },
+  "analyticsReview": {
+    "excludedChipIds": [],
+    "includedChipIds": [],
+    "totalChipCount": 5,
+    "selectedChipCount": 5,
+    "measuredChips": 5,
+    "fittedChips": 5,
+    "failedFits": 0,
+    "savedAt": "2026-08-19T11:45:32.0727779Z",
+    "propagationSettings": {
+      "propagationTargetWavelengthNm": 1550,
+      "propagationWindowNm": 5,
+      "propagationSpectralStepNm": 10,
+      "propagationMseThreshold": 0.5
+    }
+  },
+  "copiedToFolder": true,
+  "processedInTestingSuite": true,
+  "notes": "",
+  "publisher": "CORNERSTONE",
+  "license": null,
+  "sourceNames": [
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip40_WG1.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip40_WG2.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip40_WG3.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip40_WG4.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip40_WG5.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip40_WG6.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip40_WG7.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip49_WG1.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip49_WG2.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip49_WG3.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip49_WG4.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip49_WG5.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip49_WG6.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip49_WG7.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip52_WG1.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip52_WG2.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip52_WG3.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip52_WG4.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip52_WG5.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip52_WG6.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip52_WG7.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip61_WG1.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip61_WG2.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip61_WG3.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip61_WG4.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip61_WG5.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip61_WG6.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip61_WG7.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip64_WG1.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip64_WG2.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip64_WG3.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip64_WG4.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip64_WG5.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip64_WG6.txt",
+    "MPW43_STEP84A_220nmSOI_Slot3_RibWaveguideNoImplant_PropagationLoss_Manual_Chip64_WG7.txt"
+  ],
+  "traceFiles": [
+    "Chip40_WG1.txt",
+    "Chip40_WG2.txt",
+    "Chip40_WG3.txt",
+    "Chip40_WG4.txt",
+    "Chip40_WG5.txt",
+    "Chip40_WG6.txt",
+    "Chip40_WG7.txt",
+    "Chip49_WG1.txt",
+    "Chip49_WG2.txt",
+    "Chip49_WG3.txt",
+    "Chip49_WG4.txt",
+    "Chip49_WG5.txt",
+    "Chip49_WG6.txt",
+    "Chip49_WG7.txt",
+    "Chip52_WG1.txt",
+    "Chip52_WG2.txt",
+    "Chip52_WG3.txt",
+    "Chip52_WG4.txt",
+    "Chip52_WG5.txt",
+    "Chip52_WG6.txt",
+    "Chip52_WG7.txt",
+    "Chip61_WG1.txt",
+    "Chip61_WG2.txt",
+    "Chip61_WG3.txt",
+    "Chip61_WG4.txt",
+    "Chip61_WG5.txt",
+    "Chip61_WG6.txt",
+    "Chip61_WG7.txt",
+    "Chip64_WG1.txt",
+    "Chip64_WG2.txt",
+    "Chip64_WG3.txt",
+    "Chip64_WG4.txt",
+    "Chip64_WG5.txt",
+    "Chip64_WG6.txt",
+    "Chip64_WG7.txt"
+  ],
+  "filenamePattern": "Chip#_WG#.txt",
+  "filenameManifest": "MPW43_SOI220nmActive_Slot3_Step84A_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/filename-manifest.csv",
+  "traceFormat": {
+    "fileType": "text/plain",
+    "delimiter": "tab",
+    "header": false,
+    "columns": [
+      "wavelength_nm",
+      "optical_power_w"
+    ]
+  },
+  "routeConfig": {
+    "measurementType": "PropagationLoss",
+    "routes": [
+      {
+        "route": "WG1",
+        "lengthMm": 0
+      },
+      {
+        "route": "WG2",
+        "lengthMm": 2
+      },
+      {
+        "route": "WG3",
+        "lengthMm": 4
+      },
+      {
+        "route": "WG4",
+        "lengthMm": 6
+      },
+      {
+        "route": "WG5",
+        "lengthMm": 8
+      },
+      {
+        "route": "WG6",
+        "lengthMm": 10
+      }
+    ]
+  },
+  "waveguideConfig": {
+    "propagationWaveguideCount": 6,
+    "propagationWaveguideStartMm": 0,
+    "propagationWaveguideIntervalMm": 2,
+    "propagationWaveguideManualMode": false,
+    "waveguideLengths": [
+      {
+        "index": 1,
+        "lengthMm": 0
+      },
+      {
+        "index": 2,
+        "lengthMm": 2
+      },
+      {
+        "index": 3,
+        "lengthMm": 4
+      },
+      {
+        "index": 4,
+        "lengthMm": 6
+      },
+      {
+        "index": 5,
+        "lengthMm": 8
+      },
+      {
+        "index": 6,
+        "lengthMm": 10
+      }
+    ]
+  },
+  "legacyFolder": "sample-data/wst/MPW43_STEP84A_220NMSOI_SLOT3_RIBWAVEGUIDENOIMPLANT",
+  "metadataFile": "MPW43_SOI220nmActive_Slot3_Step84A_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/metadata.json",
+  "configFile": "MPW43_SOI220nmActive_Slot3_Step84A_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/route-config.json",
+  "migration": {
+    "stagedAt": "2026-08-24",
+    "sourceDatasetId": "DS004",
+    "sourceFolder": "MPW43_STEP84A_220NMSOI_SLOT3_RIBWAVEGUIDENOIMPLANT",
+    "sourceContentPreserved": true
+  }
+}

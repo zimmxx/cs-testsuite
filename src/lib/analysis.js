@@ -754,6 +754,7 @@ export function getMetricRange(cells) {
 
 export function metricLabel(metricKey) {
   return {
+    chip: "Chip number",
     propagation: "Propagation loss (dB/cm)",
     insertion: "Insertion loss (dB)",
     heater: "Heater efficiency (mW/pi)"

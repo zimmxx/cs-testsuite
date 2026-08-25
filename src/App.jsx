@@ -22,16 +22,22 @@ import {
 import { createCenterFilledWaferTemplate, defaultWaferTemplateId, getBuiltInWaferTemplates, getWaferTemplateLayout, shortChipLabel } from "./lib/waferTemplates";
 import {
   buildDatasetAnalyticsSummary,
+  buildCanonicalDatasetFolderName,
+  buildPdkMonitorBuildingBlockName,
   deletePublishedDatasetFromGithub,
   normalizeDatasetAnalyticsReview,
   buildDatasetSnapshotMetadata,
   buildGithubDatasetPackage,
+  getDatasetMeasurementDate,
+  isValidProcessStep,
+  LEGACY_WAVEGUIDE_CONFIG_FILE_NAME,
   normalizeDatasetAnalyticsSummary,
   publishDatasetPackageToGithub,
+  ROUTE_CONFIG_FILE_NAME,
+  routeConfigToWaveguideConfig,
   updatePublishedDatasetMetadataOnGithub
 } from "./lib/githubLibrary";
 import { getDatasetPresentation } from "./lib/datasetPresentation";
-import { buildStandardDatasetBaseName } from "./lib/filenameStandardization";
 import { parseHeaterMeasurementFiles } from "./lib/heaterMeasurement";
 import { generatePostProcessedArchive } from "./lib/postProcessingExport";
 import { buildWaferMapFigureModel, buildWaferMapPng, buildWaferMapSvgDocument, downloadBlob as downloadAssetBlob, openWaferMapFigureWindow, resolveWaferColorRange } from "./lib/wafermapFigure";
@@ -179,11 +185,11 @@ function resolveThemePreference(preference, prefersDark = false) {
 
 const REPO_DOC_BASE = "https://github.com/zimmxx/cs-testsuite/blob/main/";
 const GITHUB_LIBRARY_MANIFEST_PATH = "public/sample-data/wst/library-index.json";
-const GITHUB_LIBRARY_MANIFEST_MIRROR_PATH = "sample-data/wst/library-index.json";
+const GITHUB_LIBRARY_MANIFEST_MIRROR_PATH = null;
 const GITHUB_LIBRARY_MANIFEST_V2_PATH = "public/sample-data/wst/library-index-v2.json";
-const GITHUB_LIBRARY_MANIFEST_V2_MIRROR_PATH = "sample-data/wst/library-index-v2.json";
+const GITHUB_LIBRARY_MANIFEST_V2_MIRROR_PATH = null;
 const GITHUB_LIBRARY_ANALYTICS_PATH = "public/sample-data/wst/library-analytics.json";
-const GITHUB_LIBRARY_ANALYTICS_MIRROR_PATH = "sample-data/wst/library-analytics.json";
+const GITHUB_LIBRARY_ANALYTICS_MIRROR_PATH = null;
 const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "main", token: "" };
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
@@ -629,16 +635,17 @@ function applyWaveguideSettingsToSourceMeta(previous, patch = {}) {
 }
 
 function buildWaveguideSettingsPatch(values = {}) {
-  const count = Math.max(Math.round(Number(values.propagationWaveguideCount) || DEFAULT_WAVEGUIDE_COUNT), 1);
-  const start = Number.isFinite(Number(values.propagationWaveguideStartMm)) ? Number(values.propagationWaveguideStartMm) : DEFAULT_WAVEGUIDE_START_MM;
-  const interval = Number.isFinite(Number(values.propagationWaveguideIntervalMm)) ? Number(values.propagationWaveguideIntervalMm) : DEFAULT_WAVEGUIDE_INTERVAL_MM;
-  const manualMode = Boolean(values.propagationWaveguideManualMode);
-  const entries = Array.isArray(values.waveguideLengths)
-    ? values.waveguideLengths
+  const normalizedValues = Array.isArray(values.routes) ? routeConfigToWaveguideConfig(values) : values;
+  const count = Math.max(Math.round(Number(normalizedValues.propagationWaveguideCount) || DEFAULT_WAVEGUIDE_COUNT), 1);
+  const start = Number.isFinite(Number(normalizedValues.propagationWaveguideStartMm)) ? Number(normalizedValues.propagationWaveguideStartMm) : DEFAULT_WAVEGUIDE_START_MM;
+  const interval = Number.isFinite(Number(normalizedValues.propagationWaveguideIntervalMm)) ? Number(normalizedValues.propagationWaveguideIntervalMm) : DEFAULT_WAVEGUIDE_INTERVAL_MM;
+  const manualMode = Boolean(normalizedValues.propagationWaveguideManualMode);
+  const entries = Array.isArray(normalizedValues.waveguideLengths)
+    ? normalizedValues.waveguideLengths
         .map((entry) => [Number(entry?.index), Number(entry?.lengthMm)])
         .filter(([index, length]) => Number.isFinite(index) && Number.isFinite(length))
         .sort((a, b) => a[0] - b[0])
-    : Object.entries(values.waveguideLengthByIndex || {})
+    : Object.entries(normalizedValues.waveguideLengthByIndex || {})
         .map(([key, value]) => [Number(key), Number(value)])
         .filter(([index, length]) => Number.isFinite(index) && Number.isFinite(length))
         .sort((a, b) => a[0] - b[0]);
@@ -654,6 +661,29 @@ function buildWaveguideSettingsPatch(values = {}) {
     propagationWaveguideManualMode: manualMode,
     waveguideLengthByIndex
   };
+}
+
+async function fetchBundledRouteConfig(definition = {}) {
+  const embeddedConfig = definition.routeConfig || definition.waveguideConfig;
+  if (embeddedConfig) return embeddedConfig;
+  if (!definition.configFile) return null;
+
+  const configuredFileName = String(definition.configFile).split(/[\\/]/).filter(Boolean).at(-1);
+  const candidateNames = [...new Set([
+    configuredFileName,
+    ROUTE_CONFIG_FILE_NAME,
+    LEGACY_WAVEGUIDE_CONFIG_FILE_NAME
+  ].filter(Boolean))];
+
+  for (const fileName of candidateNames) {
+    try {
+      const response = await fetch(bundledAssetUrl(`${definition.folder}/${fileName}`), { cache: "no-store" });
+      if (response.ok) return await response.json();
+    } catch {
+      // Continue to the next supported configuration filename.
+    }
+  }
+  return null;
 }
 
 function propagationDraftFromSourceMeta(sourceMeta = {}) {
@@ -808,13 +838,24 @@ function presentDataset(dataset) {
 
 function createDatasetNamingDraft(dataset = {}) {
   const display = buildDatasetSnapshotMetadata(dataset);
-  return {
+  const draft = {
     label: display.label || "",
     folderName: display.folderName || "",
     projectName: display.projectName || "",
     slot: display.slot || "",
+    processStep: display.processStep || "StepXX",
+    measurementDate: getDatasetMeasurementDate(dataset),
     platformLabel: display.platformLabel || "",
-    buildingBlockLabel: display.buildingBlockLabel || ""
+    opticalMode: display.opticalMode || "",
+    buildingBlockLabel: display.buildingBlockLabel || "",
+    measurementType: display.measurementType || "",
+    alignmentMode: display.alignmentMode || ""
+  };
+  const canonicalFolderName = buildCanonicalDatasetFolderName(draft);
+  return {
+    ...draft,
+    folderName: canonicalFolderName || draft.folderName,
+    label: canonicalFolderName || draft.label
   };
 }
 
@@ -823,8 +864,13 @@ function createPublishedDatasetDraft(dataset = {}) {
     label: dataset.label || "",
     projectName: dataset.projectName || "",
     slot: dataset.slot || "",
+    processStep: dataset.processStep || "StepXX",
+    measurementDate: getDatasetMeasurementDate(dataset),
     platformLabel: dataset.platformLabel || dataset.platformDisplayName || "",
-    buildingBlockLabel: dataset.buildingBlockLabel || ""
+    opticalMode: dataset.opticalMode || "",
+    buildingBlockLabel: dataset.buildingBlockLabel || "",
+    measurementType: dataset.measurementType || "",
+    alignmentMode: dataset.alignmentMode || ""
   };
 }
 
@@ -1005,13 +1051,95 @@ function SidebarSection({ section, activeTab, onSelect }) {
   );
 }
 
-function quickDatasetLabel(dataset = {}) {
+function quickDatasetName(dataset = {}) {
+  return dataset.label || dataset.display?.shortLabel || dataset.sourceMeta?.name || "Dataset snapshot";
+}
+
+function quickDatasetSummary(dataset = {}) {
   const presentation = getDatasetPresentation(dataset);
-  const name = dataset.label || dataset.display?.shortLabel || dataset.sourceMeta?.name || "Dataset snapshot";
-  const context = [presentation.projectDisplayName, presentation.slot, dataset.selectedDate]
+  return [
+    presentation.projectDisplayName,
+    presentation.slot,
+    dataset.processStep || dataset.display?.processStep,
+    dataset.opticalMode || dataset.display?.opticalMode,
+    dataset.buildingBlockLabel || dataset.display?.buildingBlockLabel
+  ]
     .filter((value) => value && !/undefined/i.test(value))
     .join(" - ");
-  return context ? `${name} (${context})` : name;
+}
+
+function quickDatasetProject(dataset = {}) {
+  const project = getDatasetPresentation(dataset).projectDisplayName || dataset.projectName || dataset.mpw || "";
+  return /undefined/i.test(project) ? "" : project;
+}
+
+function QuickDatasetPicker({ selection, remoteDatasets, localDatasets, disabled, placeholder, onSelect }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const separator = selection.indexOf(":");
+  const selectedSource = separator >= 0 ? selection.slice(0, separator) : "";
+  const selectedId = separator >= 0 ? selection.slice(separator + 1) : "";
+  const selectedDataset = (selectedSource === "github" ? remoteDatasets : localDatasets)
+    .find((dataset) => String(dataset.id) === selectedId);
+
+  function selectDataset(value) {
+    setIsOpen(false);
+    onSelect(value);
+  }
+
+  function renderGroup(label, source, datasets) {
+    if (!datasets.length) return null;
+    return (
+      <section className="quick-dataset-option-group" aria-label={label}>
+        <div className="quick-dataset-option-group-label">{label}</div>
+        {datasets.map((dataset) => {
+          const value = `${source}:${dataset.id}`;
+          return (
+            <button
+              key={`quick-${source}-${dataset.id}`}
+              type="button"
+              role="option"
+              aria-selected={selection === value}
+              className={selection === value ? "quick-dataset-option selected" : "quick-dataset-option"}
+              onClick={() => selectDataset(value)}
+            >
+              <strong>{quickDatasetSummary(dataset) || quickDatasetName(dataset)}</strong>
+              <small>{quickDatasetName(dataset)}</small>
+            </button>
+          );
+        })}
+      </section>
+    );
+  }
+
+  return (
+    <div className={isOpen ? "quick-dataset-picker open" : "quick-dataset-picker"} onKeyDown={(event) => {
+      if (event.key === "Escape") setIsOpen(false);
+    }}>
+      <button
+        type="button"
+        className="quick-dataset-trigger"
+        aria-label="Quick Load Dataset"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        disabled={disabled}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <i>Dataset</i>
+        <span className="quick-dataset-trigger-copy">
+          <strong>{selectedDataset ? quickDatasetSummary(selectedDataset) : placeholder}</strong>
+          {selectedDataset ? <small>{quickDatasetName(selectedDataset)}</small> : null}
+        </span>
+        <span className="quick-dataset-chevron" aria-hidden="true">⌄</span>
+      </button>
+      {isOpen ? <>
+        <button type="button" className="quick-dataset-backdrop" aria-label="Close dataset list" onClick={() => setIsOpen(false)} />
+        <div className="quick-dataset-menu" role="listbox" aria-label="Available datasets">
+          {renderGroup("GitHub Measurement Data Library", "github", remoteDatasets)}
+          {renderGroup("Local Dataset Snapshots", "local", localDatasets)}
+        </div>
+      </> : null}
+    </div>
+  );
 }
 
 function MappingSelect({ label, value, columns, onChange, allowBlank = true }) {
@@ -2078,6 +2206,7 @@ export default function App() {
   const [settingsDraft, setSettingsDraft] = useState(initialSettings);
   const [waferTemplateDraft, setWaferTemplateDraft] = useState(DEFAULT_WAFER_TEMPLATE_DRAFT);
   const [loadingBundledId, setLoadingBundledId] = useState("");
+  const [quickDatasetProjectSelection, setQuickDatasetProjectSelection] = useState("");
   const [quickDatasetSelection, setQuickDatasetSelection] = useState("");
   const [brandLogoAvailable, setBrandLogoAvailable] = useState(true);
   const [publishingDatasetId, setPublishingDatasetId] = useState("");
@@ -2673,7 +2802,15 @@ export default function App() {
     return snapshot;
   }
   function updateCurrentDatasetNaming(field, value) {
-    setDatasetNamingDraft((previous) => ({ ...previous, [field]: value }));
+    setDatasetNamingDraft((previous) => {
+      const next = { ...previous, [field]: value };
+      const canonicalFolderName = buildCanonicalDatasetFolderName(next);
+      return {
+        ...next,
+        folderName: canonicalFolderName,
+        label: field === "label" ? value : canonicalFolderName || next.label
+      };
+    });
   }
   function resetCurrentDatasetNaming(dataset = { projectName, waferName, selectedDate, rawRows: currentRows, sourceMeta }) {
     setDatasetNamingDraft(createDatasetNamingDraft(dataset));
@@ -2712,6 +2849,13 @@ export default function App() {
   }
   async function savePublishedDatasetMetadata(dataset) {
     if (!dataset?.id) return;
+    const processStep = publishedDatasetDraft.processStep || dataset.processStep || "StepXX";
+    if (!isValidProcessStep(processStep)) {
+      const message = "Use a valid process step such as Step36, Step84A, or StepXX before saving metadata.";
+      setStatusMessage(message);
+      pushToast("Valid process step required", message, "danger");
+      return;
+    }
     if (!githubConfig.token) {
       const message = "Add a fine-grained GitHub token in the Datasets tab before updating published dataset metadata.";
       setStatusMessage(message);
@@ -2740,16 +2884,33 @@ export default function App() {
         projectName: publishedDatasetDraft.projectName || dataset.projectName,
         mpwRun: publishedDatasetDraft.projectName || existingMetadata.mpwRun || dataset.mpw,
         slot: publishedDatasetDraft.slot || dataset.slot,
+        processStep,
+        measurementDate: publishedDatasetDraft.measurementDate || existingMetadata.measurementDate || dataset.measurementDate || dataset.selectedDate || null,
+        publishedDate: existingMetadata.publishedDate || dataset.publishedDate || null,
+        selectedDate: publishedDatasetDraft.measurementDate || existingMetadata.measurementDate || dataset.measurementDate || dataset.selectedDate || null,
         platform: publishedDatasetDraft.platformLabel || dataset.platformLabel,
+        opticalMode: publishedDatasetDraft.opticalMode || dataset.opticalMode || "",
         buildingBlock: publishedDatasetDraft.buildingBlockLabel || dataset.buildingBlockLabel,
+        measurementType: publishedDatasetDraft.measurementType || dataset.measurementType || "",
+        alignmentMode: publishedDatasetDraft.alignmentMode || dataset.alignmentMode || "",
+        pdkMonitorBuildingBlock: buildPdkMonitorBuildingBlockName({
+          platformLabel: publishedDatasetDraft.platformLabel || dataset.platformLabel,
+          opticalMode: publishedDatasetDraft.opticalMode || dataset.opticalMode || "",
+          buildingBlockLabel: publishedDatasetDraft.buildingBlockLabel || dataset.buildingBlockLabel
+        }),
         analyticsSummary,
         analyticsReview,
         namingOverrides: {
           label: publishedDatasetDraft.label || dataset.label,
           projectName: publishedDatasetDraft.projectName || dataset.projectName,
           slot: publishedDatasetDraft.slot || dataset.slot,
+          processStep,
+          measurementDate: publishedDatasetDraft.measurementDate || existingMetadata.measurementDate || dataset.measurementDate || dataset.selectedDate || "",
           platformLabel: publishedDatasetDraft.platformLabel || dataset.platformLabel,
-          buildingBlockLabel: publishedDatasetDraft.buildingBlockLabel || dataset.buildingBlockLabel
+          opticalMode: publishedDatasetDraft.opticalMode || dataset.opticalMode || "",
+          buildingBlockLabel: publishedDatasetDraft.buildingBlockLabel || dataset.buildingBlockLabel,
+          measurementType: publishedDatasetDraft.measurementType || dataset.measurementType || "",
+          alignmentMode: publishedDatasetDraft.alignmentMode || dataset.alignmentMode || ""
         }
       };
 
@@ -3115,13 +3276,7 @@ export default function App() {
             .then((response) => (response.ok ? response.json() : null))
             .catch(() => null)
         : Promise.resolve(null);
-    const configPromise = definition.waveguideConfig
-      ? Promise.resolve(definition.waveguideConfig)
-      : definition.configFile
-        ? fetch(bundledAssetUrl(`${definition.folder}/waveguide-config.json`), { cache: "no-store" })
-            .then((response) => (response.ok ? response.json() : null))
-            .catch(() => null)
-        : Promise.resolve(null);
+    const configPromise = fetchBundledRouteConfig(definition);
     const rowSets = await readItemsInBatches(
       fileNames,
       async (fileName) => {
@@ -3141,10 +3296,10 @@ export default function App() {
       onProgress
     );
     const metadata = await metadataPromise;
-    const waveguideConfig = await configPromise;
+    const routeConfig = await configPromise;
     const rows = rowSets.flat();
     const fallbackSettings = buildWaveguideSettingsPatch(sourceMeta);
-    const configuredSettings = waveguideConfig ? buildWaveguideSettingsPatch(waveguideConfig) : fallbackSettings;
+    const configuredSettings = routeConfig ? buildWaveguideSettingsPatch(routeConfig) : fallbackSettings;
     const savedReview = normalizeDatasetAnalyticsReview(metadata?.analyticsReview);
     const reviewedPropagationSettings = {
       propagationTargetWavelengthNm: savedReview.propagationSettings?.propagationTargetWavelengthNm,
@@ -3173,7 +3328,7 @@ export default function App() {
       fileNames,
       rows,
       metadata,
-      waveguideConfig,
+      routeConfig,
       sourceMeta: nextSourceMeta,
       columnMap: inferredMap,
       projectName: nextProjectName,
@@ -3192,7 +3347,7 @@ export default function App() {
         fileNames,
         rows,
         metadata,
-        waveguideConfig,
+        routeConfig,
         sourceMeta: nextSourceMeta,
         columnMap: inferredMap,
         projectName: nextProjectName,
@@ -3217,6 +3372,7 @@ export default function App() {
         rawRows: rows,
         sourceMeta: nextSourceMeta
       }));
+      setQuickDatasetProjectSelection(quickDatasetProject(definition));
       setQuickDatasetSelection(`github:${definition.id}`);
       setSelectedWaferMetric("propagation");
       setSelectedChip(rows[0]?.chip_id || "");
@@ -3228,9 +3384,9 @@ export default function App() {
       );
       pushToast(
         "Dataset loaded",
-        waveguideConfig
-          ? `${definition.label} loaded with its saved waveguide configuration.`
-          : `${definition.label} loaded with the current page waveguide defaults.`,
+        routeConfig
+          ? `${definition.label} loaded with its saved route configuration.`
+          : `${definition.label} loaded with the current page route defaults.`,
         "success"
       );
       appendAudit("dataset", "Bundled dataset loaded", `Loaded ${definition.label} from bundled GitHub-hosted files.`);
@@ -3368,14 +3524,7 @@ export default function App() {
       sourceMeta,
       namingOverrides: datasetNamingDraft
     });
-    const datasetBaseName = buildStandardDatasetBaseName({
-      mpw: datasetIdentity.mpw || presented.projectDisplayName || projectName || "MPWUNDEFINED",
-      platform: datasetIdentity.platformLabel || sourceMeta.platform || sourceMeta.platformId || "220nmSOI",
-      slot: datasetIdentity.slot || presented.slot || waferName || "SlotUndefined",
-      waveguideDescriptor: presented.waveguideType || "StripWaveguide",
-      measurementType: datasetIdentity.measurementType || "PropagationLoss",
-      mode: /wst/i.test(datasetIdentity.measurementMode || "") ? "WST" : "Manual"
-    });
+    const datasetBaseName = datasetIdentity.folderName;
 
     return {
       presented,
@@ -3614,6 +3763,7 @@ export default function App() {
     setColumnMap(dataset.columnMap || {});
     setSourceMeta(nextSourceMeta);
     setDatasetNamingDraft(createDatasetNamingDraft({ ...dataset, projectName: presented.projectDisplayName || dataset.projectName, waferName: presented.waferDisplayName || dataset.waferName, selectedDate: dataset.selectedDate || selectedDate, rawRows: rows, sourceMeta: nextSourceMeta }));
+    setQuickDatasetProjectSelection(quickDatasetProject(dataset));
     setQuickDatasetSelection(`local:${dataset.id}`);
     setSelectedChip(rows[0]?.chip_id || "");
     setExcludedPropagationChipIds({});
@@ -3702,12 +3852,27 @@ export default function App() {
       pushToast("Publish skipped", message, "danger");
       return;
     }
+    if (!getDatasetMeasurementDate(dataset)) {
+      const message = "Enter a valid measurement date before publishing. Load this snapshot, add the date in Current Publish Preview, and apply it to the snapshot.";
+      setStatusMessage(message);
+      pushToast("Measurement date required", message, "danger");
+      return;
+    }
+    const processStep = Object.prototype.hasOwnProperty.call(dataset.namingOverrides || {}, "processStep")
+      ? dataset.namingOverrides.processStep
+      : dataset.processStep || "StepXX";
+    if (!isValidProcessStep(processStep)) {
+      const message = "Enter a valid process step such as Step36, Step84A, or StepXX before publishing.";
+      setStatusMessage(message);
+      pushToast("Valid process step required", message, "danger");
+      return;
+    }
     setPublishingDatasetId(dataset.id);
     setSavedDatasets((previous) => previous.map((item) => item.id === dataset.id ? { ...item, githubSync: { status: "publishing" } } : item));
-    const packageData = buildGithubDatasetPackage(dataset);
-    setStatusMessage(`Publishing ${packageData.identity.label} to GitHub...`);
-    pushToast("GitHub publish started", `Preparing ${packageData.traceFiles.length} trace file(s) and README.md.`, "progress");
     try {
+      const packageData = buildGithubDatasetPackage(dataset);
+      setStatusMessage(`Publishing ${packageData.identity.label} to GitHub...`);
+      pushToast("GitHub publish started", `Preparing ${packageData.traceFiles.length} trace file(s) and README.md.`, "progress");
       const result = await publishDatasetPackageToGithub({
         owner: githubConfig.owner,
         repo: githubConfig.repo,
@@ -3807,6 +3972,17 @@ export default function App() {
     ...dataset,
     ...getDatasetPresentation(dataset)
   }));
+  const quickDatasetProjects = [...new Set(
+    [...remoteLibraryDatasets, ...currentDatasetRows]
+      .map(quickDatasetProject)
+      .filter(Boolean)
+  )].sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" }));
+  const quickRemoteDatasets = quickDatasetProjectSelection
+    ? remoteLibraryDatasets.filter((dataset) => quickDatasetProject(dataset) === quickDatasetProjectSelection)
+    : [];
+  const quickLocalDatasets = quickDatasetProjectSelection
+    ? currentDatasetRows.filter((dataset) => quickDatasetProject(dataset) === quickDatasetProjectSelection)
+    : [];
   const bundledProjectRows = remoteLibraryDatasets.map((definition) => {
     const presented = presentDataset(definition);
     return (
@@ -3844,21 +4020,35 @@ export default function App() {
               <p>Unified processing and analysis for silicon photonics wafer measurements.</p>
             </div>
             <div className="dashboard-header-filters">
-              <label className="filter-field quick-dataset-field">
+              <div className="filter-field quick-dataset-field">
                 <span>Quick Load Dataset</span>
-                <div>
-                  <i>Data</i>
-                  <select aria-label="Quick Load Dataset" value={quickDatasetSelection} onChange={(event) => handleQuickDatasetLoad(event.target.value)} disabled={isLibraryInitializing || Boolean(loadingBundledId)}>
-                    <option value="">{isLibraryInitializing ? "Setting up dataset catalogue..." : loadingBundledId ? "Loading dataset..." : "Select a GitHub or local dataset"}</option>
-                    <optgroup label="GitHub Measurement Data Library">
-                      {remoteLibraryDatasets.map((dataset) => <option key={`quick-github-${dataset.id}`} value={`github:${dataset.id}`}>{quickDatasetLabel(dataset)}</option>)}
-                    </optgroup>
-                    {currentDatasetRows.length ? <optgroup label="Local Dataset Snapshots">
-                      {currentDatasetRows.map((dataset) => <option key={`quick-local-${dataset.id}`} value={`local:${dataset.id}`}>{quickDatasetLabel(dataset)}</option>)}
-                    </optgroup> : null}
-                  </select>
+                <div className="quick-dataset-controls">
+                  <label className="quick-dataset-control">
+                    <i>Project</i>
+                    <select
+                      aria-label="Quick Load Project"
+                      value={quickDatasetProjectSelection}
+                      onChange={(event) => {
+                        setQuickDatasetProjectSelection(event.target.value);
+                        setQuickDatasetSelection("");
+                      }}
+                      disabled={isLibraryInitializing || Boolean(loadingBundledId)}
+                    >
+                      <option value="">{isLibraryInitializing ? "Setting up projects..." : "Select project"}</option>
+                      {quickDatasetProjects.map((project) => <option key={`quick-project-${project}`} value={project}>{project}</option>)}
+                    </select>
+                  </label>
+                  <QuickDatasetPicker
+                    key={quickDatasetProjectSelection || "no-project"}
+                    selection={quickDatasetSelection}
+                    remoteDatasets={quickRemoteDatasets}
+                    localDatasets={quickLocalDatasets}
+                    disabled={isLibraryInitializing || Boolean(loadingBundledId) || !quickDatasetProjectSelection}
+                    placeholder={isLibraryInitializing ? "Setting up dataset catalogue..." : loadingBundledId ? "Loading dataset..." : quickDatasetProjectSelection ? "Select an available dataset" : "Select a project first"}
+                    onSelect={handleQuickDatasetLoad}
+                  />
                 </div>
-              </label>
+              </div>
               <label className="upload-measurement-button"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleFileUpload} disabled={isUploadingFiles} /><span>{isUploadingFiles ? "Processing Files..." : "Upload Measurement Files"}</span></label>
             </div>
           </header>

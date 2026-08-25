@@ -1,11 +1,8 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
-$manifestPath = Join-Path $repoRoot "sample-data/wst/library-index-v2.json"
-$analyticsPaths = @(
-  (Join-Path $repoRoot "sample-data/wst/library-analytics.json"),
-  (Join-Path $repoRoot "public/sample-data/wst/library-analytics.json")
-)
+$manifestPath = Join-Path $repoRoot "public/sample-data/wst/library-index-v2.json"
+$analyticsPath = Join-Path $repoRoot "public/sample-data/wst/library-analytics.json"
 
 function Get-WaveguideLengthMap {
   param(
@@ -13,10 +10,21 @@ function Get-WaveguideLengthMap {
     [int]$FallbackCount
   )
 
-  $configPath = Join-Path $FolderPath "waveguide-config.json"
+  $routeConfigPath = Join-Path $FolderPath "route-config.json"
+  $legacyConfigPath = Join-Path $FolderPath "waveguide-config.json"
+  $configPath = if (Test-Path -LiteralPath $routeConfigPath) { $routeConfigPath } else { $legacyConfigPath }
   if (Test-Path -LiteralPath $configPath) {
     $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
     $map = @{}
+    if ($config.routes) {
+      foreach ($entry in $config.routes) {
+        $routeMatch = [regex]::Match([string]$entry.route, "\d+")
+        if ($routeMatch.Success -and $null -ne $entry.lengthMm) {
+          $map[[int]$routeMatch.Value] = [double]$entry.lengthMm
+        }
+      }
+      if ($map.Count -gt 0) { return $map }
+    }
     if ($config.waveguideLengths) {
       foreach ($entry in $config.waveguideLengths) {
         $map[[int]$entry.index] = [double]$entry.lengthMm
@@ -105,7 +113,7 @@ $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $analyticsIndex = New-Object System.Collections.Generic.List[object]
 
 foreach ($entry in $manifest) {
-  $folderPath = Join-Path $repoRoot $entry.folder
+  $folderPath = Join-Path $repoRoot ("public/" + $entry.folder)
   $waveguideLengths = Get-WaveguideLengthMap -FolderPath $folderPath -FallbackCount ([int]$entry.waveguideCount)
   $targetWavelengthNm = 1550.0
   $windowNm = 5.0
@@ -196,12 +204,10 @@ foreach ($entry in $manifest) {
 }
 
 $sortedIndex = $analyticsIndex | Sort-Object projectName, label
-foreach ($pathToWrite in $analyticsPaths) {
-  $parent = Split-Path -Parent $pathToWrite
-  if (-not (Test-Path -LiteralPath $parent)) {
-    New-Item -ItemType Directory -Path $parent -Force | Out-Null
-  }
-  ($sortedIndex | ConvertTo-Json -Depth 10) + "`n" | Set-Content -LiteralPath $pathToWrite
+$parent = Split-Path -Parent $analyticsPath
+if (-not (Test-Path -LiteralPath $parent)) {
+  New-Item -ItemType Directory -Path $parent -Force | Out-Null
 }
+($sortedIndex | ConvertTo-Json -Depth 10) + "`n" | Set-Content -LiteralPath $analyticsPath
 
 Write-Output "Updated analytics cache for $($sortedIndex.Count) published dataset(s)."

@@ -1,0 +1,238 @@
+{
+  "schemaVersion": 4,
+  "datasetId": "mpw46_soi220nmpassive_slot5_step36_1550nm_te_strip_waveguide_propagationloss_operatoralign",
+  "label": "MPW46_SOI220nmPassive_Slot5_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+  "projectName": "MPW46",
+  "waferName": "Slot5",
+  "measurementDate": "2026-03-10",
+  "publishedDate": null,
+  "selectedDate": "2026-03-10",
+  "mpwRun": "MPW46",
+  "slot": "Slot5",
+  "processStep": "Step36",
+  "platform": "SOI220nmPassive",
+  "platformId": "soi220nmpassive",
+  "buildingBlock": "STRIP_Waveguide",
+  "buildingBlockId": "strip_waveguide",
+  "measurementType": "PropagationLoss",
+  "opticalMode": "1550nm_TE",
+  "alignmentMode": "OperatorAlign",
+  "pdkMonitorBuildingBlock": "SOI220nm_1550nm_TE_STRIP_Waveguide",
+  "measurementMode": "OperatorAlign",
+  "waveguideType": "STRIP",
+  "sourceType": "Operator-aligned WST trace set",
+  "traceCount": 48,
+  "rowCount": 912048,
+  "chipCount": 8,
+  "waveguideCount": 6,
+  "wavelengthMinNm": 1525,
+  "wavelengthMaxNm": 1620,
+  "analyticsSummary": {
+    "propagationAverage": 1.261152917277,
+    "yield": 87.5,
+    "measuredChips": 8,
+    "computedAt": "2026-08-19T11:45:41.2296267Z"
+  },
+  "analyticsReview": {
+    "excludedChipIds": [],
+    "includedChipIds": [],
+    "totalChipCount": 8,
+    "selectedChipCount": 8,
+    "measuredChips": 8,
+    "fittedChips": 7,
+    "failedFits": 1,
+    "savedAt": "2026-08-19T11:28:07.648Z",
+    "propagationSettings": {
+      "propagationTargetWavelengthNm": 1550,
+      "propagationWindowNm": 5,
+      "propagationSpectralStepNm": 10,
+      "propagationMseThreshold": 0.5
+    }
+  },
+  "copiedToFolder": true,
+  "processedInTestingSuite": true,
+  "notes": "",
+  "publisher": "CORNERSTONE",
+  "license": null,
+  "sourceNames": [
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip3_WG1.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip3_WG2.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip3_WG3.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip3_WG4.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip3_WG5.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip3_WG6.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip37_WG1.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip37_WG2.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip37_WG3.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip37_WG4.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip37_WG5.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip37_WG6.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip40_WG1.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip40_WG2.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip40_WG3.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip40_WG4.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip40_WG5.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip40_WG6.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip46_WG1.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip46_WG2.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip46_WG3.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip46_WG4.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip46_WG5.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip46_WG6.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip49_WG1.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip49_WG2.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip49_WG3.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip49_WG4.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip49_WG5.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip49_WG6.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip52_WG1.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip52_WG2.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip52_WG3.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip52_WG4.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip52_WG5.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip52_WG6.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip61_WG1.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip61_WG2.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip61_WG3.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip61_WG4.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip61_WG5.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip61_WG6.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip64_WG1.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip64_WG2.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip64_WG3.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip64_WG4.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip64_WG5.txt",
+    "MPW46_220nmSOI_Slot5_StripWaveguide_PropagationLoss_Manual_Chip64_WG6.txt"
+  ],
+  "traceFiles": [
+    "Chip3_WG1.txt",
+    "Chip3_WG2.txt",
+    "Chip3_WG3.txt",
+    "Chip3_WG4.txt",
+    "Chip3_WG5.txt",
+    "Chip3_WG6.txt",
+    "Chip37_WG1.txt",
+    "Chip37_WG2.txt",
+    "Chip37_WG3.txt",
+    "Chip37_WG4.txt",
+    "Chip37_WG5.txt",
+    "Chip37_WG6.txt",
+    "Chip40_WG1.txt",
+    "Chip40_WG2.txt",
+    "Chip40_WG3.txt",
+    "Chip40_WG4.txt",
+    "Chip40_WG5.txt",
+    "Chip40_WG6.txt",
+    "Chip46_WG1.txt",
+    "Chip46_WG2.txt",
+    "Chip46_WG3.txt",
+    "Chip46_WG4.txt",
+    "Chip46_WG5.txt",
+    "Chip46_WG6.txt",
+    "Chip49_WG1.txt",
+    "Chip49_WG2.txt",
+    "Chip49_WG3.txt",
+    "Chip49_WG4.txt",
+    "Chip49_WG5.txt",
+    "Chip49_WG6.txt",
+    "Chip52_WG1.txt",
+    "Chip52_WG2.txt",
+    "Chip52_WG3.txt",
+    "Chip52_WG4.txt",
+    "Chip52_WG5.txt",
+    "Chip52_WG6.txt",
+    "Chip61_WG1.txt",
+    "Chip61_WG2.txt",
+    "Chip61_WG3.txt",
+    "Chip61_WG4.txt",
+    "Chip61_WG5.txt",
+    "Chip61_WG6.txt",
+    "Chip64_WG1.txt",
+    "Chip64_WG2.txt",
+    "Chip64_WG3.txt",
+    "Chip64_WG4.txt",
+    "Chip64_WG5.txt",
+    "Chip64_WG6.txt"
+  ],
+  "filenamePattern": "Chip#_WG#.txt",
+  "filenameManifest": "MPW46_SOI220nmPassive_Slot5_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/filename-manifest.csv",
+  "traceFormat": {
+    "fileType": "text/plain",
+    "delimiter": "tab",
+    "header": false,
+    "columns": [
+      "wavelength_nm",
+      "optical_power_w"
+    ]
+  },
+  "routeConfig": {
+    "measurementType": "PropagationLoss",
+    "routes": [
+      {
+        "route": "WG1",
+        "lengthMm": 0
+      },
+      {
+        "route": "WG2",
+        "lengthMm": 4
+      },
+      {
+        "route": "WG3",
+        "lengthMm": 8
+      },
+      {
+        "route": "WG4",
+        "lengthMm": 12
+      },
+      {
+        "route": "WG5",
+        "lengthMm": 16
+      },
+      {
+        "route": "WG6",
+        "lengthMm": 20
+      }
+    ]
+  },
+  "waveguideConfig": {
+    "propagationWaveguideCount": 6,
+    "propagationWaveguideStartMm": 0,
+    "propagationWaveguideIntervalMm": 4,
+    "propagationWaveguideManualMode": false,
+    "waveguideLengths": [
+      {
+        "index": 1,
+        "lengthMm": 0
+      },
+      {
+        "index": 2,
+        "lengthMm": 4
+      },
+      {
+        "index": 3,
+        "lengthMm": 8
+      },
+      {
+        "index": 4,
+        "lengthMm": 12
+      },
+      {
+        "index": 5,
+        "lengthMm": 16
+      },
+      {
+        "index": 6,
+        "lengthMm": 20
+      }
+    ]
+  },
+  "legacyFolder": "sample-data/wst/MPW46_Slot5_waveguide_manual_data",
+  "metadataFile": "MPW46_SOI220nmPassive_Slot5_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/metadata.json",
+  "configFile": "MPW46_SOI220nmPassive_Slot5_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/route-config.json",
+  "migration": {
+    "stagedAt": "2026-08-24",
+    "sourceDatasetId": "DS005",
+    "sourceFolder": "MPW46_Slot5_waveguide_manual_data",
+    "sourceContentPreserved": true
+  }
+}

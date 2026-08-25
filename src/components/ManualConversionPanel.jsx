@@ -1,18 +1,18 @@
 import { useMemo, useRef, useState } from "react";
 import {
-  buildManualConversionManifestCsv,
-  buildStoredZip,
-  convertManualMeasurementFiles
+  buildGithubReadyManualDatasetPackage,
+  convertManualMeasurementFiles,
+  validateManualDatasetPackage
 } from "../lib/manualConversion";
+import { normalizeStandardMetadata } from "../lib/filenameStandardization";
 import {
-  buildConvertedArchiveName,
-  MEASUREMENT_MODE_OPTIONS,
-  PLATFORM_OPTIONS,
-  WAVEGUIDE_TYPE_OPTIONS,
-  buildStandardMeasurementFileName,
-  mergeBatchStandardMetadata,
-  normalizeStandardMetadata
-} from "../lib/filenameStandardization";
+  DATASET_ALIGNMENT_MODE_OPTIONS,
+  DATASET_OPTICAL_MODE_OPTIONS,
+  DATASET_PLATFORM_OPTIONS
+} from "../lib/githubLibrary";
+
+const PROPAGATION_BUILDING_BLOCKS = ["RIB_Waveguide", "STRIP_Waveguide"];
+const DATASET_FIELD_KEYS = ["projectName", "platformLabel", "slot", "processStep", "opticalMode", "buildingBlockLabel", "measurementType", "alignmentMode", "measurementDate", "notes"];
 
 function downloadBlob(blob, fileName) {
   const url = URL.createObjectURL(blob);
@@ -27,85 +27,82 @@ function downloadText(content, fileName, mimeType = "text/plain;charset=utf-8") 
   downloadBlob(new Blob([content], { type: mimeType }), fileName);
 }
 
-function createInitialBatchMeta() {
-  return normalizeStandardMetadata({
-    mpw: "MPWUNDEFINED",
-    platform: "220nmSOIPassive",
-    slot: "SlotUndefined",
-    waveguideDescriptor: "StripWaveguide",
+function createInitialDatasetFields() {
+  return {
+    projectName: "",
+    platformLabel: "SOI220nmPassive",
+    slot: "",
+    processStep: "StepXX",
+    opticalMode: "1550nm_TE",
+    buildingBlockLabel: "STRIP_Waveguide",
     measurementType: "PropagationLoss",
-    mode: "Manual",
-    extension: "txt"
-  });
+    alignmentMode: "OperatorAlign",
+    measurementDate: "",
+    notes: ""
+  };
 }
 
 function normalizeConvertedEntry(entry) {
-  return {
-    ...entry,
-    detectedMeta: entry.parsedSegments || entry.standardMeta || {},
-    metaOverrides: {}
-  };
+  return { ...entry, detectedMeta: entry.parsedSegments || entry.standardMeta || {}, metaOverrides: {} };
 }
 
 function matchesTargetSubfolder(entry, targetSubfolder) {
   const token = String(targetSubfolder || "").trim().toLowerCase();
   if (!token) return true;
-  const parts = String(entry?.sourcePath || "").split(/[\\/]/).filter(Boolean).map((part) => part.toLowerCase());
-  return parts.includes(token);
+  return String(entry?.sourcePath || "").split(/[\\/]/).filter(Boolean).some((part) => part.toLowerCase() === token);
 }
 
-function buildEntryStandardMeta(entry, batchMeta, outputFormat) {
-  const detectedMeta = entry.detectedMeta || entry.standardMeta || {};
-  const overrides = entry.metaOverrides || {};
+function traceMeta(entry) {
   return normalizeStandardMetadata({
-    ...detectedMeta,
-    mpw: overrides.mpw || batchMeta.mpw,
-    platform: overrides.platform || batchMeta.platform,
-    slot: overrides.slot || batchMeta.slot,
-    waveguideDescriptor: overrides.waveguideDescriptor || batchMeta.waveguideDescriptor,
-    measurementType: "PropagationLoss",
-    mode: overrides.mode || batchMeta.mode,
-    chipId: overrides.chipId || entry.chipId || detectedMeta.chipId || "",
-    waveguideId: overrides.waveguideId || entry.waveguideId || detectedMeta.waveguideId || "",
-    extension: entry.outputFormat || outputFormat
+    chipId: entry.metaOverrides?.chipId || entry.chipId || entry.standardMeta?.chipId,
+    waveguideId: entry.metaOverrides?.waveguideId || entry.waveguideId || entry.standardMeta?.waveguideId,
+    extension: "txt"
   });
+}
+
+function routeNumber(route) {
+  return Number(String(route || "").replace(/\D/g, ""));
 }
 
 export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10, advanced = false }) {
   const folderInputRef = useRef(null);
   const [launchPowerDbm, setLaunchPowerDbm] = useState(defaultLaunchPowerDbm);
-  const [outputFormat, setOutputFormat] = useState("txt");
   const [converting, setConverting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState(
-    advanced
-      ? "Upload a manual-measurement folder to convert WG*.xlsx files, inspect the detected path parts, and standardize the output filenames without breaking the post-processing format."
-      : "Upload a manual-measurement folder to convert WG*.xlsx files into WST-compatible traces and standardize the output filenames in one step."
-  );
+  const [statusMessage, setStatusMessage] = useState("Upload WG*.xlsx files, confirm the canonical dataset identity and WG lengths, then download one library-ready folder.");
   const [convertedEntries, setConvertedEntries] = useState([]);
   const [failedEntries, setFailedEntries] = useState([]);
   const [ignoredPaths, setIgnoredPaths] = useState([]);
-  const [batchMeta, setBatchMeta] = useState(() => createInitialBatchMeta());
-  const [batchMetaDraft, setBatchMetaDraft] = useState(() => createInitialBatchMeta());
+  const [datasetFields, setDatasetFields] = useState(() => createInitialDatasetFields());
+  const [datasetFieldsDraft, setDatasetFieldsDraft] = useState(() => createInitialDatasetFields());
+  const [routeLengths, setRouteLengths] = useState({});
+  const [routeLengthsConfirmed, setRouteLengthsConfirmed] = useState(false);
   const [targetSubfolder, setTargetSubfolder] = useState("");
   const [targetSubfolderDraft, setTargetSubfolderDraft] = useState("");
 
   const filteredConvertedEntries = useMemo(
-    () => advanced
-      ? convertedEntries.filter((entry) => matchesTargetSubfolder(entry, targetSubfolder))
-      : convertedEntries,
+    () => advanced ? convertedEntries.filter((entry) => matchesTargetSubfolder(entry, targetSubfolder)) : convertedEntries,
     [advanced, convertedEntries, targetSubfolder]
   );
 
   const readyEntries = useMemo(
     () => filteredConvertedEntries.map((entry) => {
-      const standardMeta = buildEntryStandardMeta(entry, batchMeta, outputFormat);
+      const standardMeta = traceMeta(entry);
       return {
         ...entry,
         standardMeta,
-        outputFileName: buildStandardMeasurementFileName(standardMeta)
+        datasetFields,
+        outputFormat: "txt",
+        outputFileName: standardMeta.chipId && standardMeta.waveguideId
+          ? `${standardMeta.chipId}_${standardMeta.waveguideId}.txt`
+          : "Trace_identity_incomplete.txt"
       };
     }),
-    [batchMeta, filteredConvertedEntries, outputFormat]
+    [datasetFields, filteredConvertedEntries]
+  );
+
+  const validation = useMemo(
+    () => validateManualDatasetPackage(readyEntries, datasetFields, routeLengths, routeLengthsConfirmed),
+    [datasetFields, readyEntries, routeLengths, routeLengthsConfirmed]
   );
 
   const summary = useMemo(() => ({
@@ -115,112 +112,76 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10, adva
     rows: readyEntries.reduce((sum, entry) => sum + entry.rowCount, 0)
   }), [failedEntries, ignoredPaths, readyEntries]);
 
-  const archiveBaseName = useMemo(
-    () => buildConvertedArchiveName({
-      ...batchMeta,
-      measurementType: "PropagationLoss",
-      extension: outputFormat
-    }),
-    [batchMeta, outputFormat]
-  );
-
-  const incompleteNamingCount = useMemo(
-    () => readyEntries.filter((entry) => (
-      entry.standardMeta.mpw === "MPWUNDEFINED"
-      || entry.standardMeta.slot === "SlotUndefined"
-      || !entry.standardMeta.waveguideDescriptor
-      || !entry.standardMeta.chipId
-      || !entry.standardMeta.waveguideId
-    )).length,
-    [readyEntries]
-  );
-
-  const hasPendingBatchMetaChanges = useMemo(
-    () => ["mpw", "platform", "slot", "waveguideDescriptor", "mode"].some((field) => batchMetaDraft[field] !== batchMeta[field]),
-    [batchMeta, batchMetaDraft]
+  const hasPendingDatasetChanges = useMemo(
+    () => DATASET_FIELD_KEYS.some((field) => datasetFieldsDraft[field] !== datasetFields[field]),
+    [datasetFields, datasetFieldsDraft]
   );
   const hasPendingTargetSubfolderChange = advanced && targetSubfolderDraft !== targetSubfolder;
-  const basicWaveguideOptions = useMemo(
-    () => WAVEGUIDE_TYPE_OPTIONS.filter((option) => option !== "SlotWaveguide"),
-    []
-  );
 
-  function updateBatchMeta(field, value) {
-    setBatchMetaDraft((previous) => normalizeStandardMetadata({
-      ...previous,
-      [field]: value,
-      measurementType: "PropagationLoss",
-      mode: field === "mode" ? value : previous.mode,
-      extension: outputFormat
-    }));
+  function updateDatasetField(field, value) {
+    setDatasetFieldsDraft((previous) => ({ ...previous, [field]: value }));
   }
 
-  function applyBatchMeta() {
-    setBatchMeta((previous) => normalizeStandardMetadata({
-      ...previous,
-      ...batchMetaDraft,
-      measurementType: "PropagationLoss",
-      mode: batchMetaDraft.mode,
-      extension: outputFormat
-    }));
+  function applyDatasetFields() {
+    setDatasetFields({ ...datasetFieldsDraft });
     if (advanced) setTargetSubfolder(targetSubfolderDraft.trim());
-    setStatusMessage("Applied the batch naming metadata. The archive name and standardized output filenames have been refreshed.");
+    setRouteLengthsConfirmed(false);
+    setStatusMessage("Applied the canonical dataset fields. Review the folder preview, trace identities and WG lengths before confirming the package.");
   }
 
-  function updateEntryOverride(entryIndex, field, value) {
-    setConvertedEntries((previous) => previous.map((entry, currentIndex) => {
-      if (currentIndex !== entryIndex) return entry;
-      return {
-        ...entry,
-        ...(field === "chipId" ? { chipId: value } : {}),
-        metaOverrides: {
-          ...(entry.metaOverrides || {}),
-          [field]: value
-        }
-      };
+  function updateEntryOverride(sourcePath, field, value) {
+    setConvertedEntries((previous) => previous.map((entry) => entry.sourcePath !== sourcePath ? entry : {
+      ...entry,
+      metaOverrides: { ...(entry.metaOverrides || {}), [field]: value }
     }));
+    setRouteLengthsConfirmed(false);
+  }
+
+  function updateRouteLength(route, value) {
+    setRouteLengths((previous) => ({ ...previous, [route]: value }));
+    setRouteLengthsConfirmed(false);
   }
 
   async function handleSelection(event) {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
-
     setConverting(true);
-    setStatusMessage(`Converting ${files.length} selected file(s) using SheetJS Community Edition...`);
+    setStatusMessage(`Converting ${files.length} selected file(s) to headerless, tab-delimited TXT traces...`);
     try {
-      const result = await convertManualMeasurementFiles(files, { launchPowerDbm, outputFormat });
+      const result = await convertManualMeasurementFiles(files, { launchPowerDbm, outputFormat: "txt" });
       const normalizedEntries = result.converted.map(normalizeConvertedEntry);
       setConvertedEntries(normalizedEntries);
       setFailedEntries(result.failed);
       setIgnoredPaths(result.ignored);
 
-      const mergedMeta = mergeBatchStandardMetadata(normalizedEntries, {
-        measurementType: "PropagationLoss",
-        mode: batchMetaDraft.mode,
-        extension: outputFormat
-      });
-      const nextBatchMeta = normalizeStandardMetadata({
-        ...batchMetaDraft,
-        mpw: mergedMeta.mpw !== "MPWUNDEFINED" ? mergedMeta.mpw : batchMetaDraft.mpw,
-        slot: mergedMeta.slot !== "SlotUndefined" ? mergedMeta.slot : batchMetaDraft.slot,
-        platform: mergedMeta.platform || batchMetaDraft.platform,
-        waveguideDescriptor: mergedMeta.waveguideDescriptor || batchMetaDraft.waveguideDescriptor,
-        measurementType: "PropagationLoss",
-        mode: batchMetaDraft.mode,
-        extension: outputFormat
-      });
-      setBatchMeta(nextBatchMeta);
-      setBatchMetaDraft(nextBatchMeta);
+      const firstMeta = normalizedEntries[0]?.standardMeta || {};
+      const detectedProject = firstMeta.mpw && firstMeta.mpw !== "MPWUNDEFINED" ? firstMeta.mpw : "";
+      const detectedSlot = firstMeta.slot && firstMeta.slot !== "SlotUndefined" ? firstMeta.slot : "";
+      const detectedBuildingBlock = /rib/i.test(firstMeta.waveguideDescriptor || "")
+        ? "RIB_Waveguide"
+        : /strip/i.test(firstMeta.waveguideDescriptor || "")
+          ? "STRIP_Waveguide"
+          : datasetFieldsDraft.buildingBlockLabel;
+      const nextFields = {
+        ...datasetFieldsDraft,
+        projectName: detectedProject || datasetFieldsDraft.projectName,
+        slot: detectedSlot || datasetFieldsDraft.slot,
+        buildingBlockLabel: detectedBuildingBlock
+      };
+      setDatasetFields(nextFields);
+      setDatasetFieldsDraft(nextFields);
+
+      const detectedRoutes = [...new Set(normalizedEntries.map((entry) => entry.waveguideId).filter(Boolean))]
+        .sort((left, right) => routeNumber(left) - routeNumber(right));
+      setRouteLengths(Object.fromEntries(detectedRoutes.map((route) => [route, (routeNumber(route) - 1) * 4])));
+      setRouteLengthsConfirmed(false);
+
       if (advanced && !targetSubfolderDraft.trim()) {
-        const detectedTarget = normalizedEntries[0]?.detectedMeta?.waveguideDescriptor || "";
+        const detectedTarget = normalizedEntries[0]?.flavor || "";
         setTargetSubfolder(detectedTarget);
         setTargetSubfolderDraft(detectedTarget);
       }
-      setStatusMessage(
-        advanced
-          ? `Converted ${result.converted.length} workbook(s). Review the detected path metadata, choose the target subfolder if needed, change any MPW, slot, waveguide, chip, or WG fields you need, then click Apply Naming.`
-          : `Converted ${result.converted.length} workbook(s). Review the batch metadata and any missing Chip/WG labels before downloading the standardized ZIP or manifest.`
-      );
+      setStatusMessage(`Converted ${result.converted.length} workbook(s). The common 0, 4, 8... mm route pattern was prefilled; verify it against this test structure before confirming.`);
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "Manual conversion failed.");
     } finally {
@@ -229,15 +190,27 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10, adva
     }
   }
 
+  function buildPackage() {
+    return buildGithubReadyManualDatasetPackage({ entries: readyEntries, datasetFields, routeLengths, routeLengthsConfirmed, launchPowerDbm });
+  }
+
   function exportZip() {
-    if (!readyEntries.length) return;
-    const zip = buildStoredZip(readyEntries, { rootFolderName: archiveBaseName });
-    downloadBlob(zip, `${archiveBaseName}.zip`);
+    try {
+      const datasetPackage = buildPackage();
+      downloadBlob(datasetPackage.zip, `${datasetPackage.folderName}.zip`);
+      setStatusMessage(`Created ${datasetPackage.folderName}.zip with ${datasetPackage.traceFiles.length} traces and all required supporting files.`);
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Dataset package generation failed.");
+    }
   }
 
   function exportManifest() {
-    if (!readyEntries.length) return;
-    downloadText(buildManualConversionManifestCsv(readyEntries), `${archiveBaseName}_manifest.csv`, "text/csv;charset=utf-8");
+    try {
+      const datasetPackage = buildPackage();
+      downloadText(datasetPackage.filenameManifest, `${datasetPackage.folderName}_filename-manifest.csv`, "text/csv;charset=utf-8");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Manifest generation failed.");
+    }
   }
 
   return (
@@ -246,210 +219,73 @@ export default function ManualConversionPanel({ defaultLaunchPowerDbm = 10, adva
         <div className="analysis-card-head">
           <div>
             <h2>{advanced ? "Manual Measurement - Conversion (Advanced)" : "Manual Measurement - Conversion"}</h2>
-            <p>
-              {advanced
-                ? <>Convert nested manual-measurement Excel folders such as <code>MPW48/Slot8/CTE450/Chip2/WG1.xlsx</code> into WST-compatible propagation traces, inspect the detected path tokens, then override any naming fields while preserving the post-processing-safe filename structure.</>
-                : <>Convert nested manual-measurement Excel folders such as <code>MPW30/Slot11/Strip/Chip2/WG1.xlsx</code> into WST-compatible propagation traces, then standardize the output filenames before download.</>}
-              {" "}This uses the free open-source <strong>SheetJS Community Edition</strong> <code>xlsx</code> parser directly in the browser.
-            </p>
+            <p>Convert WG*.xlsx workbooks into the exact dataset structure used by the measurement library. The ZIP contains one canonical folder, short <code>Chip#_WG#.txt</code> traces, README, metadata, route configuration, legacy waveguide configuration and a checksum manifest.</p>
           </div>
           <div className="library-action-row">
-            <button type="button" onClick={exportZip} disabled={!readyEntries.length}>Download ZIP</button>
-            <button type="button" className="ghost-action" onClick={exportManifest} disabled={!readyEntries.length}>Download Manifest</button>
+            <button type="button" onClick={exportZip} disabled={!validation.valid}>Download Library-Ready ZIP</button>
+            <button type="button" className="ghost-action" onClick={exportManifest} disabled={!validation.valid}>Download Manifest</button>
           </div>
         </div>
 
         <div className="settings-grid settings-grid-extended">
-          <label className="mapping-field">
-            <span>MPW batch</span>
-            <input value={batchMetaDraft.mpw} onChange={(event) => updateBatchMeta("mpw", event.target.value)} placeholder="MPW48" />
-          </label>
-          <label className="mapping-field">
-            <span>Platform / PDK tab</span>
-            <select value={batchMetaDraft.platform} onChange={(event) => updateBatchMeta("platform", event.target.value)}>
-              {PLATFORM_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-            </select>
-          </label>
-          <label className="mapping-field">
-            <span>Slot</span>
-            <input value={batchMetaDraft.slot} onChange={(event) => updateBatchMeta("slot", event.target.value)} placeholder="Slot8" />
-          </label>
-          {advanced ? (
-            <label className="mapping-field">
-              <span>Target subfolder</span>
-              <input value={targetSubfolderDraft} onChange={(event) => setTargetSubfolderDraft(event.target.value)} placeholder="CTE450 or Strip2" />
-            </label>
-          ) : null}
-          {advanced ? (
-            <label className="mapping-field">
-              <span>Waveguide type name</span>
-              <input value={batchMetaDraft.waveguideDescriptor} onChange={(event) => updateBatchMeta("waveguideDescriptor", event.target.value)} placeholder="CTE450 or Strip2" />
-            </label>
-          ) : (
-            <label className="mapping-field">
-              <span>Propagation waveguide</span>
-              <select value={batchMetaDraft.waveguideDescriptor} onChange={(event) => updateBatchMeta("waveguideDescriptor", event.target.value)}>
-                {basicWaveguideOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-              </select>
-            </label>
-          )}
-          <label className="mapping-field">
-            <span>Measurement mode</span>
-            <select value={batchMetaDraft.mode} onChange={(event) => updateBatchMeta("mode", event.target.value)}>
-              {MEASUREMENT_MODE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-            </select>
-          </label>
-          <label className="mapping-field">
-            <span>Laser output power (dBm)</span>
-            <input type="number" value={launchPowerDbm} onChange={(event) => setLaunchPowerDbm(Number(event.target.value) || 0)} />
-          </label>
-          <label className="mapping-field">
-            <span>Converted output format</span>
-            <select value={outputFormat} onChange={(event) => setOutputFormat(event.target.value)}>
-              <option value="txt">TXT (recommended)</option>
-              <option value="csv">CSV</option>
-            </select>
-          </label>
-          <div className="mapping-field manual-conversion-note">
-            <span>User guidance</span>
-            <p>
-              {advanced
-                ? <>Upload the folder directly from Edge or Chrome so the app can read subfolders. The advanced view shows the detected MPW, slot, waveguide folder name, chip, and WG tokens for each file. Use <strong>Target subfolder</strong> to focus on one folder name such as <code>CTE450</code>, then edit the structured fields and click <strong>Apply Naming</strong> to refresh the archive folder name and standardized filenames without breaking the post-processing format.</>
-                : <>Upload the folder directly from Edge or Chrome so the app can read subfolders. Best results come from paths like <code>MPW30/Slot11/Strip/Chip2/WG1.xlsx</code>. Edit the naming fields, then click <strong>Apply Naming</strong> to refresh the exported filename format and archive folder name, for example <code>MPW30_220nmSOIPassive_Slot11_StripWaveguide_PropagationLoss_Manual_Chip2_WG1.txt</code>.</>}
-            </p>
-          </div>
+          <label className="mapping-field"><span>Project</span><input value={datasetFieldsDraft.projectName} onChange={(event) => updateDatasetField("projectName", event.target.value)} placeholder="MPW48, DEV_MIT or BSPK_Duality" /></label>
+          <label className="mapping-field"><span>Platform</span><select value={datasetFieldsDraft.platformLabel} onChange={(event) => updateDatasetField("platformLabel", event.target.value)}>{DATASET_PLATFORM_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+          <label className="mapping-field"><span>Slot</span><input value={datasetFieldsDraft.slot} onChange={(event) => updateDatasetField("slot", event.target.value)} placeholder="Slot5" /></label>
+          <label className="mapping-field"><span>Process step</span><input value={datasetFieldsDraft.processStep} onChange={(event) => updateDatasetField("processStep", event.target.value)} placeholder="Step36 or StepXX" /></label>
+          <label className="mapping-field"><span>Optical mode</span><select value={datasetFieldsDraft.opticalMode} onChange={(event) => updateDatasetField("opticalMode", event.target.value)}>{DATASET_OPTICAL_MODE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+          <label className="mapping-field"><span>Building block</span><select value={datasetFieldsDraft.buildingBlockLabel} onChange={(event) => updateDatasetField("buildingBlockLabel", event.target.value)}>{PROPAGATION_BUILDING_BLOCKS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+          <label className="mapping-field"><span>Measurement type</span><input value="PropagationLoss" disabled /></label>
+          <label className="mapping-field"><span>Alignment mode</span><select value={datasetFieldsDraft.alignmentMode} onChange={(event) => updateDatasetField("alignmentMode", event.target.value)}>{DATASET_ALIGNMENT_MODE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+          <label className="mapping-field"><span>Measurement date</span><input type="date" value={datasetFieldsDraft.measurementDate} onInput={(event) => updateDatasetField("measurementDate", event.currentTarget.value)} /></label>
+          <label className="mapping-field"><span>Laser output power (dBm)</span><input type="number" value={launchPowerDbm} onChange={(event) => setLaunchPowerDbm(Number(event.target.value) || 0)} /></label>
+          {advanced ? <label className="mapping-field"><span>Target source subfolder</span><input value={targetSubfolderDraft} onChange={(event) => setTargetSubfolderDraft(event.target.value)} placeholder="Rib or Strip" /></label> : null}
+          <label className="mapping-field mapping-field-wide"><span>Notes</span><input value={datasetFieldsDraft.notes} onChange={(event) => updateDatasetField("notes", event.target.value)} placeholder="Optional measurement notes" /></label>
         </div>
-        <div className="library-action-row">
-          <button type="button" onClick={applyBatchMeta} disabled={!hasPendingBatchMetaChanges && !hasPendingTargetSubfolderChange}>Apply Naming</button>
-        </div>
+        <div className="library-action-row"><button type="button" onClick={applyDatasetFields} disabled={!hasPendingDatasetChanges && !hasPendingTargetSubfolderChange}>Apply Dataset Fields</button></div>
 
         <div className="manual-conversion-upload-row">
-          <label className="upload-measurement-button manual-conversion-upload">
-            <input ref={folderInputRef} type="file" multiple webkitdirectory="" directory="" onChange={handleSelection} />
-            <span>{converting ? "Converting..." : "Upload Manual Folder"}</span>
-          </label>
-          <label className="upload-measurement-button manual-conversion-upload secondary-upload">
-            <input type="file" multiple accept=".xlsx,.xls" onChange={handleSelection} />
-            <span>{converting ? "Converting..." : "Upload Excel Files"}</span>
-          </label>
+          <label className="upload-measurement-button manual-conversion-upload"><input ref={folderInputRef} type="file" multiple webkitdirectory="" directory="" onChange={handleSelection} /><span>{converting ? "Converting..." : "Upload Manual Folder"}</span></label>
+          <label className="upload-measurement-button manual-conversion-upload secondary-upload"><input type="file" multiple accept=".xlsx,.xls" onChange={handleSelection} /><span>{converting ? "Converting..." : "Upload Excel Files"}</span></label>
         </div>
 
         <div className="translator-metrics manual-conversion-summary">
-          <div><strong>{summary.converted}</strong><span>Converted workbooks</span></div>
-          <div><strong>{summary.rows.toLocaleString()}</strong><span>Trace rows generated</span></div>
-          <div><strong>{incompleteNamingCount}</strong><span>Files needing metadata checks</span></div>
-          <div><strong>{archiveBaseName}</strong><span>Archive base name</span></div>
+          <div><strong>{summary.converted}</strong><span>Converted traces</span></div>
+          <div><strong>{summary.rows.toLocaleString()}</strong><span>Trace rows</span></div>
+          <div><strong>{validation.missing.length}</strong><span>Required checks remaining</span></div>
+          <div><strong>{validation.folderName || "Dataset identity incomplete"}</strong><span>Canonical folder name</span></div>
         </div>
       </article>
 
       <article className="analysis-card">
-        <div className="analysis-card-head stacked">
-          <div>
-            <h2>Conversion Status</h2>
-            <p>{statusMessage}</p>
+        <div className="analysis-card-head stacked"><div><h2>Package Readiness</h2><p>{statusMessage}</p></div></div>
+        {validation.missing.length ? <div className="manual-conversion-list-card"><strong>Complete before download</strong><ul>{validation.missing.map((item) => <li key={item}>{item}</li>)}</ul></div> : <div className="chart-empty compact">Package checks passed. The ZIP is ready to download.</div>}
+
+        {validation.routes.length ? (
+          <div className="manual-route-config-card">
+            <div><h3>Propagation route lengths</h3><p>Lengths are prefilled as 0, 4, 8... mm. Check them against the actual test structure; these values control the propagation-loss fit.</p></div>
+            <div className="settings-grid settings-grid-extended">
+              {validation.routes.map((route) => <label key={route} className="mapping-field"><span>{route} length (mm)</span><input type="number" step="any" value={routeLengths[route] ?? ""} onChange={(event) => updateRouteLength(route, event.target.value)} /></label>)}
+            </div>
+            <label className="checkbox-row manual-route-confirmation"><input type="checkbox" checked={routeLengthsConfirmed} onChange={(event) => setRouteLengthsConfirmed(event.target.checked)} /><span>I confirmed every WG length for this dataset.</span></label>
           </div>
-        </div>
+        ) : null}
+      </article>
+
+      <article className="analysis-card">
         <div className="manual-conversion-grid">
           <div className="manual-conversion-pane">
             <h3>Converted Outputs</h3>
             {readyEntries.length ? (
-              <div className="dashboard-table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Source</th>
-                      {advanced ? <th>Detected Path</th> : null}
-                      {advanced ? <th>MPW</th> : null}
-                      {advanced ? <th>Slot</th> : null}
-                      {advanced ? <th>Waveguide</th> : null}
-                      <th>Chip</th>
-                      <th>WG</th>
-                      <th>New filename</th>
-                      <th>Rows</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {readyEntries.map((entry, index) => (
-                      <tr key={`${entry.sourcePath}-${index}`}>
-                        <td>{entry.sourcePath}</td>
-                        {advanced ? <td>{`${entry.detectedMeta?.mpw || "MPWUNDEFINED"} | ${entry.detectedMeta?.slot || "SlotUndefined"} | ${entry.detectedMeta?.waveguideDescriptor || "--"}`}</td> : null}
-                        {advanced ? (
-                          <td>
-                            <input
-                              className="table-inline-input table-inline-input-wide"
-                              value={entry.metaOverrides?.mpw || batchMeta.mpw}
-                              onChange={(event) => updateEntryOverride(index, "mpw", event.target.value)}
-                              placeholder="MPW48"
-                            />
-                          </td>
-                        ) : null}
-                        {advanced ? (
-                          <td>
-                            <input
-                              className="table-inline-input table-inline-input-wide"
-                              value={entry.metaOverrides?.slot || batchMeta.slot}
-                              onChange={(event) => updateEntryOverride(index, "slot", event.target.value)}
-                              placeholder="Slot8"
-                            />
-                          </td>
-                        ) : null}
-                        {advanced ? (
-                          <td>
-                            <input
-                              className="table-inline-input table-inline-input-wide"
-                              value={entry.metaOverrides?.waveguideDescriptor || batchMeta.waveguideDescriptor}
-                              onChange={(event) => updateEntryOverride(index, "waveguideDescriptor", event.target.value)}
-                              placeholder="CTE450"
-                            />
-                          </td>
-                        ) : null}
-                        <td>
-                          <input
-                            className="table-inline-input table-inline-input-wide"
-                            value={entry.metaOverrides?.chipId || entry.standardMeta?.chipId || ""}
-                            onChange={(event) => updateEntryOverride(index, "chipId", event.target.value)}
-                            placeholder="Chip2"
-                          />
-                        </td>
-                        <td>
-                          <input
-                            className="table-inline-input table-inline-input-wide"
-                            value={entry.metaOverrides?.waveguideId || entry.standardMeta?.waveguideId || ""}
-                            onChange={(event) => updateEntryOverride(index, "waveguideId", event.target.value)}
-                            placeholder="WG1"
-                          />
-                        </td>
-                        <td className="filename-preview-cell"><strong>{entry.outputFileName}</strong></td>
-                        <td>{entry.rowCount}</td>
-                        <td className="library-table-actions">
-                          <button
-                            type="button"
-                            onClick={() => downloadText(entry.content, entry.outputFileName, entry.outputFormat === "csv" ? "text/csv;charset=utf-8" : "text/plain;charset=utf-8")}
-                          >
-                            Download
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="chart-empty">{advanced && targetSubfolder ? `No converted outputs matched the target subfolder "${targetSubfolder}".` : "No converted manual-measurement outputs yet."}</div>
-            )}
+              <div className="dashboard-table-wrap"><table><thead><tr><th>Source</th><th>Chip</th><th>WG</th><th>Library filename</th><th>Rows</th><th>Actions</th></tr></thead><tbody>
+                {readyEntries.map((entry) => <tr key={entry.sourcePath}><td>{entry.sourcePath}</td><td><input className="table-inline-input table-inline-input-wide" value={entry.metaOverrides?.chipId || entry.standardMeta?.chipId || ""} onChange={(event) => updateEntryOverride(entry.sourcePath, "chipId", event.target.value)} placeholder="Chip2" /></td><td><input className="table-inline-input table-inline-input-wide" value={entry.metaOverrides?.waveguideId || entry.standardMeta?.waveguideId || ""} onChange={(event) => updateEntryOverride(entry.sourcePath, "waveguideId", event.target.value)} placeholder="WG1" /></td><td className="filename-preview-cell"><strong>{entry.outputFileName}</strong></td><td>{entry.rowCount}</td><td className="library-table-actions"><button type="button" onClick={() => downloadText(entry.content, entry.outputFileName)}>Download</button></td></tr>)}
+              </tbody></table></div>
+            ) : <div className="chart-empty">{advanced && targetSubfolder ? `No converted outputs matched "${targetSubfolder}".` : "No converted outputs yet."}</div>}
           </div>
 
           <div className="manual-conversion-pane">
             <h3>Ignored / Failed</h3>
-            <div className="manual-conversion-list-card">
-              <strong>Ignored files</strong>
-              {ignoredPaths.length ? <ul>{ignoredPaths.slice(0, 20).map((item) => <li key={item}>{item}</li>)}</ul> : <p>No ignored files.</p>}
-            </div>
-            <div className="manual-conversion-list-card">
-              <strong>Failed conversions</strong>
-              {failedEntries.length ? <ul>{failedEntries.map((item) => <li key={item.sourcePath}>{item.sourcePath}: {item.message}</li>)}</ul> : <p>No failed conversions.</p>}
-            </div>
+            <div className="manual-conversion-list-card"><strong>Ignored files</strong>{ignoredPaths.length ? <ul>{ignoredPaths.slice(0, 20).map((item) => <li key={item}>{item}</li>)}</ul> : <p>No ignored files.</p>}</div>
+            <div className="manual-conversion-list-card"><strong>Failed conversions</strong>{failedEntries.length ? <ul>{failedEntries.map((item) => <li key={item.sourcePath}>{item.sourcePath}: {item.message}</li>)}</ul> : <p>No failed conversions.</p>}</div>
           </div>
         </div>
       </article>

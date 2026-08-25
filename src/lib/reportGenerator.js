@@ -40,9 +40,41 @@ const BODY_FONT = "Aptos";
 const SLIDE_WIDTH = 13.333;
 const SLIDE_HEIGHT = 7.5;
 const TABLE_ROWS_PER_SLIDE = 12;
-const WAFERMAP_EXPORT_SCALE = 0.24;
-const WAFERMAP_EXPORT_WIDTH = (2464 / 96) * WAFERMAP_EXPORT_SCALE;
-const WAFERMAP_EXPORT_HEIGHT = (1672 / 96) * WAFERMAP_EXPORT_SCALE;
+const WAFERMAP_IMAGE_WIDTH = 5.88;
+const WAFERMAP_IMAGE_BOX_HEIGHT = 5.18;
+const WAFERMAP_IMAGE_BOX_Y = 1.72;
+
+function readPngDimensions(dataUrl) {
+  try {
+    const bytes = dataUrlToUint8Array(dataUrl);
+    const isPng = bytes.length >= 24
+      && bytes[0] === 0x89
+      && bytes[1] === 0x50
+      && bytes[2] === 0x4e
+      && bytes[3] === 0x47;
+    if (!isPng) return null;
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const width = view.getUint32(16, false);
+    const height = view.getUint32(20, false);
+    return width > 0 && height > 0 ? { width, height } : null;
+  } catch {
+    return null;
+  }
+}
+
+function containImagePlacement(dataUrl, box) {
+  const dimensions = readPngDimensions(dataUrl);
+  if (!dimensions) return { x: box.x, y: box.y, w: box.w, h: box.h };
+  const scale = Math.min(box.w / dimensions.width, box.h / dimensions.height);
+  const width = dimensions.width * scale;
+  const height = dimensions.height * scale;
+  return {
+    x: box.x + (box.w - width) / 2,
+    y: box.y + (box.h - height) / 2,
+    w: width,
+    h: height
+  };
+}
 
 function formatNumber(value, digits = 2) {
   return value === null || value === undefined || Number.isNaN(value) ? "--" : Number(value).toFixed(digits);
@@ -257,13 +289,23 @@ function buildTableRows(summaryRows) {
 
 function addTitleSlide(pptx, context) {
   const slide = pptx.addSlide();
-  addSlideFrame(slide, `${context.reportDisplayName} Post-Processed Report`, `Generated ${context.generatedAtLabel}${context.selectedDate ? ` | Measurement date ${context.selectedDate}` : ""}`, "Report Generator");
+  addSlideFrame(slide, "Wafer Test Post-Processed Report", context.reportDisplayName, "Report Generator");
+  slide.addText(`Generated ${context.generatedAtLabel}${context.selectedDate ? ` | Measurement date ${context.selectedDate}` : ""}`, {
+    x: 0.42,
+    y: 1.43,
+    w: 9.8,
+    h: 0.18,
+    fontFace: BODY_FONT,
+    fontSize: 10.5,
+    color: MUTED,
+    margin: 0
+  });
 
-  addMetricCard(slide, { x: 0.45, y: 1.65, w: 2.0, label: "Measured chips", value: String(context.summary.measuredChips || 0) });
-  addMetricCard(slide, { x: 2.65, y: 1.65, w: 2.0, label: "Passing chips", value: String(context.summary.fittedChips || 0), accent: TEAL });
-  addMetricCard(slide, { x: 4.85, y: 1.65, w: 2.0, label: "Failed fits", value: String(context.summary.failedFits || 0), accent: "C65D48" });
-  addMetricCard(slide, { x: 7.05, y: 1.65, w: 2.5, label: "Avg propagation", value: formatMetric(context.summary.avgPropagationLossDbPerCm, "dB/cm") });
-  addMetricCard(slide, { x: 9.75, y: 1.65, w: 2.9, label: "Avg peak wavelength", value: formatMetric(context.summary.avgPeakWavelengthNm, "nm", 1) });
+  addMetricCard(slide, { x: 0.45, y: 1.78, w: 2.0, label: "Measured chips", value: String(context.summary.measuredChips || 0) });
+  addMetricCard(slide, { x: 2.65, y: 1.78, w: 2.0, label: "Passing chips", value: String(context.summary.fittedChips || 0), accent: TEAL });
+  addMetricCard(slide, { x: 4.85, y: 1.78, w: 2.0, label: "Failed fits", value: String(context.summary.failedFits || 0), accent: "C65D48" });
+  addMetricCard(slide, { x: 7.05, y: 1.78, w: 2.5, label: "Avg propagation", value: formatMetric(context.summary.avgPropagationLossDbPerCm, "dB/cm") });
+  addMetricCard(slide, { x: 9.75, y: 1.78, w: 2.9, label: "Avg peak wavelength", value: formatMetric(context.summary.avgPeakWavelengthNm, "nm", 1) });
 
   slide.addShape("roundRect", {
     x: 0.45,
@@ -426,31 +468,34 @@ function addWafermapSlides(pptx, context, wafermapViews) {
     const slide = pptx.addSlide();
     addSlideFrame(slide, "Wafermaps", `${context.projectCode} | ${context.slotLabel} | Spatial summary of measured chips`, `Wafermaps ${index + 1}/${groups.length}`);
     const layouts = group.length === 1
-      ? [{ imageX: (SLIDE_WIDTH - WAFERMAP_EXPORT_WIDTH) / 2 }]
+      ? [{ titleX: (SLIDE_WIDTH - WAFERMAP_IMAGE_WIDTH) / 2, imageX: (SLIDE_WIDTH - WAFERMAP_IMAGE_WIDTH) / 2, imageW: WAFERMAP_IMAGE_WIDTH, titleAlign: "center" }]
       : [
-        { imageX: 0.46 },
-        { imageX: SLIDE_WIDTH - 0.46 - WAFERMAP_EXPORT_WIDTH }
+        { titleX: 0.46, imageX: 0.46, imageW: WAFERMAP_IMAGE_WIDTH, titleAlign: "left" },
+        { titleX: 6.98, imageX: 6.98, imageW: WAFERMAP_IMAGE_WIDTH, titleAlign: "left" }
       ];
 
     group.forEach((view, itemIndex) => {
       const layout = layouts[itemIndex];
       slide.addText(view.title.replace("Wafermap - ", ""), {
-        x: layout.imageX,
-        y: 1.28,
-        w: WAFERMAP_EXPORT_WIDTH,
+        x: layout.titleX,
+        y: 1.45,
+        w: layout.imageW,
         h: 0.22,
         fontFace: TITLE_FONT,
         fontSize: 16,
         bold: true,
+        align: layout.titleAlign,
         color: TEXT,
         margin: 0
       });
       slide.addImage({
         data: view.dataUrl,
-        x: layout.imageX,
-        y: 1.62,
-        w: WAFERMAP_EXPORT_WIDTH,
-        h: WAFERMAP_EXPORT_HEIGHT
+        ...containImagePlacement(view.dataUrl, {
+          x: layout.imageX,
+          y: WAFERMAP_IMAGE_BOX_Y,
+          w: layout.imageW,
+          h: WAFERMAP_IMAGE_BOX_HEIGHT
+        })
       });
     });
   });

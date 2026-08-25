@@ -73,9 +73,13 @@ function detectWaveguideType(dataset = {}) {
 
 function detectMeasurementMode(dataset = {}) {
   const existing = String(dataset.measurementMode || dataset.display?.measurementMode || dataset.sourceType || dataset.sourceMeta?.type || "");
+  if (/operator\s*align|operator[-\s]aligned/i.test(existing)) return "OperatorAlign";
+  if (/auto\s*align|auto[-\s]aligned|automated/i.test(existing)) return "AutoAlign";
   if (/manual/i.test(existing)) return "Manual";
   if (/wst|automated/i.test(existing)) return "WST";
   const joined = joinedDatasetText(dataset);
+  if (/operator\s*align|operator[-\s]aligned/i.test(joined)) return "OperatorAlign";
+  if (/auto\s*align|auto[-\s]aligned|automated/i.test(joined)) return "AutoAlign";
   if (/manual/i.test(joined)) return "Manual";
   if (/wst|automated/i.test(joined)) return "WST";
   return "ModeUndefined";

@@ -61,6 +61,25 @@ function metricConfig(metricKey) {
   }[metricKey];
 }
 
+function getComparisonDatasetIdentity(dataset) {
+  const presentation = getDatasetPresentation(dataset);
+  const project = presentation.projectDisplayName || dataset.projectName || dataset.label || "ProjectUndefined";
+  const slot = presentation.slot || dataset.slot || dataset.waferName || "SlotUndefined";
+  const buildingBlock = dataset.buildingBlockLabel
+    || dataset.display?.buildingBlockLabel
+    || dataset.sourceMeta?.buildingBlockLabel
+    || dataset.sourceMeta?.buildingBlock
+    || presentation.waveguideType
+    || "BuildingBlockUndefined";
+
+  return {
+    project,
+    slot,
+    buildingBlock,
+    label: `${project} · ${slot} · ${buildingBlock}`
+  };
+}
+
 function ComparisonSummaryCards({ results }) {
   const measuredChips = results.map((result) => datasetMetricValue(result, "measuredChips")).filter((value) => value !== null);
   const yieldValues = results.map((result) => datasetMetricValue(result, "yield")).filter((value) => value !== null);
@@ -87,7 +106,7 @@ function ComparisonAnalytics({ results, selectedMetric, onMetricChange, referenc
   const values = results
     .map((result) => ({
       id: result.dataset.id,
-      label: getDatasetPresentation(result.dataset).projectDisplayName || result.dataset.projectName || result.dataset.label,
+      label: getComparisonDatasetIdentity(result.dataset).label,
       value: datasetMetricValue(result, selectedMetric)
     }))
     .filter((item) => item.value !== null && item.value !== undefined && !Number.isNaN(item.value));
@@ -480,6 +499,7 @@ export default function ComparisonLibraryPanel({
                 <th>Dataset</th>
                 <th>Project</th>
                 <th>Slot</th>
+                <th>Building Block</th>
                 <th>Waveguide Type</th>
                 <th>Measurement Mode</th>
                 <th>Measurement Type</th>
@@ -500,8 +520,9 @@ export default function ComparisonLibraryPanel({
                     <strong>{dataset.label || dataset.projectName || "Measurement dataset"}</strong>
                     <div className="dataset-subcopy">{dataset.scope === "remote" ? "GitHub library" : "Local snapshot"}</div>
                   </td>
-                                    <td>{getDatasetPresentation(dataset).projectDisplayName || dataset.projectName || "--"}</td>
+                  <td>{getDatasetPresentation(dataset).projectDisplayName || dataset.projectName || "--"}</td>
                   <td>{getDatasetPresentation(dataset).slot || "SlotUndefined"}</td>
+                  <td>{getComparisonDatasetIdentity(dataset).buildingBlock}</td>
                   <td>{getDatasetPresentation(dataset).waveguideType || "WaveguideUndefined"}</td>
                   <td>{getDatasetPresentation(dataset).measurementMode || dataset.sourceType || dataset.sourceMeta?.type || "--"}</td>
                   <td>{getDatasetPresentation(dataset).measurementType || "MeasurementTypeUndefined"}</td>
@@ -509,7 +530,7 @@ export default function ComparisonLibraryPanel({
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="8"><div className="chart-empty compact">No datasets are available for the selected project.</div></td>
+                  <td colSpan="9"><div className="chart-empty compact">No datasets are available for the selected project.</div></td>
                 </tr>
               )}
             </tbody>
@@ -553,8 +574,8 @@ export default function ComparisonLibraryPanel({
                   {results.map((result) => (
                     <tr key={`summary-${result.dataset.id}`}>
                       <td>
-                        <strong>{getDatasetPresentation(result.dataset).projectDisplayName || result.dataset.projectName || result.dataset.label}</strong>
-                        <div className="dataset-subcopy">{getDatasetPresentation(result.dataset).waferDisplayName || result.dataset.waferName || "--"}</div>
+                        <strong>{getComparisonDatasetIdentity(result.dataset).label}</strong>
+                        <div className="dataset-subcopy">{result.dataset.label || "Measurement dataset"}</div>
                       </td>
                       <td>{result.metrics.propagation.summaryStats.measuredChips}</td>
                       <td>{formatValue(result.metrics.propagation.passRate, 1, "%")}</td>
@@ -601,8 +622,10 @@ export default function ComparisonLibraryPanel({
               {results.map((result) => (
                 <article key={`wafer-${result.dataset.id}`} className="comparison-wafer-card">
                   <header>
-                    <strong>{getDatasetPresentation(result.dataset).projectDisplayName || result.dataset.projectName || result.dataset.label}</strong>
-                    <span>{getDatasetPresentation(result.dataset).waferDisplayName || result.dataset.waferName || "--"}</span>
+                    <strong>{getComparisonDatasetIdentity(result.dataset).label}</strong>
+                    <span className="comparison-wafer-average">
+                      Average propagation loss: <b>{formatValue(result.metrics.propagation.summaryStats.avgPropagationLossDbPerCm, 2, " dB/cm")}</b>
+                    </span>
                   </header>
                   <MiniWaferMap
                     cells={metricCellsForComparison(result, waferMetric)}

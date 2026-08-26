@@ -2559,12 +2559,27 @@ tbody tr:last-child td {
 
 .comparison-wafer-card header {
   display: grid;
-  gap: 2px;
+  gap: 5px;
 }
 
 .comparison-wafer-card header span {
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.comparison-wafer-card header strong {
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.comparison-wafer-card header .comparison-wafer-average {
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
+.comparison-wafer-average b {
+  color: var(--accent-strong);
+  font-weight: 800;
 }
 
 .comparison-wafer-shell {
@@ -2701,7 +2716,9 @@ tbody tr:last-child td {
 }
 
 .comparison-wafer-layout {
-  width: min(100%, 540px);
+  grid-template-columns: minmax(0, 1fr) 90px;
+  gap: 10px;
+  width: min(100%, 570px);
 }
 
 .comparison-wafer-layout-no-scale {
@@ -2824,7 +2841,7 @@ tbody tr:last-child td {
   }
 
   .comparison-wafer-layout {
-    grid-template-columns: minmax(0, 1fr) 52px;
+    grid-template-columns: minmax(0, 1fr) 90px;
   }
 
   .comparison-wafer-layout-no-scale {

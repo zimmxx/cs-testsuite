@@ -17,6 +17,9 @@ Top-level docs:
 - [docs/DATASET_FILENAME_STANDARD.md](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\DATASET_FILENAME_STANDARD.md)
   Standard naming guide for datasets, traces, and converted archives
 
+- [docs/AI_DIAGNOSTICS.md](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\AI_DIAGNOSTICS.md)
+  AI Diagnostics models, consumption guidance, API-key security, logging, evaluation, and production deployment
+
 - [docs/VERSIONING_AND_DOCUMENTATION.md](C:\Users\ahs2u23\OneDrive - University of Southampton\Documents\CORNERSTONE Testing App\docs\VERSIONING_AND_DOCUMENTATION.md)
   This versioning guide
 
@@ -34,6 +37,9 @@ Version-specific docs:
 - `docs/releases/v0.3.1/CHANGELOG.md`
 - `docs/releases/v0.4.0/FEATURES.md`
 - `docs/releases/v0.4.0/CHANGELOG.md`
+- `docs/releases/v0.5.0/FEATURES.md`
+- `docs/releases/v0.5.0/CHANGELOG.md`
+- `docs/releases/v0.5.0/RELEASE_CHECKLIST.md`
 
 Forward-planning docs:
 
@@ -50,7 +56,7 @@ When the app is upgraded from one documented version to a later version:
 1. Create a new folder:
 
 ```text
-docs/releases/v0.4.0/
+docs/releases/v0.5.0/
 ```
 
 2. Copy the template or previous files into the new version folder
@@ -77,6 +83,7 @@ Use:
 - `v0.3.0` for a larger feature expansion such as new library sections or new dataset workflows
 - `v0.3.1` for a patch release that refines an existing workflow such as spectrum-viewer controls
 - `v0.4.0` for a substantial interface and analysis-workflow upgrade such as the CORNERSTONE-branded workspace redesign
+- `v0.5.0` for a substantial intelligence and deployment-readiness upgrade such as AI Diagnostics and secure model integration
 - `v1.0.0` for a more complete stable release
 
 ## Visual Development Archive

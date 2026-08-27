@@ -1,8 +1,5 @@
-import { defineConfig, loadEnv } from "vite";
-import react from "@vitejs/plugin-react";
-
 const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
-const ALLOWED_GEMINI_MODELS = new Set([
+const ALLOWED_MODELS = new Set([
   DEFAULT_GEMINI_MODEL,
   "gemini-3.5-flash-lite",
   "gemini-3.6-flash",
@@ -18,28 +15,8 @@ const BACKGROUND_GEMINI_MODELS = new Set(["gemini-3.6-flash", "gemini-3.7-flash"
 const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const GEMINI_POLL_LIMIT_MS = 75_000;
 
-function sendJson(response, data, status = 200) {
-  response.statusCode = status;
-  response.setHeader("Content-Type", "application/json");
-  response.end(JSON.stringify(data));
-}
-
-function readJsonBody(request, limit = 1_000_000) {
-  return new Promise((resolve, reject) => {
-    let body = "";
-    request.on("data", (chunk) => {
-      body += chunk;
-      if (body.length > limit) reject(new Error("AI request payload is too large."));
-    });
-    request.on("end", () => {
-      try {
-        resolve(JSON.parse(body || "{}"));
-      } catch {
-        reject(new Error("AI request body must be valid JSON."));
-      }
-    });
-    request.on("error", reject);
-  });
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 }
 
 function readInteractionText(result) {
@@ -122,42 +99,19 @@ async function runGeminiInteraction(apiKey, model, prompt, storeAnalysis) {
   }
 }
 
-function geminiDevelopmentProxy(apiKey) {
-  return {
-    name: "gemini-development-proxy",
-    configureServer(server) {
-      server.middlewares.use("/api/ai", async (request, response, next) => {
-        if (request.method !== "POST") return next();
-        if (!apiKey) {
-          sendJson(response, {
-            error: "Gemini is not configured. Copy .env.example to .env.local, add GEMINI_API_KEY, and restart the dev server. Local diagnostics are still available."
-          }, 503);
-          return;
-        }
-        try {
-          const body = await readJsonBody(request);
-          if (body.provider !== "gemini") {
-            sendJson(response, { error: "This AI provider is not enabled yet." }, 400);
-            return;
-          }
-          const model = ALLOWED_GEMINI_MODELS.has(body.model) ? body.model : DEFAULT_GEMINI_MODEL;
-          const storeAnalysis = body.storeAnalysis === true;
-          const prompt = `You are a cautious silicon-photonics wafer diagnostics assistant. Use only the supplied evidence. Distinguish observations, hypotheses, confidence, and recommended verification. Never claim that sidewall roughness, lithography, etch, contamination, coupling, or instrumentation is proven from spectra alone. Return a concise engineering summary with: Priority findings; Possible explanations; Checks to run next; MPW comparison when present. Evidence JSON:\n${JSON.stringify(body.payload)}`;
-          const result = await runGeminiInteraction(apiKey, model, prompt, storeAnalysis);
-          const text = readInteractionText(result);
-          sendJson(response, { provider: "gemini", model, text: text || "Gemini returned an empty response.", stored: storeAnalysis });
-        } catch (error) {
-          sendJson(response, { error: error instanceof Error ? error.message : "Unable to process the AI request." }, 500);
-        }
-      });
-    }
-  };
+export async function onRequestPost(context) {
+  const apiKey = context.env.GEMINI_API_KEY;
+  if (!apiKey) return json({ error: "Gemini is not configured. Add GEMINI_API_KEY as a server-side secret; local diagnostics are still available." }, 503);
+  try {
+    const body = await context.request.json();
+    if (body.provider !== "gemini") return json({ error: "This provider is not enabled yet." }, 400);
+    const model = ALLOWED_MODELS.has(body.model) ? body.model : DEFAULT_GEMINI_MODEL;
+    const storeAnalysis = body.storeAnalysis === true;
+    const prompt = `You are a cautious silicon-photonics wafer diagnostics assistant. Use only the supplied evidence. Distinguish observations, hypotheses, confidence, and recommended verification. Never claim that sidewall roughness, lithography, etch, contamination, coupling, or instrumentation is proven from spectra alone. Return a concise engineering summary with: Priority findings; Possible explanations; Checks to run next; MPW comparison when present. Evidence JSON:\n${JSON.stringify(body.payload)}`;
+    const result = await runGeminiInteraction(apiKey, model, prompt, storeAnalysis);
+    const text = readInteractionText(result);
+    return json({ provider: "gemini", model, text: text || "Gemini returned an empty response.", stored: storeAnalysis });
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : "Unable to process the AI request." }, 500);
+  }
 }
-
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
-  return {
-    base: "./",
-    plugins: [react(), geminiDevelopmentProxy(env.GEMINI_API_KEY)]
-  };
-});

@@ -15,5 +15,6 @@ This folder records the visible development of the CORNERSTONE Wafer Post-Proces
 | `09-report-generator-workflow-2026-07-21.png` | Capability | Existing report-generator workflow used as presentation evidence. |
 | `10-report-generator-current-v0.4.0.png` | Final capability | Current CORNERSTONE-branded Report Generator with PowerPoint, Word, and PDF actions. |
 | `11-propagation-analysis-current-v0.4.0.png` | Final capability | Current Propagation Loss Fit and MSE inspector with the representative MPW48 Slot7 Rib dataset. |
+| `12-ai-diagnostics-current-v0.5.0.png` | Final capability | AI Diagnostics workspace showing model selection, compact-evidence guidance, and enabled diagnostic logging. |
 
 These screenshots document development states and may contain representative datasets. They should not be treated as metrology records or acceptance evidence for a specific wafer lot.

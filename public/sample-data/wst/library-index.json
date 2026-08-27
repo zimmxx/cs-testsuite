@@ -1854,6 +1854,187 @@
     "projectCode": "MPW47"
   },
   {
+    "id": "mpw47_dtu_soi220nmactive_slot5_step36_1550nm_te_strip_waveguide_propagationloss_operatoralign",
+    "label": "MPW47_DTU_SOI220nmActive_Slot5_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "projectName": "MPW47_DTU",
+    "waferName": "Slot5",
+    "selectedDate": "2026-07-20",
+    "measurementDate": "2026-07-20",
+    "publishedDate": "2026-08-27",
+    "folder": "sample-data/wst/MPW47_DTU_SOI220nmActive_Slot5_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "sourceType": "Operator-aligned WST trace set",
+    "measurementMode": "Automated WST",
+    "measurementType": "PropagationLoss",
+    "opticalMode": "1550nm_TE",
+    "alignmentMode": "OperatorAlign",
+    "mpw": "MPW47_DTU",
+    "slot": "Slot5",
+    "processStep": "Step36",
+    "waveguideType": "Waveguide",
+    "platformId": "soi220nmactive",
+    "platformLabel": "SOI220nmActive",
+    "buildingBlockId": "strip_waveguide",
+    "buildingBlockLabel": "STRIP_Waveguide",
+    "pdkMonitorBuildingBlock": "SOI220nm_1550nm_TE_STRIP_Waveguide",
+    "traceCount": 49,
+    "rowCount": 931049,
+    "chipCount": 7,
+    "waveguideCount": 7,
+    "wavelengthMinNm": 1525,
+    "wavelengthMaxNm": 1620,
+    "files": [
+      "Chip21_WG1.txt",
+      "Chip21_WG2.txt",
+      "Chip21_WG3.txt",
+      "Chip21_WG4.txt",
+      "Chip21_WG5.txt",
+      "Chip21_WG6.txt",
+      "Chip21_WG7.txt",
+      "Chip25_WG1.txt",
+      "Chip25_WG2.txt",
+      "Chip25_WG3.txt",
+      "Chip25_WG4.txt",
+      "Chip25_WG5.txt",
+      "Chip25_WG6.txt",
+      "Chip25_WG7.txt",
+      "Chip49_WG1.txt",
+      "Chip49_WG2.txt",
+      "Chip49_WG3.txt",
+      "Chip49_WG4.txt",
+      "Chip49_WG5.txt",
+      "Chip49_WG6.txt",
+      "Chip49_WG7.txt",
+      "Chip51_WG1.txt",
+      "Chip51_WG2.txt",
+      "Chip51_WG3.txt",
+      "Chip51_WG4.txt",
+      "Chip51_WG5.txt",
+      "Chip51_WG6.txt",
+      "Chip51_WG7.txt",
+      "Chip53_WG1.txt",
+      "Chip53_WG2.txt",
+      "Chip53_WG3.txt",
+      "Chip53_WG4.txt",
+      "Chip53_WG5.txt",
+      "Chip53_WG6.txt",
+      "Chip53_WG7.txt",
+      "Chip77_WG1.txt",
+      "Chip77_WG2.txt",
+      "Chip77_WG3.txt",
+      "Chip77_WG4.txt",
+      "Chip77_WG5.txt",
+      "Chip77_WG6.txt",
+      "Chip77_WG7.txt",
+      "Chip81_WG1.txt",
+      "Chip81_WG2.txt",
+      "Chip81_WG3.txt",
+      "Chip81_WG4.txt",
+      "Chip81_WG5.txt",
+      "Chip81_WG6.txt",
+      "Chip81_WG7.txt"
+    ],
+    "readme": "MPW47_DTU_SOI220nmActive_Slot5_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/README.md",
+    "metadataFile": "MPW47_DTU_SOI220nmActive_Slot5_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/metadata.json",
+    "configFile": "MPW47_DTU_SOI220nmActive_Slot5_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/route-config.json",
+    "filenameManifest": "MPW47_DTU_SOI220nmActive_Slot5_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/filename-manifest.csv",
+    "routeConfig": {
+      "measurementType": "PropagationLoss",
+      "routes": [
+        {
+          "route": "WG1",
+          "lengthMm": 1
+        },
+        {
+          "route": "WG2",
+          "lengthMm": 4
+        },
+        {
+          "route": "WG3",
+          "lengthMm": 8
+        },
+        {
+          "route": "WG4",
+          "lengthMm": 12
+        },
+        {
+          "route": "WG5",
+          "lengthMm": 16
+        },
+        {
+          "route": "WG6",
+          "lengthMm": 20
+        },
+        {
+          "route": "WG7",
+          "lengthMm": 24
+        }
+      ]
+    },
+    "waveguideConfig": {
+      "propagationWaveguideCount": 7,
+      "propagationWaveguideStartMm": 1,
+      "propagationWaveguideIntervalMm": 3,
+      "propagationWaveguideManualMode": true,
+      "waveguideLengths": [
+        {
+          "index": 1,
+          "lengthMm": 1
+        },
+        {
+          "index": 2,
+          "lengthMm": 4
+        },
+        {
+          "index": 3,
+          "lengthMm": 8
+        },
+        {
+          "index": 4,
+          "lengthMm": 12
+        },
+        {
+          "index": 5,
+          "lengthMm": 16
+        },
+        {
+          "index": 6,
+          "lengthMm": 20
+        },
+        {
+          "index": 7,
+          "lengthMm": 24
+        }
+      ]
+    },
+    "analyticsSummary": {
+      "propagationAverage": 6.901640181931846,
+      "yield": 42.857142857142854,
+      "measuredChips": 7,
+      "computedAt": "2026-08-27T11:05:02.514Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [],
+      "includedChipIds": [],
+      "totalChipCount": 0,
+      "selectedChipCount": 0,
+      "measuredChips": 0,
+      "fittedChips": 0,
+      "failedFits": 0,
+      "savedAt": "",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 0,
+        "propagationWindowNm": 0,
+        "propagationSpectralStepNm": 0,
+        "propagationMseThreshold": 0
+      }
+    },
+    "notes": "",
+    "source": "github-library",
+    "librarySchemaVersion": 1
+  },
+  {
+    "schemaVersion": 4,
+    "datasetId": "mpw47_dtu_soi220nmactive_slot7_step36_1550nm_te_strip_waveguide_propagationloss_operatoralign",
     "id": "mpw47_dtu_soi220nmactive_slot7_step36_1550nm_te_strip_waveguide_propagationloss_operatoralign",
     "label": "MPW47_DTU_SOI220nmActive_Slot7_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
     "projectName": "MPW47_DTU",
@@ -1862,15 +2043,17 @@
     "measurementDate": "2026-07-20",
     "publishedDate": "2026-08-27",
     "folder": "sample-data/wst/MPW47_DTU_SOI220nmActive_Slot7_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "traceFolder": "sample-data/wst/MPW47_DTU_SOI220nmActive_Slot7_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
     "sourceType": "Operator-aligned WST trace set",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "measurementType": "PropagationLoss",
     "opticalMode": "1550nm_TE",
     "alignmentMode": "OperatorAlign",
     "mpw": "MPW47_DTU",
     "slot": "Slot7",
     "processStep": "Step36",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
+    "waveguideFamily": "Strip",
     "platformId": "soi220nmactive",
     "platformLabel": "SOI220nmActive",
     "buildingBlockId": "strip_waveguide",
@@ -2028,9 +2211,15 @@
         "propagationMseThreshold": 0
       }
     },
+    "copiedToFolder": true,
+    "processedInTestingSuite": true,
     "notes": "",
-    "source": "github-library",
-    "librarySchemaVersion": 1
+    "source": "github-library-v4",
+    "librarySchemaVersion": 4,
+    "projectDisplayName": "MPW47_DTU",
+    "waferDisplayName": "Slot7",
+    "platformDisplayName": "",
+    "projectCode": "MPW47_DTU"
   },
   {
     "schemaVersion": 4,

@@ -1157,6 +1157,7 @@ export async function publishDatasetPackageToGithub({
     { path: `public/sample-data/wst/${packageData.identity.folderName}/README.md`, content: packageData.readme },
     { path: `public/sample-data/wst/${packageData.identity.folderName}/${packageData.metadataFileName}`, content: packageData.metadataContent },
     { path: `public/sample-data/wst/${packageData.identity.folderName}/${packageData.configFileName}`, content: packageData.configContent },
+    { path: `public/sample-data/wst/${packageData.identity.folderName}/${packageData.legacyConfigFileName}`, content: packageData.legacyConfigContent },
     { path: `public/sample-data/wst/${packageData.identity.folderName}/${packageData.filenameManifestFileName}`, content: packageData.filenameManifestContent },
     ...(manifestPath ? [{ path: manifestPath, content: JSON.stringify(nextManifest, null, 2) + "\n" }] : []),
     ...(mirrorManifestPath ? [{ path: mirrorManifestPath, content: JSON.stringify(nextManifest, null, 2) + "\n" }] : []),
@@ -1362,7 +1363,14 @@ export function buildGithubDatasetPackage(dataset) {
   identity.label = canonicalFolderName;
   identity.id = slugify(canonicalFolderName).toLowerCase();
   identity.legacyFolder = `sample-data/wst/${canonicalFolderName}`;
-  const traceFiles = buildDatasetTraceFiles(publishDataset.rawRows || [], identity);
+  // Snapshots retain original upload rows. Normalize them here so column mappings
+  // and per-file source names are honoured when the package is built.
+  const rawRows = publishDataset.rawRows || [];
+  const columnMap = publishDataset.columnMap && Object.keys(publishDataset.columnMap).length
+    ? publishDataset.columnMap
+    : Object.fromEntries(Object.keys(rawRows[0] || {}).map((column) => [column, column]));
+  const traceRows = buildNormalizedRows(rawRows, columnMap, publishDataset.sourceMeta || {});
+  const traceFiles = buildDatasetTraceFiles(traceRows, identity);
   if (!traceFiles.length) {
     throw new Error("This dataset does not contain trace-style wavelength and optical-power rows that can be published to the GitHub measurement library.");
   }
@@ -1384,6 +1392,8 @@ export function buildGithubDatasetPackage(dataset) {
     metadataContent: JSON.stringify(metadata, null, 2) + "\n",
     configFileName: ROUTE_CONFIG_FILE_NAME,
     configContent: JSON.stringify(routeConfig, null, 2) + "\n",
+    legacyConfigFileName: LEGACY_WAVEGUIDE_CONFIG_FILE_NAME,
+    legacyConfigContent: JSON.stringify(waveguideConfig, null, 2) + "\n",
     filenameManifestFileName: FILENAME_MANIFEST_FILE_NAME,
     filenameManifestContent
   };

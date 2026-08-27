@@ -412,8 +412,8 @@ export function buildNormalizedRows(rows, mapping, sourceMeta) {
     }
 
     const normalized = applyWaferTemplate({
-      source_name: sourceMeta.name,
-      source_type: sourceMeta.type,
+      source_name: row.source_name || row.__source_name || sourceMeta.name,
+      source_type: row.source_type || sourceMeta.type,
       wafer_label: mapping.wafer_label ? row[mapping.wafer_label] : "",
       slot_id: mapping.slot_id ? row[mapping.slot_id] : "",
       chip_id: mapping.chip_id ? row[mapping.chip_id] : "",

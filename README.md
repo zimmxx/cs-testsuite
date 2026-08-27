@@ -107,6 +107,8 @@ Never rename the key to `VITE_GEMINI_API_KEY` or commit `.env.local`; `VITE_*` v
 
 The GitHub Pages deployment is static and cannot hold API secrets. Same-origin deployment on a server-capable host is recommended. If the GitHub Pages frontend uses a separately hosted `functions/api/ai.js`, set `VITE_AI_API_URL` to that public endpoint during the build and add a strict CORS allow-list, preflight handling, rate limiting, and access control to the backend. Raw spectra are not sent to Gemini; the request contains compact screening metrics and flagged evidence only.
 
+On the public GitHub Pages site, a user can paste their own masked Gemini key in AI Diagnostics and optionally remember it only in that browser. If neither a user key nor `VITE_AI_API_URL` is available, the UI gives an explicit configuration message instead of calling the non-existent `/api/ai` route and receiving a `405`. See [AI Backend Deployment](docs/AI_BACKEND_DEPLOYMENT.md) for the protected shared-key option.
+
 ## Deployment
 
 Deployment is handled through [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml).
@@ -146,6 +148,7 @@ On push to `main`, GitHub Actions:
 ## Documentation Index
 
 - [AI Diagnostics Intelligence Guide](docs/AI_DIAGNOSTICS.md)
+- [AI Backend Deployment](docs/AI_BACKEND_DEPLOYMENT.md)
 - [Local Git and GitHub Workflow](docs/LOCAL_GIT_GITHUB_WORKFLOW.md)
 - [Versioning and Documentation Guide](docs/VERSIONING_AND_DOCUMENTATION.md)
 - [Dataset and Filename Standard](docs/DATASET_FILENAME_STANDARD.md)

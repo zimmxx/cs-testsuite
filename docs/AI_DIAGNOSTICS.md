@@ -123,11 +123,19 @@ git status --short
 git check-ignore -v .env.local
 ```
 
-### Why GitHub Pages cannot hold the key
+### Using a personal key in the public app
+
+AI Diagnostics can accept a Gemini key directly from the user interface. The field is masked and, by default, the value remains in page memory only. A user may choose **Remember only in this browser** to store it in that browser profile and may remove it with **Clear key**. The **Test connection** button checks the selected model before any wafer evidence is submitted.
+
+This is useful for individual testing on GitHub Pages, but it is not equivalent to managed production credential storage. A browser-stored key can be read by someone with access to the same browser profile or by malicious code running on the same origin. Use a restricted Google API key and do not enable browser persistence on shared computers.
+
+When a user supplies a key, compact diagnostic evidence is sent directly from their browser to Google Gemini. The key is never sent to GitHub, committed to the repository, or sent to the optional CORNERSTONE backend.
+
+### Why GitHub Pages cannot hold a shared key
 
 GitHub Pages serves static HTML, CSS, and JavaScript. Every value bundled into that frontend can be downloaded and inspected by a visitor. GitHub repository secrets can protect a value while an Action is running, but injecting a Gemini key into the Vite build would place it in the public JavaScript output.
 
-The current live GitHub Pages site therefore needs a server-side API if Gemini is to work in production.
+The current live GitHub Pages site therefore needs either a user-supplied key or a server-side API if Gemini is to work in production.
 
 ### Recommended production architecture
 
@@ -152,6 +160,8 @@ If the frontend remains on GitHub Pages, deploy the API function separately and 
 - server-side model allow-listing, which is already present
 
 The current `functions/api/ai.js` is best suited to same-origin hosting; cross-origin CORS and public-abuse protection should be completed before connecting it to the public GitHub Pages site.
+
+The repository now includes a Cloudflare Worker wrapper and CORS/preflight handling for the separate-backend route. Follow [AI Backend Deployment](AI_BACKEND_DEPLOYMENT.md) to deploy it and configure the GitHub Pages `VITE_AI_API_URL` repository variable. Until that variable exists, the public app uses a user-entered key when supplied; otherwise it deliberately shows a configuration message instead of calling the static `/api/ai` path and receiving a `405`.
 
 ## Logs, evaluation datasets, and training
 
@@ -182,6 +192,7 @@ Google's pricing documentation currently states that free-tier content may be us
 - [ ] Compare accuracy, false positives, response time, input tokens, output tokens, and RPD consumption by model.
 - [ ] Add server-side rate limiting and access control before public deployment.
 - [ ] Store `GEMINI_API_KEY` only in the deployment platform's secret manager.
+- [ ] For browser-entered keys, use Google API-key restrictions and avoid shared-browser persistence.
 - [ ] Confirm the production data-retention and Google product-improvement terms.
 - [ ] Add a visible data-sharing notice for users handling restricted datasets.
 - [ ] Keep deterministic flags and measurements visible alongside every AI conclusion.
@@ -193,6 +204,8 @@ Google's pricing documentation currently states that free-tier content may be us
 - [`src/lib/aiDiagnostics.js`](../src/lib/aiDiagnostics.js) — deterministic spectral screening and compact AI evidence payload
 - [`vite.config.js`](../vite.config.js) — local server-side Gemini proxy and model allow-list
 - [`functions/api/ai.js`](../functions/api/ai.js) — production server-side API handler
+- [`workers/ai-proxy.js`](../workers/ai-proxy.js) — Cloudflare Worker entry point for a GitHub Pages frontend
+- [`wrangler.jsonc`](../wrangler.jsonc) — Cloudflare Worker deployment configuration
 - [`.env.example`](../.env.example) — safe local configuration template
 - [`.gitignore`](../.gitignore) — excludes local secret files
 

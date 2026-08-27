@@ -24,6 +24,9 @@
 - updated the README current-release summary and documentation index
 - updated the project history, versioning guide, and suggested roadmap
 - reserved higher-consumption Flash models for optional escalation while keeping 3.1 Flash-Lite as the default
+- changed static production behaviour so an unconfigured GitHub Pages deployment reports a protected-backend configuration requirement instead of attempting `/api/ai` and receiving `405`
+- added Cloudflare Worker deployment files, CORS preflight support, a strict frontend-origin allow-list, and a 100 kB AI request-size limit for the separate-backend path
+- added a masked, user-managed Gemini key field, optional browser-local persistence, clear-key control, and model-connection test for direct GitHub Pages use
 
 ## Security and Data Handling
 

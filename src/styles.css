@@ -4169,6 +4169,52 @@ body {
   min-width: 180px;
 }
 
+.ai-provider-controls .ai-api-key-field {
+  min-width: min(100%, 330px);
+  flex: 1 1 270px;
+}
+
+.ai-api-key-field input {
+  min-width: 100%;
+}
+
+.ai-key-actions {
+  display: flex;
+  align-items: center;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.ai-remember-key {
+  display: inline-flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 7px !important;
+  color: var(--text-muted, #66767b);
+  font-size: 0.76rem;
+  font-weight: 600 !important;
+}
+
+.ai-remember-key input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ai-indigo);
+}
+
+.ai-connection-status,
+.ai-key-guidance {
+  color: var(--text-muted, #66767b);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.ai-key-guidance {
+  margin: 10px 0 0;
+  max-width: 980px;
+}
+
 .ai-safety-note {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -4386,5 +4432,6 @@ body {
   .ai-summary-grid { grid-template-columns: 1fr; }
   .ai-provider-controls { width: 100%; }
   .ai-provider-controls label,
-  .ai-provider-controls select { width: 100%; }
+  .ai-provider-controls select,
+  .ai-provider-controls input { width: 100%; }
 }

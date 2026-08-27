@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   buildAiEvidencePayload,
   buildBatchComparison,
   buildWaferDiagnostics,
-  requestAiInterpretation
+  requestAiInterpretation,
+  testGeminiConnection
 } from "../lib/aiDiagnostics";
 
 const SUGGESTED_QUESTIONS = [
@@ -12,6 +13,7 @@ const SUGGESTED_QUESTIONS = [
   "Compare the selected MPW batches and highlight meaningful process shifts.",
   "Suggest repeat measurements that would separate setup issues from cleanroom variation."
 ];
+const LOCAL_API_KEY_STORAGE = "cornerstone.geminiApiKey";
 
 function formatMetric(value, digits = 2, suffix = "") {
   return value === null || value === undefined || Number.isNaN(Number(value)) ? "--" : `${Number(value).toFixed(digits)}${suffix}`;
@@ -29,6 +31,10 @@ export default function AiDiagnosticsPanel({
 }) {
   const [provider, setProvider] = useState("gemini");
   const [model, setModel] = useState("gemini-3.1-flash-lite");
+  const [apiKey, setApiKey] = useState(() => window.localStorage.getItem(LOCAL_API_KEY_STORAGE) || "");
+  const [rememberApiKey, setRememberApiKey] = useState(() => Boolean(window.localStorage.getItem(LOCAL_API_KEY_STORAGE)));
+  const [connectionStatus, setConnectionStatus] = useState("");
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [question, setQuestion] = useState(SUGGESTED_QUESTIONS[0]);
   const [answer, setAnswer] = useState("");
   const [saveToEvaluationLog, setSaveToEvaluationLog] = useState(true);
@@ -40,8 +46,43 @@ export default function AiDiagnosticsPanel({
   const diagnostics = useMemo(() => buildWaferDiagnostics(propagationMetrics), [propagationMetrics]);
   const batchComparison = useMemo(() => buildBatchComparison(batchResults), [batchResults]);
 
+  useEffect(() => {
+    if (rememberApiKey && apiKey.trim()) {
+      window.localStorage.setItem(LOCAL_API_KEY_STORAGE, apiKey);
+    } else {
+      window.localStorage.removeItem(LOCAL_API_KEY_STORAGE);
+    }
+  }, [apiKey, rememberApiKey]);
+
   function toggleBatch(id) {
     setSelectedBatchIds((previous) => previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id]);
+  }
+
+  function updateApiKey(value) {
+    setApiKey(value);
+  }
+
+  function updateRememberApiKey(checked) {
+    setRememberApiKey(checked);
+  }
+
+  function clearSavedApiKey() {
+    setApiKey("");
+    setRememberApiKey(false);
+    setConnectionStatus("The locally saved key was removed from this browser.");
+  }
+
+  async function checkGeminiConnection() {
+    setIsTestingConnection(true);
+    setConnectionStatus("Checking the key and selected Gemini model...");
+    try {
+      const result = await testGeminiConnection(apiKey, model);
+      setConnectionStatus(`Connection successful. ${result.model} is available to this key.`);
+    } catch (error) {
+      setConnectionStatus(error instanceof Error ? error.message : "Gemini connection test failed.");
+    } finally {
+      setIsTestingConnection(false);
+    }
   }
 
   async function compareBatches() {
@@ -81,7 +122,8 @@ export default function AiDiagnosticsPanel({
         provider,
         model,
         payload,
-        storeAnalysis: saveToEvaluationLog
+        storeAnalysis: saveToEvaluationLog,
+        apiKey
       });
       setAnswer(result.text);
       setRequestStatus(result.stored
@@ -119,8 +161,32 @@ export default function AiDiagnosticsPanel({
                 <option value="gemini-3.7-flash">Gemini 3.7 Flash (slower)</option>
               </select>
             </label>
+            <label className="ai-api-key-field">
+              <span>Gemini API key</span>
+              <input
+                type="password"
+                autoComplete="off"
+                spellCheck="false"
+                value={apiKey}
+                onChange={(event) => updateApiKey(event.target.value)}
+                placeholder="Paste your key to use Gemini directly"
+                aria-describedby="ai-key-guidance"
+              />
+            </label>
+            <div className="ai-key-actions">
+              <label className="ai-remember-key">
+                <input type="checkbox" checked={rememberApiKey} onChange={(event) => updateRememberApiKey(event.target.checked)} />
+                <span>Remember only in this browser</span>
+              </label>
+              <button type="button" className="ghost-action" onClick={checkGeminiConnection} disabled={isTestingConnection || !apiKey.trim()}>
+                {isTestingConnection ? "Testing..." : "Test connection"}
+              </button>
+              {apiKey || rememberApiKey ? <button type="button" className="ghost-action" onClick={clearSavedApiKey}>Clear key</button> : null}
+              <span className="ai-connection-status" role="status">{connectionStatus}</span>
+            </div>
           </div>
         </div>
+        <p id="ai-key-guidance" className="ai-key-guidance">The key is masked and stays in this tab unless you choose to remember it in this browser. It is sent directly to Google only when testing or asking Gemini, never to GitHub or this app&apos;s repository.</p>
         <div className="ai-safety-note">
           <strong>Engineering safeguard</strong>
           <span>Sidewall roughness and other cleanroom causes are hypotheses, not diagnoses. Confirm them with repeat sweeps, reference structures, CD-SEM/process data, and cross-wafer consistency.</span>

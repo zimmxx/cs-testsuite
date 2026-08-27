@@ -154,12 +154,23 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 - Removed duplicated post-processed export actions from the propagation workspace while preserving report-generator export capability.
 - Added a visual development archive and a presentation-ready overview for CORNERSTONE technical and non-technical stakeholders.
 
+### 2026-08-27
+
+#### `v0.5.0` AI Diagnostics intelligence and Gemini integration
+- Added an AI Diagnostics workspace for failed-fit triage, transmission-spectrum anomaly screening, and comparison of GitHub-library MPW datasets.
+- Added deterministic local indicators for oscillation or ripple, abrupt discontinuities, high spectral roughness, and combined high-loss/roughness cases.
+- Added four selectable Gemini models with `gemini-3.1-flash-lite` as the default and application-level output limits for consumption control.
+- Added a server-side local proxy and deployment function so `GEMINI_API_KEY` is never required in browser code.
+- Added a checked-by-default Gemini logging option for later evaluation-dataset curation, with explicit no-storage and cleanup behaviour when disabled.
+- Added AI model, quota, logging, data-governance, API-key, and production-deployment documentation.
+- Revised the CORNERSTONE stakeholder presentation and release documentation for the `v0.5.0` local release candidate.
+
 ## Current Development State
 
 Latest recorded working-tree update:
-- Date: `2026-08-21`
-- Version: `v0.4.0`
-- Theme: `CORNERSTONE-branded interface and propagation-workspace usability`
+- Date: `2026-08-27`
+- Version: `v0.5.0`
+- Theme: `evidence-led AI Diagnostics, controlled Gemini use, and secure deployment preparation`
 
 ## How To Extend This File
 

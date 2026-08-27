@@ -57,6 +57,7 @@ import HeaterEfficiencyPanel from "./components/HeaterEfficiencyPanel";
 import FilenameConversionPanel from "./components/FilenameConversionPanel";
 import ReportGeneratorPanel from "./components/ReportGeneratorPanel";
 import ToastTray from "./components/ToastTray";
+import AiDiagnosticsPanel from "./components/AiDiagnosticsPanel";
 
 const APP_TABS = [
   { id: "propagation", label: "Propagation Loss", icon: "pulse" },
@@ -66,6 +67,12 @@ const APP_TABS = [
 
 const RAIL_SECTIONS = [
   { title: "Workspace", items: APP_TABS },
+  {
+    title: "Intelligence",
+    items: [
+      { id: "ai-diagnostics", label: "AI Diagnostics", icon: "spark" }
+    ]
+  },
   {
     title: "Library",
     items: [
@@ -194,8 +201,8 @@ const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
-  { label: "Feature Guide v0.4.0", path: "docs/releases/v0.4.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.4.0/FEATURES.md` },
-  { label: "Change Log v0.4.0", path: "docs/releases/v0.4.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.4.0/CHANGELOG.md` },
+  { label: "Feature Guide v0.5.0", path: "docs/releases/v0.5.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.5.0/FEATURES.md` },
+  { label: "Change Log v0.5.0", path: "docs/releases/v0.5.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.5.0/CHANGELOG.md` },
   { label: "Suggested Next Updates", path: "docs/suggested_update.md", href: `${REPO_DOC_BASE}docs/suggested_update.md` },
   { label: "Dataset Filename Standard", path: "docs/DATASET_FILENAME_STANDARD.md", href: `${REPO_DOC_BASE}docs/DATASET_FILENAME_STANDARD.md` }
 ];
@@ -1014,6 +1021,7 @@ const RAIL_ICON_PATHS = {
   scan: ["M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4", "M8 12h8M10 9v6M14 9v6"],
   spectrum: ["M3 15h3l2-7 3 10 3-13 3 10h4"],
   sliders: ["M4 7h7M15 7h5M4 17h3M11 17h9", "M11 4v6M7 14v6"],
+  spark: ["M12 2.8 14 9l6.2 2-6.2 2-2 6.2-2-6.2-6.2-2L10 9Z", "M19 3v4M17 5h4"],
   wafer: ["M12 3a9 9 0 1 0 6.4 15.3L16 16h-8l-2.4 2.3", "M8 8h8M6.5 12h11M8 16h8M12 4v12"],
   report: ["M6 3h9l4 4v14H6z", "M15 3v5h4", "M9 12h6M9 16h6"],
   settings: ["M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z", "M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"],
@@ -4280,6 +4288,14 @@ export default function App() {
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "manual-conversion-advanced" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} advanced /> : null}
           {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}
+          {activeTab === "ai-diagnostics" ? (
+            <AiDiagnosticsPanel
+              datasetLabel={currentDatasetMeta?.label || sourceMeta.name || "Current wafer dataset"}
+              propagationMetrics={metrics.propagation}
+              remoteDatasets={remoteLibraryDatasets}
+              onAnalyzeRemoteDataset={analyzeBundledDataset}
+            />
+          ) : null}
           {activeTab === "cd-sem" ? <CdSemLibraryPanel waferTemplate={currentWaferTemplate} propagationCells={propagationAllWaferCells} currentDatasetMeta={currentDatasetMeta} sourceMeta={sourceMeta} /> : null}
           {activeTab === "dashboard" ? <DatasetDashboardPanel remoteDatasets={remoteLibraryDatasets} onAnalyzeDataset={analyzeBundledDataset} onLoadDataset={(dataset) => loadBundledDataset(dataset, "dataset")} /> : null}
           {activeTab === "spectrum-viewer" ? (

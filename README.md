@@ -26,6 +26,7 @@ The app translates uploaded measurement data into a normalized internal schema, 
 - Spectrum Viewer (Advanced) for wavelength-window zoom, vertical axis control, and trace diagnostics
 - Device-aware insertion-loss characterization across all chips on the wafer
 - Editable manual-conversion output filenames with corrected rib-versus-strip trace naming
+- Evidence-led AI diagnostics for failed fits, spectral ripple/discontinuities, and MPW comparison
 
 Live deployment:
 - [https://zimmxx.github.io/cs-testsuite/](https://zimmxx.github.io/cs-testsuite/)
@@ -42,19 +43,19 @@ Live deployment:
 
 ## Current Release
 
-- App version: `v0.4.0`
-- Release date: `2026-08-21`
-- Focus: `CORNERSTONE-branded interface, clearer processing feedback, propagation-analysis refinements, and compact wafermap comparison workflow`
+- App version: `v0.5.0`
+- Release date: `2026-08-27`
+- Focus: `evidence-led AI Diagnostics, controlled Gemini model selection, secure API handling, and evaluation logging`
 
 Key updates in this release:
 
-- CORNERSTONE logo in the application shell, linked to the CORNERSTONE website
-- startup, dataset-loading, completion, and error feedback for long-running actions
-- corrected propagation summary metrics, including all measured chips and wafer-average propagation loss
-- MSE-based fit-quality reporting and simplified propagation summary cards
-- compact propagation-fit, propagation-spectrum, transmission-spectrum, and wafermap layout for 100% browser view
-- professional wafermap colour scaling with dataset-derived values, editable inputs, and reset-to-data controls
-- reorganised Workspace and Library navigation, simplified display settings, and consistent silicon-photonics icons
+- new AI Diagnostics workspace for failed-fit triage, spectral anomaly screening, and MPW comparison
+- deterministic local detection of ripple, oscillation, abrupt discontinuities, and high spectral roughness
+- Gemini interpretation using compact diagnostic evidence rather than complete raw spectra
+- four selectable Gemini models with `gemini-3.1-flash-lite` as the low-consumption default
+- checked-by-default evaluation logging control with an explicit no-storage path
+- server-side API-key handling for local development and a production function for server-capable hosting
+- dedicated AI Diagnostics documentation covering models, quotas, data handling, deployment, and evaluation
 
 ## Tech Stack
 
@@ -90,6 +91,22 @@ Preview the production build locally:
 pnpm preview
 ```
 
+### AI Diagnostics and Gemini
+
+The AI Diagnostics screen always performs its chip-failure and spectral-anomaly screening locally. Gemini is an optional interpretation layer and is selected as the default provider.
+
+See the [AI Diagnostics Intelligence Guide](docs/AI_DIAGNOSTICS.md) for the implemented model comparison, token-consumption guidance, logging and evaluation behaviour, API-key security, and the recommended production architecture.
+
+For local development:
+
+1. Copy `.env.example` to `.env.local`.
+2. Add a free-tier Google AI Studio key as `GEMINI_API_KEY`.
+3. Restart `pnpm dev`.
+
+Never rename the key to `VITE_GEMINI_API_KEY` or commit `.env.local`; `VITE_*` values are exposed to the browser. The Vite development proxy keeps `GEMINI_API_KEY` server-side.
+
+The GitHub Pages deployment is static and cannot hold API secrets. Same-origin deployment on a server-capable host is recommended. If the GitHub Pages frontend uses a separately hosted `functions/api/ai.js`, set `VITE_AI_API_URL` to that public endpoint during the build and add a strict CORS allow-list, preflight handling, rate limiting, and access control to the backend. Raw spectra are not sent to Gemini; the request contains compact screening metrics and flagged evidence only.
+
 ## Deployment
 
 Deployment is handled through [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml).
@@ -114,6 +131,12 @@ On push to `main`, GitHub Actions:
 - [`src/lib/analysis.js`](src/lib/analysis.js)
   Metric calculations, wafer summaries, report state generation, and propagation spectrum logic
 
+- [`src/lib/aiDiagnostics.js`](src/lib/aiDiagnostics.js)
+  Deterministic spectral screening, failed-chip evidence, MPW comparison, and provider-neutral AI request payloads
+
+- [`src/components/AiDiagnosticsPanel.jsx`](src/components/AiDiagnosticsPanel.jsx)
+  AI Diagnostics interface, Gemini provider selection, chip triage, and batch-comparison workflow
+
 - [`src/lib/manualConversion.js`](src/lib/manualConversion.js)
   Manual `.xlsx` to WST-compatible trace conversion and zip/manifest export
 
@@ -122,16 +145,17 @@ On push to `main`, GitHub Actions:
 
 ## Documentation Index
 
+- [AI Diagnostics Intelligence Guide](docs/AI_DIAGNOSTICS.md)
 - [Local Git and GitHub Workflow](docs/LOCAL_GIT_GITHUB_WORKFLOW.md)
 - [Versioning and Documentation Guide](docs/VERSIONING_AND_DOCUMENTATION.md)
 - [Dataset and Filename Standard](docs/DATASET_FILENAME_STANDARD.md)
-- [Release Features: v0.4.0](docs/releases/v0.4.0/FEATURES.md)
-- [Release Changelog: v0.4.0](docs/releases/v0.4.0/CHANGELOG.md)
-- [Release Checklist: v0.4.0](docs/releases/v0.4.0/RELEASE_CHECKLIST.md)
+- [Release Features: v0.5.0](docs/releases/v0.5.0/FEATURES.md)
+- [Release Changelog: v0.5.0](docs/releases/v0.5.0/CHANGELOG.md)
+- [Release Checklist: v0.5.0](docs/releases/v0.5.0/RELEASE_CHECKLIST.md)
 - [Suggested Next Updates](docs/suggested_update.md)
 - [Full Project Version History](docs/PROJECT_VERSION_HISTORY.md)
 - [App Development Screenshots](Screenshot%20-%20App%20Development/README.md)
-- [CORNERSTONE Presentation](docs/CORNERSTONE_Wafer_Post-Processing_Suite_Overview_v0.4.0.pptx)
+- [CORNERSTONE Presentation](docs/CORNERSTONE_Wafer_Post-Processing_Suite_Overview_v0.5.0.pptx)
 
 ## Brand Asset
 

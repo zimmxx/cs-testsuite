@@ -248,13 +248,113 @@ export function buildAiEvidencePayload({ datasetLabel, diagnostics, batchCompari
   };
 }
 
+const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
+const GEMINI_MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const DIRECT_BACKGROUND_MODELS = new Set(["gemini-3.6-flash", "gemini-3.7-flash"]);
+const DIRECT_OUTPUT_LIMITS = new Map([
+  ["gemini-3.1-flash-lite", 900],
+  ["gemini-3.5-flash-lite", 700],
+  ["gemini-3.6-flash", 900],
+  ["gemini-3.7-flash", 1400]
+]);
+
+function buildGeminiPrompt(payload) {
+  return `You are a cautious silicon-photonics wafer diagnostics assistant. Use only the supplied evidence. Distinguish observations, hypotheses, confidence, and recommended verification. Never claim that sidewall roughness, lithography, etch, contamination, coupling, or instrumentation is proven from spectra alone. Return a concise engineering summary with: Priority findings; Possible explanations; Checks to run next; MPW comparison when present. Evidence JSON:\n${JSON.stringify(payload)}`;
+}
+
+function readInteractionText(result) {
+  return result?.steps
+    ?.filter((step) => step.type === "model_output")
+    .flatMap((step) => step.content || [])
+    .filter((content) => content.type === "text")
+    .map((content) => content.text || "")
+    .join("\n")
+    .trim();
+}
+
+async function directGeminiFetch(url, apiKey, options = {}, timeoutMs = 20_000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey, ...options.headers }
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function runDirectGeminiInteraction(apiKey, model, payload, storeAnalysis) {
+  const useBackground = DIRECT_BACKGROUND_MODELS.has(model);
+  const createResponse = await directGeminiFetch(GEMINI_INTERACTIONS_URL, apiKey, {
+    method: "POST",
+    body: JSON.stringify({
+      model,
+      input: buildGeminiPrompt(payload),
+      store: useBackground || storeAnalysis,
+      background: useBackground,
+      generation_config: { temperature: 0.2, max_output_tokens: DIRECT_OUTPUT_LIMITS.get(model) || 900 }
+    })
+  }, 30_000);
+  let interaction = await createResponse.json();
+  if (!createResponse.ok) throw new Error(interaction?.error?.message || `Gemini request failed (${createResponse.status}).`);
+  if (!useBackground) return interaction;
+
+  const deadline = Date.now() + 75_000;
+  try {
+    while (interaction.status === "in_progress" && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const pollResponse = await directGeminiFetch(`${GEMINI_INTERACTIONS_URL}/${encodeURIComponent(interaction.id)}`, apiKey);
+      interaction = await pollResponse.json();
+      if (!pollResponse.ok) throw new Error(interaction?.error?.message || `Gemini status check failed (${pollResponse.status}).`);
+    }
+    if (interaction.status === "in_progress") throw new Error("Gemini is taking longer than 75 seconds. Please try again shortly.");
+    return interaction;
+  } finally {
+    if (!storeAnalysis && interaction?.id) {
+      try {
+        const interactionUrl = `${GEMINI_INTERACTIONS_URL}/${encodeURIComponent(interaction.id)}`;
+        if (interaction.status === "in_progress") {
+          await directGeminiFetch(`${interactionUrl}/cancel`, apiKey, { method: "POST", headers: { "Api-Revision": "2026-05-20" } }, 10_000);
+        }
+        await directGeminiFetch(interactionUrl, apiKey, { method: "DELETE", headers: { "Api-Revision": "2026-05-20" } }, 10_000);
+      } catch {
+        // Cleanup is best-effort and must not hide a completed response.
+      }
+    }
+  }
+}
+
+export async function testGeminiConnection(apiKey, model) {
+  const key = apiKey?.trim();
+  if (!key) throw new Error("Paste a Gemini API key before testing the connection.");
+  const response = await directGeminiFetch(GEMINI_MODELS_URL, key, { method: "GET" });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result?.error?.message || `Gemini connection failed (${response.status}).`);
+  const modelAvailable = (result.models || []).some((item) => item.name === `models/${model}` || item.name === model);
+  if (!modelAvailable) throw new Error(`Gemini accepted the key, but ${model} is not available to this project.`);
+  return { model };
+}
+
 export async function requestAiInterpretation({
   provider = "gemini",
   model = "gemini-3.1-flash-lite",
   payload,
-  storeAnalysis = true
+  storeAnalysis = true,
+  apiKey = ""
 }) {
-  const endpoint = import.meta.env.VITE_AI_API_URL || "/api/ai";
+  const directKey = apiKey.trim();
+  if (directKey) {
+    const result = await runDirectGeminiInteraction(directKey, model, payload, storeAnalysis);
+    return { text: readInteractionText(result) || "Gemini returned an empty response.", stored: storeAnalysis };
+  }
+  const configuredEndpoint = import.meta.env.VITE_AI_API_URL?.trim();
+  const endpoint = configuredEndpoint || (import.meta.env.DEV ? "/api/ai" : "");
+  if (!endpoint) {
+    throw new Error("Paste your Gemini API key above, or configure VITE_AI_API_URL with the HTTPS address of the protected AI backend. The local diagnostics above remain available.");
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90_000);
   try {

@@ -1,0 +1,7 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cs-testsuite-ai",
+  "main": "workers/ai-proxy.js",
+  "compatibility_date": "2026-08-27",
+  "workers_dev": true
+}

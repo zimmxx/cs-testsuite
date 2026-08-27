@@ -37,6 +37,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build app
+        env:
+          # Repository variable, not a secret: this is only the public HTTPS backend address.
+          VITE_AI_API_URL: ${{ vars.VITE_AI_API_URL }}
         run: pnpm build
 
       - name: Upload artifact

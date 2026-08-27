@@ -160,8 +160,9 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 - Added an AI Diagnostics workspace for failed-fit triage, transmission-spectrum anomaly screening, and comparison of GitHub-library MPW datasets.
 - Added deterministic local indicators for oscillation or ripple, abrupt discontinuities, high spectral roughness, and combined high-loss/roughness cases.
 - Added four selectable Gemini models with `gemini-3.1-flash-lite` as the default and application-level output limits for consumption control.
-- Added a server-side local proxy and deployment function so `GEMINI_API_KEY` is never required in browser code.
+- Added a server-side local proxy and deployment function for managed credentials, plus a masked user-managed browser-key option for individual GitHub Pages use.
 - Added a checked-by-default Gemini logging option for later evaluation-dataset curation, with explicit no-storage and cleanup behaviour when disabled.
+- Prevented the static GitHub Pages build from calling its unavailable `/api/ai` route; added a documented Cloudflare Worker deployment route, CORS preflight, request-size checks, and a public backend-URL build variable.
 - Added AI model, quota, logging, data-governance, API-key, and production-deployment documentation.
 - Revised the CORNERSTONE stakeholder presentation and release documentation for the `v0.5.0` local release candidate.
 

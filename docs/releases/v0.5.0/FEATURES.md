@@ -37,6 +37,8 @@ The server validates every requested model against an allow-list. Unsupported mo
 
 ## API and Security Architecture
 
+- AI Diagnostics can accept a user-entered, masked Gemini key for direct browser-to-Gemini requests; it is memory-only by default and may be explicitly stored in that browser profile
+- users can test the key/model connection before submitting diagnostic evidence and clear any locally remembered key
 - local development reads `GEMINI_API_KEY` from `.env.local`
 - the Vite development proxy keeps the key out of React/browser code
 - `functions/api/ai.js` provides the server-side production handler for a server-capable host

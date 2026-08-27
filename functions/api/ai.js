@@ -15,8 +15,42 @@ const BACKGROUND_GEMINI_MODELS = new Set(["gemini-3.6-flash", "gemini-3.7-flash"
 const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const GEMINI_POLL_LIMIT_MS = 75_000;
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+const MAX_REQUEST_BYTES = 100_000;
+
+function corsHeaders(context) {
+  const origin = context.request.headers.get("Origin");
+  if (!origin) return {};
+  const sameOrigin = new URL(context.request.url).origin;
+  const configuredOrigin = context.env.AI_ALLOWED_ORIGIN;
+  const allowedOrigins = new Set([sameOrigin, configuredOrigin, "https://zimmxx.github.io"].filter(Boolean));
+  if (!allowedOrigins.has(origin)) return null;
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin"
+  };
+}
+
+function json(data, status = 200, headers = {}) {
+  return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", ...headers } });
+}
+
+async function readRequestJson(request) {
+  const declaredLength = Number(request.headers.get("Content-Length"));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_REQUEST_BYTES) {
+    throw new Error("AI request payload is too large.");
+  }
+  const body = await request.text();
+  if (new TextEncoder().encode(body).byteLength > MAX_REQUEST_BYTES) {
+    throw new Error("AI request payload is too large.");
+  }
+  try {
+    return JSON.parse(body || "{}");
+  } catch {
+    throw new Error("AI request body must be valid JSON.");
+  }
 }
 
 function readInteractionText(result) {
@@ -100,18 +134,26 @@ async function runGeminiInteraction(apiKey, model, prompt, storeAnalysis) {
 }
 
 export async function onRequestPost(context) {
+  const headers = corsHeaders(context);
+  if (headers === null) return json({ error: "This website origin is not allowed to use the AI service." }, 403);
   const apiKey = context.env.GEMINI_API_KEY;
-  if (!apiKey) return json({ error: "Gemini is not configured. Add GEMINI_API_KEY as a server-side secret; local diagnostics are still available." }, 503);
+  if (!apiKey) return json({ error: "Gemini is not configured. Add GEMINI_API_KEY as a server-side secret; local diagnostics are still available." }, 503, headers);
   try {
-    const body = await context.request.json();
-    if (body.provider !== "gemini") return json({ error: "This provider is not enabled yet." }, 400);
+    const body = await readRequestJson(context.request);
+    if (body.provider !== "gemini") return json({ error: "This provider is not enabled yet." }, 400, headers);
     const model = ALLOWED_MODELS.has(body.model) ? body.model : DEFAULT_GEMINI_MODEL;
     const storeAnalysis = body.storeAnalysis === true;
     const prompt = `You are a cautious silicon-photonics wafer diagnostics assistant. Use only the supplied evidence. Distinguish observations, hypotheses, confidence, and recommended verification. Never claim that sidewall roughness, lithography, etch, contamination, coupling, or instrumentation is proven from spectra alone. Return a concise engineering summary with: Priority findings; Possible explanations; Checks to run next; MPW comparison when present. Evidence JSON:\n${JSON.stringify(body.payload)}`;
     const result = await runGeminiInteraction(apiKey, model, prompt, storeAnalysis);
     const text = readInteractionText(result);
-    return json({ provider: "gemini", model, text: text || "Gemini returned an empty response.", stored: storeAnalysis });
+    return json({ provider: "gemini", model, text: text || "Gemini returned an empty response.", stored: storeAnalysis }, 200, headers);
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Unable to process the AI request." }, 500);
+    return json({ error: error instanceof Error ? error.message : "Unable to process the AI request." }, 500, headers);
   }
+}
+
+export async function onRequestOptions(context) {
+  const headers = corsHeaders(context);
+  if (headers === null) return json({ error: "This website origin is not allowed to use the AI service." }, 403);
+  return new Response(null, { status: 204, headers });
 }

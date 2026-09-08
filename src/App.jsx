@@ -393,6 +393,81 @@ async function readFilesInBatches(files, reader, batchSize = UPLOAD_BATCH_SIZE, 
   return rows;
 }
 
+function isDatasetConfigFile(file) {
+  const name = String(file?.name || "").toLowerCase();
+  return name === ROUTE_CONFIG_FILE_NAME || name === LEGACY_WAVEGUIDE_CONFIG_FILE_NAME || name === "waveguide.config";
+}
+
+function datasetPackageFileName(file) {
+  return String(file?.name || "").split(/[\\/]/).pop().toLowerCase();
+}
+
+function isDatasetMetadataFile(file) {
+  return datasetPackageFileName(file) === "metadata.json";
+}
+
+function isDatasetReadmeFile(file) {
+  return /^readme(?:\.md|\.txt)?$/i.test(datasetPackageFileName(file));
+}
+
+function isDatasetManifestFile(file) {
+  return datasetPackageFileName(file) === "filename-manifest.csv";
+}
+
+function isDatasetPackageCompanionFile(file) {
+  return isDatasetConfigFile(file) || isDatasetMetadataFile(file) || isDatasetReadmeFile(file) || isDatasetManifestFile(file);
+}
+
+function readmeValue(text, label) {
+  const match = String(text || "").match(new RegExp(`^\\s*-?\\s*${label}:\\s*(.+?)\\s*$`, "im"));
+  return match?.[1]?.replace(/`/g, "").trim() || "";
+}
+
+async function readUploadedDatasetPackage(files) {
+  const metadataFile = files.find(isDatasetMetadataFile);
+  if (metadataFile) {
+    try {
+      const metadata = JSON.parse(await metadataFile.text());
+      return metadata && typeof metadata === "object" ? metadata : {};
+    } catch {
+      throw new Error("metadata.json is not valid JSON.");
+    }
+  }
+  const readmeFile = files.find(isDatasetReadmeFile);
+  if (!readmeFile) return {};
+  const readme = await readmeFile.text();
+  return {
+    projectName: readmeValue(readme, "Project"),
+    slot: readmeValue(readme, "Slot"),
+    processStep: readmeValue(readme, "Process step"),
+    platform: readmeValue(readme, "Platform"),
+    opticalMode: readmeValue(readme, "Optical mode"),
+    buildingBlock: readmeValue(readme, "Building block"),
+    measurementType: readmeValue(readme, "Measurement type"),
+    alignmentMode: readmeValue(readme, "Alignment"),
+    measurementDate: readmeValue(readme, "Measurement date")
+  };
+}
+
+async function readUploadedDatasetConfig(files, metadata = {}) {
+  if (!files.length && !metadata.routeConfig && !metadata.waveguideConfig) return {};
+  const parsed = await Promise.all(files.map(async (file) => {
+    try {
+      return { file, value: JSON.parse(await file.text()) };
+    } catch {
+      throw new Error(`${file.name} is not valid JSON configuration.`);
+    }
+  }));
+  const route = parsed.find(({ file, value }) => file.name.toLowerCase() === ROUTE_CONFIG_FILE_NAME || Array.isArray(value?.routes))?.value || metadata.routeConfig;
+  const legacy = parsed.find(({ file }) => file.name.toLowerCase() === LEGACY_WAVEGUIDE_CONFIG_FILE_NAME || file.name.toLowerCase() === "waveguide.config")?.value || metadata.waveguideConfig;
+  const config = route || legacy;
+  if (!config || typeof config !== "object") throw new Error("No supported route or waveguide configuration was found.");
+  return {
+    ...buildWaveguideSettingsPatch(config),
+    ...(route ? { routeConfig: route } : {})
+  };
+}
+
 async function readItemsInBatches(items, reader, batchSize = BUNDLED_ANALYSIS_BATCH_SIZE, onProgress) {
   const results = [];
   for (let index = 0; index < items.length; index += batchSize) {
@@ -3019,21 +3094,31 @@ export default function App() {
   async function handleFileUpload(event) {
     const files = Array.from(event.target.files || []);
     if (!files.length || isUploadingFiles) return;
+    const configFiles = files.filter(isDatasetConfigFile);
+    const packageFiles = files.filter(isDatasetPackageCompanionFile);
+    const measurementFiles = files.filter((file) => !isDatasetPackageCompanionFile(file));
+    if (!measurementFiles.length) {
+      const message = "Select at least one measurement trace together with any route-config.json or waveguide-config.json file.";
+      setStatusMessage(message);
+      pushToast("Measurement trace required", message, "danger");
+      if (event.target) event.target.value = "";
+      return;
+    }
     setIsUploadingFiles(true);
     setWorkspaceActivity({
       title: "Reading measurement files...",
-      message: `Preparing ${files.length} selected file${files.length === 1 ? "" : "s"} for analysis.`
+      message: `Preparing ${measurementFiles.length} measurement file${measurementFiles.length === 1 ? "" : "s"}${configFiles.length ? ` and ${configFiles.length} configuration file${configFiles.length === 1 ? "" : "s"}` : ""} for analysis.`
     });
     await waitForNextPaint();
     try {
       const rows = await readFilesInBatches(
-        files,
-        (file) => readFileRows(file, {
+        measurementFiles,
+        async (file) => (await readFileRows(file, {
           launchPowerDbm: sourceMeta.launchPowerDbm,
           defaultMetricFamily: sourceMeta.defaultMetricFamily,
           defaultWavelengthNm: sourceMeta.defaultWavelengthNm,
           traceValueUnit: sourceMeta.traceInputUnit
-        }),
+        })).map((row) => ({ ...row, __source_name: row.source_name || file.name })),
         UPLOAD_BATCH_SIZE,
         (completed, total) => {
           setStatusMessage(`Reading measurement files... ${completed}/${total} processed.`);
@@ -3048,31 +3133,47 @@ export default function App() {
         appendAudit("upload", "Upload failed", `The uploaded selection (${files.map((file) => file.name).join(", ")}) did not produce readable rows.`);
         return;
       }
-      const firstType = sourceTypeLabel(files[0].name);
-      const sharedType = files.every((file) => sourceTypeLabel(file.name) === firstType)
-        ? (files.length > 1 && firstType === "Automated WST trace" ? "Automated WST trace set" : firstType)
+      const packageMetadata = await readUploadedDatasetPackage(packageFiles);
+      const configPatch = await readUploadedDatasetConfig(configFiles, packageMetadata);
+      const firstType = sourceTypeLabel(measurementFiles[0].name);
+      const sharedType = measurementFiles.every((file) => sourceTypeLabel(file.name) === firstType)
+        ? (measurementFiles.length > 1 && firstType === "Automated WST trace" ? "Automated WST trace set" : firstType)
         : "Mixed measurement upload";
       const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
-      const nextSourceMeta = { ...sourceMeta, name: files.length === 1 ? files[0].name : `${files.length} measurement files`, type: sharedType, traceInputUnit: sourceMeta.traceInputUnit || "watts" };
-      const nextPresentation = getDatasetPresentation({ projectName: "", waferName: "", sourceMeta: nextSourceMeta, rawRows: rows, files: files.map((file) => file.name) });
-      setProjectName(nextPresentation.projectDisplayName);
-      setWaferName(nextPresentation.waferDisplayName);
+      const nextSourceMeta = { ...sourceMeta, ...configPatch, notes: packageMetadata.notes || sourceMeta.notes, name: measurementFiles.length === 1 ? measurementFiles[0].name : `${measurementFiles.length} measurement files`, type: sharedType, traceInputUnit: sourceMeta.traceInputUnit || "watts" };
+      const nextProjectName = packageMetadata.projectName || packageMetadata.mpwRun || "";
+      const nextWaferName = packageMetadata.waferName || packageMetadata.slot || "";
+      const nextMeasurementDate = packageMetadata.measurementDate || packageMetadata.selectedDate || "";
+      const nextPresentation = getDatasetPresentation({ projectName: nextProjectName, waferName: nextWaferName, sourceMeta: nextSourceMeta, rawRows: rows, files: measurementFiles.map((file) => file.name) });
+      setProjectName(nextProjectName || nextPresentation.projectDisplayName);
+      setWaferName(nextWaferName || nextPresentation.waferDisplayName);
+      setSelectedDate(nextMeasurementDate);
       setExcludedPropagationChipIds({});
       setRawRows(rows);
       setColumnMap(inferredMap);
       setSourceMeta(nextSourceMeta);
       setDatasetNamingDraft(createDatasetNamingDraft({
-        projectName: nextPresentation.projectDisplayName,
-        waferName: nextPresentation.waferDisplayName,
-        selectedDate: "",
+        projectName: nextProjectName || nextPresentation.projectDisplayName,
+        waferName: nextWaferName || nextPresentation.waferDisplayName,
+        selectedDate: nextMeasurementDate,
         rawRows: rows,
         sourceMeta: nextSourceMeta,
-        files: files.map((file) => file.name)
+        files: measurementFiles.map((file) => file.name),
+        namingOverrides: {
+          projectName: nextProjectName,
+          slot: packageMetadata.slot || nextWaferName,
+          processStep: packageMetadata.processStep,
+          platformLabel: packageMetadata.platform || packageMetadata.platformLabel,
+          opticalMode: packageMetadata.opticalMode,
+          buildingBlockLabel: packageMetadata.buildingBlock || packageMetadata.buildingBlockLabel,
+          measurementType: packageMetadata.measurementType,
+          alignmentMode: packageMetadata.alignmentMode
+        }
       }));
       setQuickDatasetSelection("");
-      setStatusMessage(files.length === 1 ? `Loaded ${rows.length} rows from ${files[0].name}.` : `Loaded ${rows.length} rows from ${files.length} uploaded measurement files.`);
-      appendAudit("upload", "Measurement file uploaded", `Loaded ${rows.length} rows from ${files.length} file(s) as ${sharedType}.`);
-      pushToast("Files loaded", files.length === 1 ? `${files[0].name} loaded successfully.` : `${files.length} measurement files loaded.`, "success");
+      setStatusMessage(`${measurementFiles.length === 1 ? `Loaded ${rows.length} rows from ${measurementFiles[0].name}.` : `Loaded ${rows.length} rows from ${measurementFiles.length} uploaded measurement files.`}${configFiles.length ? " Route configuration applied." : ""}${packageMetadata.projectName ? " Dataset metadata applied." : ""}`);
+      appendAudit("upload", "Measurement file uploaded", `Loaded ${rows.length} rows from ${measurementFiles.length} file(s) as ${sharedType}${configFiles.length ? "; applied route/waveguide configuration" : ""}${packageMetadata.projectName ? "; applied package metadata" : ""}.`);
+      pushToast("Files loaded", `${measurementFiles.length === 1 ? `${measurementFiles[0].name} loaded` : `${measurementFiles.length} measurement files loaded`}${packageMetadata.projectName ? " with dataset metadata" : ""}${configFiles.length ? " and route configuration" : ""}.`, "success");
       appendAudit("dataset", "Workspace updated", `Loaded ${nextSourceMeta.name} into the active workspace. Save it as a dataset snapshot, review the naming, and publish it later from the Dataset Snapshots section if you want to keep it.`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Unknown upload error.";
@@ -4057,7 +4158,7 @@ export default function App() {
                   />
                 </div>
               </div>
-              <label className="upload-measurement-button"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls" onChange={handleFileUpload} disabled={isUploadingFiles} /><span>{isUploadingFiles ? "Processing Files..." : "Upload Measurement Files"}</span></label>
+              <label className="upload-measurement-button"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls,.json,.config" onChange={handleFileUpload} disabled={isUploadingFiles} /><span>{isUploadingFiles ? "Processing Files..." : "Upload Measurement Files"}</span></label>
             </div>
           </header>
           <WorkspaceProgressNotice activity={activeWorkspaceNotice} />

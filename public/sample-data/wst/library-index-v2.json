@@ -929,6 +929,176 @@
   },
   {
     "schemaVersion": 4,
+    "datasetId": "mpw46_soi220nmpassive_slot9_step36_1550nm_te_strip_waveguide_propagationloss_operatoralign",
+    "id": "mpw46_soi220nmpassive_slot9_step36_1550nm_te_strip_waveguide_propagationloss_operatoralign",
+    "label": "MPW46_SOI220nmPassive_Slot9_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "projectName": "MPW46",
+    "waferName": "Slot9",
+    "selectedDate": "2026-03-06",
+    "measurementDate": "2026-03-06",
+    "publishedDate": "2026-09-08",
+    "folder": "sample-data/wst/MPW46_SOI220nmPassive_Slot9_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "traceFolder": "sample-data/wst/MPW46_SOI220nmPassive_Slot9_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "sourceType": "Automated WST trace set",
+    "measurementMode": "Automated WST",
+    "measurementType": "PropagationLoss",
+    "opticalMode": "1550nm_TE",
+    "alignmentMode": "OperatorAlign",
+    "mpw": "MPW46",
+    "slot": "Slot9",
+    "processStep": "Step36",
+    "waveguideType": "Waveguide",
+    "waveguideFamily": "Waveguide",
+    "platformId": "soi220nmpassive",
+    "platformLabel": "SOI220nmPassive",
+    "buildingBlockId": "strip_waveguide",
+    "buildingBlockLabel": "STRIP_Waveguide",
+    "pdkMonitorBuildingBlock": "SOI220nm_1550nm_TE_STRIP_Waveguide",
+    "traceCount": 42,
+    "rowCount": 798042,
+    "chipCount": 7,
+    "waveguideCount": 6,
+    "wavelengthMinNm": 1525,
+    "wavelengthMaxNm": 1620,
+    "files": [
+      "Chip37_WG1.txt",
+      "Chip37_WG2.txt",
+      "Chip37_WG3.txt",
+      "Chip37_WG4.txt",
+      "Chip37_WG5.txt",
+      "Chip37_WG6.txt",
+      "Chip40_WG1.txt",
+      "Chip40_WG2.txt",
+      "Chip40_WG3.txt",
+      "Chip40_WG4.txt",
+      "Chip40_WG5.txt",
+      "Chip40_WG6.txt",
+      "Chip46_WG1.txt",
+      "Chip46_WG2.txt",
+      "Chip46_WG3.txt",
+      "Chip46_WG4.txt",
+      "Chip46_WG5.txt",
+      "Chip46_WG6.txt",
+      "Chip49_WG1.txt",
+      "Chip49_WG2.txt",
+      "Chip49_WG3.txt",
+      "Chip49_WG4.txt",
+      "Chip49_WG5.txt",
+      "Chip49_WG6.txt",
+      "Chip52_WG1.txt",
+      "Chip52_WG2.txt",
+      "Chip52_WG3.txt",
+      "Chip52_WG4.txt",
+      "Chip52_WG5.txt",
+      "Chip52_WG6.txt",
+      "Chip61_WG1.txt",
+      "Chip61_WG2.txt",
+      "Chip61_WG3.txt",
+      "Chip61_WG4.txt",
+      "Chip61_WG5.txt",
+      "Chip61_WG6.txt",
+      "Chip64_WG1.txt",
+      "Chip64_WG2.txt",
+      "Chip64_WG3.txt",
+      "Chip64_WG4.txt",
+      "Chip64_WG5.txt",
+      "Chip64_WG6.txt"
+    ],
+    "readme": "MPW46_SOI220nmPassive_Slot9_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/README.md",
+    "metadataFile": "MPW46_SOI220nmPassive_Slot9_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/metadata.json",
+    "configFile": "MPW46_SOI220nmPassive_Slot9_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/route-config.json",
+    "filenameManifest": "MPW46_SOI220nmPassive_Slot9_Step36_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/filename-manifest.csv",
+    "routeConfig": {
+      "measurementType": "PropagationLoss",
+      "routes": [
+        {
+          "route": "WG1",
+          "lengthMm": 0
+        },
+        {
+          "route": "WG2",
+          "lengthMm": 4
+        },
+        {
+          "route": "WG3",
+          "lengthMm": 8
+        },
+        {
+          "route": "WG4",
+          "lengthMm": 12
+        },
+        {
+          "route": "WG5",
+          "lengthMm": 16
+        },
+        {
+          "route": "WG6",
+          "lengthMm": 20
+        }
+      ]
+    },
+    "waveguideConfig": {
+      "propagationWaveguideCount": 6,
+      "propagationWaveguideStartMm": 0,
+      "propagationWaveguideIntervalMm": 4,
+      "propagationWaveguideManualMode": false,
+      "waveguideLengths": [
+        {
+          "index": 1,
+          "lengthMm": 0
+        },
+        {
+          "index": 2,
+          "lengthMm": 4
+        },
+        {
+          "index": 3,
+          "lengthMm": 8
+        },
+        {
+          "index": 4,
+          "lengthMm": 12
+        },
+        {
+          "index": 5,
+          "lengthMm": 16
+        },
+        {
+          "index": 6,
+          "lengthMm": 20
+        }
+      ]
+    },
+    "analyticsSummary": {
+      "propagationAverage": 3.3947533599693602,
+      "yield": 100,
+      "measuredChips": 7,
+      "computedAt": "2026-09-08T15:45:53.919Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [],
+      "includedChipIds": [],
+      "totalChipCount": 0,
+      "selectedChipCount": 0,
+      "measuredChips": 0,
+      "fittedChips": 0,
+      "failedFits": 0,
+      "savedAt": "",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 0,
+        "propagationWindowNm": 0,
+        "propagationSpectralStepNm": 0,
+        "propagationMseThreshold": 0
+      }
+    },
+    "copiedToFolder": true,
+    "processedInTestingSuite": true,
+    "notes": "",
+    "source": "github-library-v4",
+    "librarySchemaVersion": 4
+  },
+  {
+    "schemaVersion": 4,
     "datasetId": "mpw46_soi220nmpassive_slot9_step36_1550nm_te_rib_waveguide_propagationloss_operatoralign",
     "id": "mpw46_soi220nmpassive_slot9_step36_1550nm_te_rib_waveguide_propagationloss_operatoralign",
     "label": "MPW46_SOI220nmPassive_Slot9_Step36_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
@@ -940,14 +1110,14 @@
     "folder": "sample-data/wst/MPW46_SOI220nmPassive_Slot9_Step36_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
     "traceFolder": "sample-data/wst/MPW46_SOI220nmPassive_Slot9_Step36_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
     "sourceType": "Automated WST trace set",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "measurementType": "PropagationLoss",
     "opticalMode": "1550nm_TE",
     "alignmentMode": "OperatorAlign",
     "mpw": "MPW46",
     "slot": "Slot9",
     "processStep": "Step36",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
     "waveguideFamily": "Waveguide",
     "platformId": "soi220nmpassive",
     "platformLabel": "SOI220nmPassive",
@@ -1095,7 +1265,11 @@
     "processedInTestingSuite": true,
     "notes": "",
     "source": "github-library-v4",
-    "librarySchemaVersion": 4
+    "librarySchemaVersion": 4,
+    "projectDisplayName": "MPW46",
+    "waferDisplayName": "Slot9",
+    "platformDisplayName": "",
+    "projectCode": "MPW46"
   },
   {
     "schemaVersion": 4,

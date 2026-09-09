@@ -1,6 +1,10 @@
 # Suggested Updates
 
-This document captures the most useful next steps after the `v0.5.0` update.
+This document captures the most useful next steps after the `v0.6.0` update.
+
+## MPW follow-up
+
+The database and comparison workflow is implemented in v0.6.0. Next, verify the first shared database publication with real repository permissions, agree on reviewed platform/mode naming for historical records, and reconcile any overlapping library/workbook cohorts. Add end-to-end coverage for concurrent editors and export behaviour as the shared database grows. Keep unknown metadata explicit until reviewed.
 
 ## Recommended Next Step
 

@@ -1,0 +1,17 @@
+.mpw-comparison .mpw-project-picker { border: 1px solid #dedbea; border-radius: 10px; padding: 14px; margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px 20px; }
+.mpw-project-picker label { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.mpw-project-picker input { width: auto; }
+.mpw-project-picker legend { font-weight: 600; padding: 0 6px; }
+.mpw-project-picker small { font-weight: 400; }
+.mpw-chart-card { background: white; border: 1px solid #dddfea; border-radius: 16px; padding: 20px; margin-top: 18px; }
+.mpw-chart-legend { display: flex; flex-wrap: wrap; gap: 10px 22px; font-size: 13px; }
+.mpw-chart-legend b { font-size: 18px; }
+.mpw-chart-scroll { overflow-x: auto; margin-top: 12px; }
+.mpw-chart-scroll svg { width: 100%; display: block; font-family: Arial, sans-serif; font-size: 12px; fill: #475467; }
+.mpw-chart-scroll g[role=button] { cursor: pointer; }
+.mpw-chart-scroll g[role=button]:focus { outline: none; }
+.mpw-chart-scroll g[role=button]:focus > circle, .mpw-chart-scroll g[role=button]:focus > path { stroke: #101828; stroke-width: 3px; }
+.mpw-point-details { background: #f4f2fb; padding: 14px; border-radius: 8px; min-height: 65px; font-size: 13px; }
+.mpw-point-details span { display: block; margin-top: 6px; }
+.mpw-comparison td small { display: block; margin-top: 5px; color: #667085; }
+@media(max-width:600px) { .mpw-chart-card { padding: 12px; } .mpw-project-picker legend small { display: block; } }

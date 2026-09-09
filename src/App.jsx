@@ -58,6 +58,8 @@ import FilenameConversionPanel from "./components/FilenameConversionPanel";
 import ReportGeneratorPanel from "./components/ReportGeneratorPanel";
 import ToastTray from "./components/ToastTray";
 import AiDiagnosticsPanel from "./components/AiDiagnosticsPanel";
+import MpwComparisonPanel from "./components/MpwComparisonPanel";
+import MpwDatabasePanel from "./components/MpwDatabasePanel";
 
 const APP_TABS = [
   { id: "propagation", label: "Propagation Loss", icon: "pulse" },
@@ -77,6 +79,8 @@ const RAIL_SECTIONS = [
     title: "Library",
     items: [
       { id: "dashboard", label: "Dashboard", icon: "grid" },
+      { id: "mpw-database", label: "MPW Database", icon: "database" },
+      { id: "mpw-comparison", label: "MPW Comparison", icon: "database" },
       { id: "datasets", label: "Dataset Snapshots", icon: "database" },
       { id: "comparison", label: "Comparison", icon: "compare" },
       { id: "manual-conversion", label: "Manual Conversion", icon: "document" },
@@ -201,8 +205,8 @@ const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
-  { label: "Feature Guide v0.5.0", path: "docs/releases/v0.5.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.5.0/FEATURES.md` },
-  { label: "Change Log v0.5.0", path: "docs/releases/v0.5.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.5.0/CHANGELOG.md` },
+  { label: "Feature Guide v0.6.0", path: "docs/releases/v0.6.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.6.0/FEATURES.md` },
+  { label: "Change Log v0.6.0", path: "docs/releases/v0.6.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.6.0/CHANGELOG.md` },
   { label: "Suggested Next Updates", path: "docs/suggested_update.md", href: `${REPO_DOC_BASE}docs/suggested_update.md` },
   { label: "Dataset Filename Standard", path: "docs/DATASET_FILENAME_STANDARD.md", href: `${REPO_DOC_BASE}docs/DATASET_FILENAME_STANDARD.md` }
 ];
@@ -745,6 +749,17 @@ function buildWaveguideSettingsPatch(values = {}) {
   };
 }
 
+async function fetchDatasetAsset(definition, fileName) {
+  if (!definition.mpwRemote) return fetch(bundledAssetUrl(`${definition.folder}/${fileName}`), { cache: 'no-store' });
+  if (!String(definition.folder).startsWith('sample-data/wst/') || `${definition.folder}/${fileName}`.split('/').includes('..')) throw new Error('Invalid dataset asset path.');
+  const config = definition.mpwRemote;
+  const path = `public/${definition.folder}/${fileName}`.split('/').map(encodeURIComponent).join('/');
+  if (!config.token) return fetch(`https://raw.githubusercontent.com/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/${config.branch.split('/').map(encodeURIComponent).join('/')}/${path}`, { cache: 'no-store' });
+  return fetch(`https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/contents/${path}?ref=${encodeURIComponent(config.branch)}`, {
+    headers: { Accept: 'application/vnd.github.raw+json', ...(config.token ? { Authorization: `Bearer ${config.token}` } : {}) }, cache: 'no-store'
+  });
+}
+
 async function fetchBundledRouteConfig(definition = {}) {
   const embeddedConfig = definition.routeConfig || definition.waveguideConfig;
   if (embeddedConfig) return embeddedConfig;
@@ -759,7 +774,7 @@ async function fetchBundledRouteConfig(definition = {}) {
 
   for (const fileName of candidateNames) {
     try {
-      const response = await fetch(bundledAssetUrl(`${definition.folder}/${fileName}`), { cache: "no-store" });
+      const response = await fetchDatasetAsset(definition, fileName);
       if (response.ok) return await response.json();
     } catch {
       // Continue to the next supported configuration filename.
@@ -2258,7 +2273,7 @@ function PropagationSettingsPanel({
 export default function App() {
   const initialSettings = useMemo(() => hydrateSettings(readStoredJson(STORAGE_KEYS.settings, {})), []);
 
-  const [activeTab, setActiveTab] = useState("propagation");
+  const [activeTab, setActiveTab] = useState(() => ['#mpw-database', '#mpw-comparison'].includes(window.location.hash) ? window.location.hash.slice(1) : 'propagation');
   const [rawRows, setRawRows] = useState([]);
   const [columnMap, setColumnMap] = useState({});
   const [sourceMeta, setSourceMeta] = useState(() => buildDefaultSourceMeta(initialSettings));
@@ -2855,6 +2870,7 @@ export default function App() {
     });
   }
   function updateTab(tabId) {
+    if (tabId.startsWith('mpw-') || window.location.hash.startsWith('#mpw-')) window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${tabId.startsWith('mpw-') ? '#' + tabId : ''}`);
     startTransition(() => {
       setActiveTab(tabId);
       if (tabId === "heater") setSelectedWaferMetric("heater");
@@ -3376,12 +3392,13 @@ export default function App() {
     setActiveTab("propagation");
     appendAudit("workspace", "Workspace cleared", "Cleared the current wafer analysis workspace.");
   }
-  async function fetchBundledDatasetBundle(definition, onProgress) {
+  async function fetchBundledDatasetBundle(definition, onProgress, databaseMode = false) {
+    const parsingMeta = databaseMode ? buildDefaultSourceMeta(DEFAULT_SETTINGS) : sourceMeta;
     const fileNames = definition.files?.length ? definition.files : bundledTraceNames(definition);
     const metadataPromise = definition.metadata
       ? Promise.resolve(definition.metadata)
       : definition.metadataFile
-        ? fetch(bundledAssetUrl(`${definition.folder}/metadata.json`), { cache: "no-store" })
+        ? fetchDatasetAsset(definition, 'metadata.json')
             .then((response) => (response.ok ? response.json() : null))
             .catch(() => null)
         : Promise.resolve(null);
@@ -3389,16 +3406,16 @@ export default function App() {
     const rowSets = await readItemsInBatches(
       fileNames,
       async (fileName) => {
-        const response = await fetch(bundledAssetUrl(`${definition.folder}/${fileName}`));
+        const response = await fetchDatasetAsset(definition, fileName);
         if (!response.ok) {
           throw new Error(`Unable to fetch ${fileName}`);
         }
         const text = await response.text();
         return readNamedTextRows(fileName, text, {
-          launchPowerDbm: sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm,
-          defaultMetricFamily: sourceMeta.defaultMetricFamily ?? appSettings.defaultMetricFamily,
-          defaultWavelengthNm: sourceMeta.defaultWavelengthNm ?? appSettings.defaultWavelengthNm,
-          traceValueUnit: sourceMeta.traceInputUnit || appSettings.traceInputUnit || "watts"
+          launchPowerDbm: parsingMeta.launchPowerDbm ?? appSettings.launchPowerDbm,
+          defaultMetricFamily: databaseMode ? (/heater/i.test(definition.measurementType) ? 'heater' : /insertion/i.test(definition.measurementType) ? 'insertion' : 'propagation') : parsingMeta.defaultMetricFamily ?? appSettings.defaultMetricFamily,
+          defaultWavelengthNm: parsingMeta.defaultWavelengthNm ?? appSettings.defaultWavelengthNm,
+          traceValueUnit: parsingMeta.traceInputUnit || (databaseMode ? 'watts' : appSettings.traceInputUnit || 'watts')
         });
       },
       BUNDLED_ANALYSIS_BATCH_SIZE,
@@ -3407,7 +3424,8 @@ export default function App() {
     const metadata = await metadataPromise;
     const routeConfig = await configPromise;
     const rows = rowSets.flat();
-    const fallbackSettings = buildWaveguideSettingsPatch(sourceMeta);
+    if (databaseMode && /propagation/i.test(definition.measurementType) && !routeConfig) throw new Error('Published route lengths are required to calculate database chip results.');
+    const fallbackSettings = buildWaveguideSettingsPatch(parsingMeta);
     const configuredSettings = routeConfig ? buildWaveguideSettingsPatch(routeConfig) : fallbackSettings;
     const savedReview = normalizeDatasetAnalyticsReview(metadata?.analyticsReview);
     const reviewedPropagationSettings = {
@@ -3418,11 +3436,11 @@ export default function App() {
     };
     const nextSourceMeta = applyWaveguideSettingsToSourceMeta(
       {
-        ...buildDefaultSourceMeta(appSettings),
+        ...buildDefaultSourceMeta(databaseMode ? DEFAULT_SETTINGS : appSettings),
         ...fallbackSettings,
         name: definition.label,
         type: definition.sourceType,
-        traceInputUnit: sourceMeta.traceInputUnit || appSettings.traceInputUnit || "watts"
+        traceInputUnit: parsingMeta.traceInputUnit || (databaseMode ? 'watts' : appSettings.traceInputUnit || 'watts')
       },
       {
         ...configuredSettings,
@@ -3511,13 +3529,32 @@ export default function App() {
       setWorkspaceActivity(null);
     }
   }
-  async function analyzeBundledDataset(definition) {
+  async function analyzeBundledDataset(definition, detailed = false) {
     const bundle = await fetchBundledDatasetBundle(
       definition,
       (completed, total) => {
         setRemoteLibraryStatus(`Analysing ${definition.label}: loaded ${completed}/${total} trace files.`);
-      }
+      },
+      detailed
     );
+    if (detailed) {
+      const normalized = buildNormalizedRows(bundle.rows, bundle.columnMap, bundle.sourceMeta);
+      const settings = {
+        targetWavelengthNm: bundle.sourceMeta.propagationTargetWavelengthNm,
+        windowNm: bundle.sourceMeta.propagationWindowNm,
+        spectralStepNm: bundle.sourceMeta.propagationSpectralStepNm,
+        mseThreshold: bundle.sourceMeta.propagationMseThreshold,
+        launchPowerDbm: bundle.sourceMeta.launchPowerDbm,
+        traceInputUnit: bundle.sourceMeta.traceInputUnit
+      };
+      const type = String(definition.measurementType || '');
+      return {
+        propagation: /propagation/i.test(type) ? computePropagationLoss(normalized, settings) : null,
+        insertion: /insertion/i.test(type) ? computeInsertionLoss(normalized) : null,
+        heater: /heater/i.test(type) ? computeHeaterEfficiency(normalized) : null,
+        settings
+      };
+    }
     const existingSummary = normalizeDatasetAnalyticsSummary(
       definition.analyticsSummary || bundle.metadata?.analyticsSummary
     );
@@ -4399,6 +4436,8 @@ export default function App() {
           ) : null}
           {activeTab === "cd-sem" ? <CdSemLibraryPanel waferTemplate={currentWaferTemplate} propagationCells={propagationAllWaferCells} currentDatasetMeta={currentDatasetMeta} sourceMeta={sourceMeta} /> : null}
           {activeTab === "dashboard" ? <DatasetDashboardPanel remoteDatasets={remoteLibraryDatasets} onAnalyzeDataset={analyzeBundledDataset} onLoadDataset={(dataset) => loadBundledDataset(dataset, "dataset")} /> : null}
+          {activeTab === "mpw-comparison" ? <MpwComparisonPanel key={`${githubConfig.owner}/${githubConfig.repo}/${githubConfig.branch}`} githubConfig={githubConfig} /> : null}
+          {activeTab === "mpw-database" ? <MpwDatabasePanel key={`${githubConfig.owner}/${githubConfig.repo}/${githubConfig.branch}`} githubConfig={githubConfig} onLoadChips={(definition) => analyzeBundledDataset(definition, true)} /> : null}
           {activeTab === "spectrum-viewer" ? (
             <section className="library-stack">
               <article className="analysis-card spectrum-viewer-card">

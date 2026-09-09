@@ -43,19 +43,20 @@ Live deployment:
 
 ## Current Release
 
-- App version: `v0.5.0`
-- Release date: `2026-08-27`
-- Focus: `evidence-led AI Diagnostics, controlled Gemini model selection, secure API handling, and evaluation logging`
+- App version: `v0.6.0`
+- Prepared: `2026-09-09` — pending PR review and merge
+- Focus: MPW performance database, historical workbook records, exports and project comparison
 
 Key updates in this release:
 
-- new AI Diagnostics workspace for failed-fit triage, spectral anomaly screening, and MPW comparison
-- deterministic local detection of ripple, oscillation, abrupt discontinuities, and high spectral roughness
-- Gemini interpretation using compact diagnostic evidence rather than complete raw spectra
-- four selectable Gemini models with `gemini-3.1-flash-lite` as the low-consumption default
-- checked-by-default evaluation logging control with an explicit no-storage path
-- server-side API-key handling for local development and a production function for server-capable hosting
-- dedicated AI Diagnostics documentation covering models, quotas, data handling, deployment, and evaluation
+- MPW Database with project-dependent filters, chip review and manual historical entries
+- 245 automatically loaded Excel overview records with an explicit data-source selector
+- formatted Excel exports with four worksheets and collapsible chip details
+- tabular PDF reports with version, generation date, repeated headers and source references
+- GitHub database publishing with JSON snapshots and Markdown update history
+- MPW Comparison with record averages, selectable projects, chart axes and geometry/mode grouping
+
+See the [MPW Database guide](docs/MPW_DATABASE.md) and [v0.6.0 release notes](docs/releases/v0.6.0/CHANGELOG.md). App release numbers and database revision numbers are separate.
 
 ## Tech Stack
 
@@ -152,6 +153,9 @@ On push to `main`, GitHub Actions:
 - [Local Git and GitHub Workflow](docs/LOCAL_GIT_GITHUB_WORKFLOW.md)
 - [Versioning and Documentation Guide](docs/VERSIONING_AND_DOCUMENTATION.md)
 - [Dataset and Filename Standard](docs/DATASET_FILENAME_STANDARD.md)
+- [Release Features: v0.6.0](docs/releases/v0.6.0/FEATURES.md)
+- [Release Changelog: v0.6.0](docs/releases/v0.6.0/CHANGELOG.md)
+- [Release Checklist: v0.6.0](docs/releases/v0.6.0/RELEASE_CHECKLIST.md)
 - [Release Features: v0.5.0](docs/releases/v0.5.0/FEATURES.md)
 - [Release Changelog: v0.5.0](docs/releases/v0.5.0/CHANGELOG.md)
 - [Release Checklist: v0.5.0](docs/releases/v0.5.0/RELEASE_CHECKLIST.md)

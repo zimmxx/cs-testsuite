@@ -4,6 +4,19 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 
 **Created and maintained by:** Aiman Hazim Shafizam — Research Technician, Testing and Characterisation, CORNERSTONE
 
+## Latest prepared release — 2026-09-09
+
+### v0.6.0: MPW Database and MPW Comparison
+
+Status: implemented and locally validated; pending GitHub PR review and merge.
+
+- Added the performance database, editable chip inclusion, manual records and source-aware cascading filters.
+- Imported 245 historical workbook records with traceable worksheet/cell references.
+- Added Excel and tabular PDF exports, and atomic GitHub database publishing with revisioned JSON and Markdown history.
+- Added a project comparison table and parameter-specific chart with selectable axes and waveguide/optical-mode grouping.
+- Updated package version, README and in-app Help links. Database V1.0 remains independent of app v0.6.0.
+- See [release changelog](releases/v0.6.0/CHANGELOG.md), [features](releases/v0.6.0/FEATURES.md) and [validation checklist](releases/v0.6.0/RELEASE_CHECKLIST.md).
+
 ## Timeline
 
 ### 2026-06-25

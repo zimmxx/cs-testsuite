@@ -40,6 +40,9 @@ Version-specific docs:
 - `docs/releases/v0.5.0/FEATURES.md`
 - `docs/releases/v0.5.0/CHANGELOG.md`
 - `docs/releases/v0.5.0/RELEASE_CHECKLIST.md`
+- `docs/releases/v0.6.0/FEATURES.md`
+- `docs/releases/v0.6.0/CHANGELOG.md`
+- `docs/releases/v0.6.0/RELEASE_CHECKLIST.md`
 
 Forward-planning docs:
 
@@ -144,3 +147,7 @@ Any time you change the app in a meaningful way:
 4. update the changelog entry
 5. commit code and docs together
 6. update `docs/suggested_update.md` when the latest work changes the recommended next architecture step
+
+## Database revision numbers
+
+App v0.6.0 identifies the MPW Database and Comparison feature release. Database V1.0, V1.1 and subsequent revisions identify published measurement snapshots and their Markdown update logs. Publishing records does not bump the app package version. Preparing release documentation does not publish a measurement snapshot.

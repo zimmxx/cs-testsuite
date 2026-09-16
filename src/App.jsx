@@ -60,6 +60,21 @@ import ToastTray from "./components/ToastTray";
 import AiDiagnosticsPanel from "./components/AiDiagnosticsPanel";
 import MpwComparisonPanel from "./components/MpwComparisonPanel";
 import MpwDatabasePanel from "./components/MpwDatabasePanel";
+import AccountSettingsPanel from "./components/AccountSettingsPanel";
+import UserManagementPanel from "./components/UserManagementPanel";
+import {
+  bootstrapPrivateAdmin,
+  clearPrivateApiKey,
+  createPrivateUser,
+  fetchPrivateDatasetAsset,
+  getPrivateSession,
+  listPrivateDatasets,
+  listPrivateUsers,
+  loginPrivateLibrary,
+  rotatePrivateUserKey,
+  updatePrivateDataset,
+  updatePrivateUser
+} from "./lib/privateLibrary";
 
 const APP_TABS = [
   { id: "propagation", label: "Propagation Loss", icon: "pulse" },
@@ -82,6 +97,7 @@ const RAIL_SECTIONS = [
       { id: "mpw-database", label: "MPW Database", icon: "database" },
       { id: "mpw-comparison", label: "MPW Comparison", icon: "database" },
       { id: "datasets", label: "Dataset Snapshots", icon: "database" },
+      { id: "user-management", label: "User Management", icon: "settings", adminOnly: true },
       { id: "comparison", label: "Comparison", icon: "compare" },
       { id: "manual-conversion", label: "Manual Conversion", icon: "document" },
       { id: "manual-conversion-advanced", label: "Manual Conversion (Advanced)", icon: "document-settings" },
@@ -102,6 +118,7 @@ const RAIL_SECTIONS = [
     ]
   }
 ];
+const APP_TAB_IDS = new Set(RAIL_SECTIONS.flatMap((section) => section.items.map((item) => item.id)));
 
 const DEFAULT_MAPPING_OPTIONS = ["propagation", "insertion", "heater"];
 const DEFAULT_WAVEGUIDE_COUNT = 6;
@@ -750,6 +767,7 @@ function buildWaveguideSettingsPatch(values = {}) {
 }
 
 async function fetchDatasetAsset(definition, fileName) {
+  if (definition.privateLibrary) return fetchPrivateDatasetAsset(definition, fileName);
   if (!definition.mpwRemote) return fetch(bundledAssetUrl(`${definition.folder}/${fileName}`), { cache: 'no-store' });
   if (!String(definition.folder).startsWith('sample-data/wst/') || `${definition.folder}/${fileName}`.split('/').includes('..')) throw new Error('Invalid dataset asset path.');
   const config = definition.mpwRemote;
@@ -2273,7 +2291,10 @@ function PropagationSettingsPanel({
 export default function App() {
   const initialSettings = useMemo(() => hydrateSettings(readStoredJson(STORAGE_KEYS.settings, {})), []);
 
-  const [activeTab, setActiveTab] = useState(() => ['#mpw-database', '#mpw-comparison'].includes(window.location.hash) ? window.location.hash.slice(1) : 'propagation');
+  const [activeTab, setActiveTab] = useState(() => {
+    const requestedTab = window.location.hash.slice(1);
+    return APP_TAB_IDS.has(requestedTab) ? requestedTab : "propagation";
+  });
   const [rawRows, setRawRows] = useState([]);
   const [columnMap, setColumnMap] = useState({});
   const [sourceMeta, setSourceMeta] = useState(() => buildDefaultSourceMeta(initialSettings));
@@ -2310,6 +2331,12 @@ export default function App() {
   const [publishingDatasetId, setPublishingDatasetId] = useState("");
   const [remoteLibraryDatasets, setRemoteLibraryDatasets] = useState(() => BUNDLED_LIBRARY_DATASETS.map(normalizeLibraryDataset));
   const [remoteLibraryStatus, setRemoteLibraryStatus] = useState("Setting up the measurement library...");
+  const [privateLibraryDatasets, setPrivateLibraryDatasets] = useState([]);
+  const [privateLibraryStatus, setPrivateLibraryStatus] = useState("Sign in to view approved private datasets.");
+  const [privateSession, setPrivateSession] = useState({ user: null, bootstrapAvailable: false, mode: "local-development" });
+  const [privateUsers, setPrivateUsers] = useState([]);
+  const [privateAccountBusy, setPrivateAccountBusy] = useState(false);
+  const [oneTimePrivateApiKey, setOneTimePrivateApiKey] = useState("");
   const [isLibraryInitializing, setIsLibraryInitializing] = useState(true);
   const [workspaceActivity, setWorkspaceActivity] = useState(null);
   const [githubConfig, setGithubConfig] = useState(() => ({ ...DEFAULT_GITHUB_CONFIG, ...readStoredJson(STORAGE_KEYS.github, {}) }));
@@ -2870,7 +2897,7 @@ export default function App() {
     });
   }
   function updateTab(tabId) {
-    if (tabId.startsWith('mpw-') || window.location.hash.startsWith('#mpw-')) window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${tabId.startsWith('mpw-') ? '#' + tabId : ''}`);
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${tabId}`);
     startTransition(() => {
       setActiveTab(tabId);
       if (tabId === "heater") setSelectedWaferMetric("heater");
@@ -2953,6 +2980,37 @@ export default function App() {
       const message = "Use a valid process step such as Step36, Step84A, or StepXX before saving metadata.";
       setStatusMessage(message);
       pushToast("Valid process step required", message, "danger");
+      return;
+    }
+    if (dataset.privateLibrary) {
+      if (!dataset.canEdit) {
+        pushToast("Edit access required", "This private-library account has view-only access to the selected dataset.", "danger");
+        return;
+      }
+      setIsSavingPublishedDataset(true);
+      try {
+        const patch = {
+          ...publishedDatasetDraft,
+          processStep,
+          mpw: publishedDatasetDraft.projectName,
+          projectDisplayName: publishedDatasetDraft.projectName,
+          projectCode: publishedDatasetDraft.projectName,
+          waferName: publishedDatasetDraft.slot,
+          selectedDate: publishedDatasetDraft.measurementDate
+        };
+        const result = await updatePrivateDataset(dataset.id, patch);
+        setPrivateLibraryDatasets((previous) => previous.map((item) => item.id === dataset.id ? normalizeLibraryDataset(result.dataset) : item));
+        setPublishedDatasetDraft(createPublishedDatasetDraft(result.dataset));
+        setStatusMessage(`Updated private dataset metadata for ${result.dataset.label}.`);
+        appendAudit("security", "Private dataset metadata updated", `Updated ${dataset.id} through the protected library API.`);
+        pushToast("Private metadata updated", `${result.dataset.label} was saved.`, "success");
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "Private metadata update failed.";
+        setStatusMessage(detail);
+        pushToast("Private metadata update failed", detail, "danger");
+      } finally {
+        setIsSavingPublishedDataset(false);
+      }
       return;
     }
     if (!githubConfig.token) {
@@ -3927,7 +3985,7 @@ export default function App() {
     const source = value.slice(0, separator);
     const datasetId = value.slice(separator + 1);
     if (source === "github") {
-      const dataset = remoteLibraryDatasets.find((item) => String(item.id) === datasetId);
+      const dataset = allRemoteLibraryDatasets.find((item) => String(item.id) === datasetId);
       if (dataset) await loadBundledDataset(dataset, "dataset");
       return;
     }
@@ -3937,6 +3995,113 @@ export default function App() {
   function deleteDataset(datasetId) { const target = savedDatasets.find((dataset) => dataset.id === datasetId); setSavedDatasets((previous) => previous.filter((dataset) => dataset.id !== datasetId)); appendAudit("dataset", "Dataset deleted", `Deleted dataset snapshot ${target?.label || datasetId}.`); }
   function updateGithubConfig(field, value) { setGithubConfig((previous) => ({ ...previous, [field]: value })); }
   function saveGithubConfig() { persistStoredJson(STORAGE_KEYS.github, githubConfig); setStatusMessage(`Saved GitHub sync settings for ${githubConfig.owner}/${githubConfig.repo} on ${githubConfig.branch}.`); appendAudit("github", "GitHub settings saved", `Saved GitHub dataset sync settings for ${githubConfig.owner}/${githubConfig.repo}.`); pushToast("GitHub settings saved", `${githubConfig.owner}/${githubConfig.repo} stored in this browser.`, "success"); }
+  async function refreshPrivateLibrary(session = privateSession, silent = false) {
+    if (!session?.user) {
+      setPrivateLibraryDatasets([]);
+      setPrivateLibraryStatus("Sign in to view approved private datasets.");
+      return;
+    }
+    try {
+      const datasets = await listPrivateDatasets();
+      const normalized = (Array.isArray(datasets) ? datasets : []).map(normalizeLibraryDataset);
+      setPrivateLibraryDatasets(normalized);
+      setPrivateLibraryStatus(`${normalized.length} authorised private dataset${normalized.length === 1 ? "" : "s"} available for ${session.user.name}.`);
+      if (!silent) pushToast("Private library refreshed", `${normalized.length} authorised dataset${normalized.length === 1 ? "" : "s"} ready.`, "success");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Private library unavailable.";
+      setPrivateLibraryDatasets([]);
+      setPrivateLibraryStatus(detail);
+      if (!silent) pushToast("Private library unavailable", detail, "danger");
+    }
+  }
+  async function refreshPrivateUsers(session = privateSession) {
+    if (session?.user?.role !== "admin") {
+      setPrivateUsers([]);
+      return;
+    }
+    const users = await listPrivateUsers();
+    setPrivateUsers(Array.isArray(users) ? users : []);
+  }
+  async function signInPrivateLibrary(apiKey) {
+    setPrivateAccountBusy(true);
+    setOneTimePrivateApiKey("");
+    try {
+      const result = await loginPrivateLibrary(apiKey);
+      const session = { ...privateSession, user: result.user, bootstrapAvailable: false };
+      setPrivateSession(session);
+      await Promise.all([refreshPrivateLibrary(session, true), result.user.role === "admin" ? refreshPrivateUsers(session) : Promise.resolve()]);
+      appendAudit("security", "Private library sign-in", `${result.user.name} signed in with ${result.user.role} access.`);
+      pushToast("Private library unlocked", `Signed in as ${result.user.name}.`, "success");
+    } catch (error) {
+      pushToast("Sign-in failed", error instanceof Error ? error.message : "Unable to sign in.", "danger");
+    } finally {
+      setPrivateAccountBusy(false);
+    }
+  }
+  async function createInitialPrivateAdmin() {
+    setPrivateAccountBusy(true);
+    try {
+      const result = await bootstrapPrivateAdmin();
+      const session = { ...privateSession, user: result.user, bootstrapAvailable: false };
+      setPrivateSession(session);
+      setOneTimePrivateApiKey(result.apiKey);
+      await Promise.all([refreshPrivateLibrary(session, true), refreshPrivateUsers(session)]);
+      appendAudit("security", "Private admin created", "Created the initial local Aiman administrator account.");
+      pushToast("Admin account created", "Copy the one-time API key and store it securely.", "success");
+    } catch (error) {
+      pushToast("Admin setup failed", error instanceof Error ? error.message : "Unable to create the admin account.", "danger");
+    } finally {
+      setPrivateAccountBusy(false);
+    }
+  }
+  function signOutPrivateLibrary() {
+    clearPrivateApiKey();
+    setPrivateSession((previous) => ({ ...previous, user: null }));
+    setPrivateLibraryDatasets([]);
+    setPrivateUsers([]);
+    setOneTimePrivateApiKey("");
+    setPrivateLibraryStatus("Sign in to view approved private datasets.");
+    if (activeTab === "user-management") setActiveTab("settings");
+    appendAudit("security", "Private library sign-out", "Returned to guest public-library access.");
+  }
+  async function createManagedPrivateUser(values) {
+    setPrivateAccountBusy(true);
+    try {
+      const result = await createPrivateUser(values);
+      setOneTimePrivateApiKey(result.apiKey);
+      await refreshPrivateUsers();
+      pushToast("Private user created", `${result.user.name} can now access: ${result.user.accessGroups.join(", ") || "none"}.`, "success");
+    } catch (error) {
+      pushToast("User creation failed", error instanceof Error ? error.message : "Unable to create the private-library user.", "danger");
+    } finally {
+      setPrivateAccountBusy(false);
+    }
+  }
+  async function updateManagedPrivateUser(values) {
+    setPrivateAccountBusy(true);
+    try {
+      const result = await updatePrivateUser(values);
+      await refreshPrivateUsers();
+      pushToast("User access updated", `${result.user.name}'s private-library access was saved.`, "success");
+    } catch (error) {
+      pushToast("User update failed", error instanceof Error ? error.message : "Unable to update private-library access.", "danger");
+    } finally {
+      setPrivateAccountBusy(false);
+    }
+  }
+  async function rotateManagedPrivateUserKey(id) {
+    setPrivateAccountBusy(true);
+    try {
+      const result = await rotatePrivateUserKey(id);
+      setOneTimePrivateApiKey(result.apiKey);
+      await refreshPrivateUsers();
+      pushToast("API key rotated", `A new one-time key was created for ${result.user.name}.`, "success");
+    } catch (error) {
+      pushToast("Key rotation failed", error instanceof Error ? error.message : "Unable to rotate the API key.", "danger");
+    } finally {
+      setPrivateAccountBusy(false);
+    }
+  }
   async function refreshRemoteLibrary(silent = false) {
     setRemoteLibraryStatus("Refreshing GitHub measurement library...");
     try {
@@ -4066,8 +4231,30 @@ export default function App() {
     };
   }, []);
   useEffect(() => {
+    let active = true;
+    getPrivateSession()
+      .then(async (session) => {
+        if (!active) return;
+        setPrivateSession(session);
+        if (session.user) {
+          await refreshPrivateLibrary(session, true);
+          if (session.user.role === "admin") await refreshPrivateUsers(session);
+        }
+      })
+      .catch(() => {
+        if (active) setPrivateLibraryStatus("The private-library service is available when running the local development server.");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const allRemoteLibraryDatasets = useMemo(
+    () => [...remoteLibraryDatasets, ...privateLibraryDatasets],
+    [privateLibraryDatasets, remoteLibraryDatasets]
+  );
+  useEffect(() => {
     if (!selectedPublishedDatasetId) return;
-    const selectedDataset = remoteLibraryDatasets.find((dataset) => dataset.id === selectedPublishedDatasetId);
+    const selectedDataset = allRemoteLibraryDatasets.find((dataset) => dataset.id === selectedPublishedDatasetId);
     if (!selectedDataset) {
       setSelectedPublishedDatasetId("");
       setPublishedDatasetDraft({});
@@ -4076,10 +4263,10 @@ export default function App() {
     setPublishedDatasetDraft((previous) => (
       Object.keys(previous).length ? previous : createPublishedDatasetDraft(selectedDataset)
     ));
-  }, [remoteLibraryDatasets, selectedPublishedDatasetId]);
+  }, [allRemoteLibraryDatasets, selectedPublishedDatasetId]);
   const loadedGithubDatasetId = selectedGithubDatasetId(quickDatasetSelection);
-  const loadedGithubDataset = remoteLibraryDatasets.find((dataset) => dataset.id === loadedGithubDatasetId) || null;
-  const selectedPublishedDataset = remoteLibraryDatasets.find((dataset) => dataset.id === selectedPublishedDatasetId) || null;
+  const loadedGithubDataset = allRemoteLibraryDatasets.find((dataset) => dataset.id === loadedGithubDatasetId) || null;
+  const selectedPublishedDataset = allRemoteLibraryDatasets.find((dataset) => dataset.id === selectedPublishedDatasetId) || null;
   const currentPublishedDatasetReview = loadedGithubDataset
     ? buildReviewedAnalyticsPayload(reportState, includedPropagationChipIds, propagationChipIds, sourceMeta)
     : null;
@@ -4119,12 +4306,12 @@ export default function App() {
     ...getDatasetPresentation(dataset)
   }));
   const quickDatasetProjects = [...new Set(
-    [...remoteLibraryDatasets, ...currentDatasetRows]
+    [...allRemoteLibraryDatasets, ...currentDatasetRows]
       .map(quickDatasetProject)
       .filter(Boolean)
   )].sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" }));
   const quickRemoteDatasets = quickDatasetProjectSelection
-    ? remoteLibraryDatasets.filter((dataset) => quickDatasetProject(dataset) === quickDatasetProjectSelection)
+    ? allRemoteLibraryDatasets.filter((dataset) => quickDatasetProject(dataset) === quickDatasetProjectSelection)
     : [];
   const quickLocalDatasets = quickDatasetProjectSelection
     ? currentDatasetRows.filter((dataset) => quickDatasetProject(dataset) === quickDatasetProjectSelection)
@@ -4145,6 +4332,10 @@ export default function App() {
   const auditRows = auditLog.map((entry) => (
     <tr key={entry.id}><td>{entry.title}</td><td>{entry.kind}</td><td>{entry.detail}</td><td>{formatSavedTime(entry.timestamp)}</td></tr>
   ));
+  const visibleRailSections = RAIL_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => !item.adminOnly || privateSession.user?.role === "admin")
+  }));
 
   return (
     <div className="dashboard-page" data-density={appSettings.interfaceDensity} data-reduce-motion={appSettings.reduceMotion ? "true" : "false"}>
@@ -4156,7 +4347,11 @@ export default function App() {
               {brandLogoAvailable ? <img className="brand-logo" src={bundledAssetUrl("assets/CORNERSTONE_Logo.png")} alt="CORNERSTONE" onError={() => setBrandLogoAvailable(false)} /> : <div className="brand-wafer" aria-label="CORNERSTONE logo placeholder" />}
             </a>
           </div>
-          {RAIL_SECTIONS.map((section) => <SidebarSection key={section.title} section={section} activeTab={activeTab} onSelect={updateTab} />)}
+          <button type="button" className="rail-account" onClick={() => updateTab("settings")} aria-label="Open account settings">
+            <span className={`account-avatar ${privateSession.user?.role || "guest"}`}>{privateSession.user?.name?.slice(0, 1).toUpperCase() || "G"}</span>
+            <span><strong>User: {privateSession.user?.name || "Guest"}</strong><small>{privateSession.user ? `${privateSession.user.role} · private access` : "public access"}</small></span>
+          </button>
+          {visibleRailSections.map((section) => <SidebarSection key={section.title} section={section} activeTab={activeTab} onSelect={updateTab} />)}
         </aside>
 
         <main className="dashboard-main">
@@ -4422,20 +4617,20 @@ export default function App() {
             </section>
 </> : null}
 
-          {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} currentDatasetMeta={currentDatasetMeta} currentDatasetNamingDraft={datasetNamingDraft} onCurrentDatasetNamingChange={updateCurrentDatasetNaming} onResetCurrentDatasetNaming={() => resetCurrentDatasetNaming()} onApplyCurrentNamingToLoadedSnapshot={applyCurrentNamingToLoadedSnapshot} canApplyCurrentNamingToLoadedSnapshot={Boolean(selectedLocalDatasetId(quickDatasetSelection))} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={refreshRemoteLibrary} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} selectedPublishedDataset={selectedPublishedDataset} publishedDatasetDraft={publishedDatasetDraft} onSelectPublishedDataset={selectPublishedDatasetForEdit} onPublishedDatasetDraftChange={updatePublishedDatasetDraft} onSavePublishedDatasetMetadata={savePublishedDatasetMetadata} isSavingPublishedDataset={isSavingPublishedDataset} onDeletePublishedDataset={deletePublishedDataset} deletingPublishedDatasetId={deletingPublishedDatasetId} loadedGithubDataset={loadedGithubDataset} currentPublishedDatasetReview={currentPublishedDatasetReview} canSaveCurrentReviewToPublishedDataset={canSaveCurrentReviewToPublishedDataset} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
+          {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} currentDatasetMeta={currentDatasetMeta} currentDatasetNamingDraft={datasetNamingDraft} onCurrentDatasetNamingChange={updateCurrentDatasetNaming} onResetCurrentDatasetNaming={() => resetCurrentDatasetNaming()} onApplyCurrentNamingToLoadedSnapshot={applyCurrentNamingToLoadedSnapshot} canApplyCurrentNamingToLoadedSnapshot={Boolean(selectedLocalDatasetId(quickDatasetSelection))} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={() => { refreshRemoteLibrary(); refreshPrivateLibrary(); }} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} privateLibraryStatus={privateLibraryStatus} privateDatasets={privateLibraryDatasets} privateUser={privateSession.user} selectedPublishedDataset={selectedPublishedDataset} publishedDatasetDraft={publishedDatasetDraft} onSelectPublishedDataset={selectPublishedDatasetForEdit} onPublishedDatasetDraftChange={updatePublishedDatasetDraft} onSavePublishedDatasetMetadata={savePublishedDatasetMetadata} isSavingPublishedDataset={isSavingPublishedDataset} onDeletePublishedDataset={deletePublishedDataset} deletingPublishedDatasetId={deletingPublishedDatasetId} loadedGithubDataset={loadedGithubDataset} currentPublishedDatasetReview={currentPublishedDatasetReview} canSaveCurrentReviewToPublishedDataset={canSaveCurrentReviewToPublishedDataset} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "manual-conversion-advanced" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} advanced /> : null}
-          {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={remoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}
+          {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={allRemoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}
           {activeTab === "ai-diagnostics" ? (
             <AiDiagnosticsPanel
               datasetLabel={currentDatasetMeta?.label || sourceMeta.name || "Current wafer dataset"}
               propagationMetrics={metrics.propagation}
-              remoteDatasets={remoteLibraryDatasets}
+              remoteDatasets={allRemoteLibraryDatasets}
               onAnalyzeRemoteDataset={analyzeBundledDataset}
             />
           ) : null}
           {activeTab === "cd-sem" ? <CdSemLibraryPanel waferTemplate={currentWaferTemplate} propagationCells={propagationAllWaferCells} currentDatasetMeta={currentDatasetMeta} sourceMeta={sourceMeta} /> : null}
-          {activeTab === "dashboard" ? <DatasetDashboardPanel remoteDatasets={remoteLibraryDatasets} onAnalyzeDataset={analyzeBundledDataset} onLoadDataset={(dataset) => loadBundledDataset(dataset, "dataset")} /> : null}
+          {activeTab === "dashboard" ? <DatasetDashboardPanel remoteDatasets={allRemoteLibraryDatasets} onAnalyzeDataset={analyzeBundledDataset} onLoadDataset={(dataset) => loadBundledDataset(dataset, "dataset")} /> : null}
           {activeTab === "mpw-comparison" ? <MpwComparisonPanel key={`${githubConfig.owner}/${githubConfig.repo}/${githubConfig.branch}`} githubConfig={githubConfig} /> : null}
           {activeTab === "mpw-database" ? <MpwDatabasePanel key={`${githubConfig.owner}/${githubConfig.repo}/${githubConfig.branch}`} githubConfig={githubConfig} onLoadChips={(definition) => analyzeBundledDataset(definition, true)} /> : null}
           {activeTab === "spectrum-viewer" ? (
@@ -4699,8 +4894,27 @@ export default function App() {
             </section>
           ) : null}
           {activeTab === "filename-conversion" ? <FilenameConversionPanel /> : null}
+          {activeTab === "user-management" && privateSession.user?.role === "admin" ? (
+            <UserManagementPanel
+              users={privateUsers}
+              onRefresh={() => refreshPrivateUsers()}
+              onCreate={createManagedPrivateUser}
+              onUpdate={updateManagedPrivateUser}
+              onRotate={rotateManagedPrivateUserKey}
+              busy={privateAccountBusy}
+              oneTimeApiKey={oneTimePrivateApiKey}
+            />
+          ) : null}
           {activeTab === "settings" ? (
             <section className="library-stack">
+              <AccountSettingsPanel
+                session={privateSession}
+                onLogin={signInPrivateLibrary}
+                onBootstrap={createInitialPrivateAdmin}
+                onLogout={signOutPrivateLibrary}
+                busy={privateAccountBusy}
+                oneTimeApiKey={oneTimePrivateApiKey}
+              />
               <article className="analysis-card interface-settings-card">
                 <div className="analysis-card-head">
                   <div>

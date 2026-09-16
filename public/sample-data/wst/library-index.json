@@ -598,6 +598,173 @@
     "projectCode": "MPW30"
   },
   {
+    "id": "mpw43_soi220nmactive_slot3_step84d_1550nm_te_rib_waveguide_propagationloss_operatoralign",
+    "label": "MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+    "projectName": "MPW43",
+    "waferName": "Slot3",
+    "selectedDate": "2026-09-15",
+    "measurementDate": "2026-09-15",
+    "publishedDate": "2026-09-16",
+    "folder": "sample-data/wst/MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+    "sourceType": "Automated WST trace set",
+    "measurementMode": "Automated WST",
+    "measurementType": "PropagationLoss",
+    "opticalMode": "1550nm_TE",
+    "alignmentMode": "OperatorAlign",
+    "mpw": "MPW43",
+    "slot": "Slot3",
+    "processStep": "Step84D",
+    "waveguideType": "Waveguide",
+    "platformId": "soi220nmactive",
+    "platformLabel": "SOI220nmActive",
+    "buildingBlockId": "rib_waveguide",
+    "buildingBlockLabel": "RIB_Waveguide",
+    "pdkMonitorBuildingBlock": "SOI220nm_1550nm_TE_RIB_Waveguide",
+    "traceCount": 35,
+    "rowCount": 665035,
+    "chipCount": 5,
+    "waveguideCount": 7,
+    "wavelengthMinNm": 1525,
+    "wavelengthMaxNm": 1620,
+    "files": [
+      "Chip40_WG1.txt",
+      "Chip40_WG2.txt",
+      "Chip40_WG3.txt",
+      "Chip40_WG4.txt",
+      "Chip40_WG5.txt",
+      "Chip40_WG6.txt",
+      "Chip40_WG7.txt",
+      "Chip49_WG1.txt",
+      "Chip49_WG2.txt",
+      "Chip49_WG3.txt",
+      "Chip49_WG4.txt",
+      "Chip49_WG5.txt",
+      "Chip49_WG6.txt",
+      "Chip49_WG7.txt",
+      "Chip52_WG1.txt",
+      "Chip52_WG2.txt",
+      "Chip52_WG3.txt",
+      "Chip52_WG4.txt",
+      "Chip52_WG5.txt",
+      "Chip52_WG6.txt",
+      "Chip52_WG7.txt",
+      "Chip61_WG1.txt",
+      "Chip61_WG2.txt",
+      "Chip61_WG3.txt",
+      "Chip61_WG4.txt",
+      "Chip61_WG5.txt",
+      "Chip61_WG6.txt",
+      "Chip61_WG7.txt",
+      "Chip64_WG1.txt",
+      "Chip64_WG2.txt",
+      "Chip64_WG3.txt",
+      "Chip64_WG4.txt",
+      "Chip64_WG5.txt",
+      "Chip64_WG6.txt",
+      "Chip64_WG7.txt"
+    ],
+    "readme": "MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/README.md",
+    "metadataFile": "MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/metadata.json",
+    "configFile": "MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/route-config.json",
+    "filenameManifest": "MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/filename-manifest.csv",
+    "routeConfig": {
+      "measurementType": "PropagationLoss",
+      "routes": [
+        {
+          "route": "WG1",
+          "lengthMm": 0
+        },
+        {
+          "route": "WG2",
+          "lengthMm": 4
+        },
+        {
+          "route": "WG3",
+          "lengthMm": 8
+        },
+        {
+          "route": "WG4",
+          "lengthMm": 12
+        },
+        {
+          "route": "WG5",
+          "lengthMm": 16
+        },
+        {
+          "route": "WG6",
+          "lengthMm": 20
+        },
+        {
+          "route": "WG7",
+          "lengthMm": 24
+        }
+      ]
+    },
+    "waveguideConfig": {
+      "propagationWaveguideCount": 7,
+      "propagationWaveguideStartMm": 0,
+      "propagationWaveguideIntervalMm": 4,
+      "propagationWaveguideManualMode": false,
+      "waveguideLengths": [
+        {
+          "index": 1,
+          "lengthMm": 0
+        },
+        {
+          "index": 2,
+          "lengthMm": 4
+        },
+        {
+          "index": 3,
+          "lengthMm": 8
+        },
+        {
+          "index": 4,
+          "lengthMm": 12
+        },
+        {
+          "index": 5,
+          "lengthMm": 16
+        },
+        {
+          "index": 6,
+          "lengthMm": 20
+        },
+        {
+          "index": 7,
+          "lengthMm": 24
+        }
+      ]
+    },
+    "analyticsSummary": {
+      "propagationAverage": 3.606787185097896,
+      "yield": 100,
+      "measuredChips": 5,
+      "computedAt": "2026-09-16T09:36:06.186Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [],
+      "includedChipIds": [],
+      "totalChipCount": 0,
+      "selectedChipCount": 0,
+      "measuredChips": 0,
+      "fittedChips": 0,
+      "failedFits": 0,
+      "savedAt": "",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 0,
+        "propagationWindowNm": 0,
+        "propagationSpectralStepNm": 0,
+        "propagationMseThreshold": 0
+      }
+    },
+    "notes": "",
+    "source": "github-library",
+    "librarySchemaVersion": 1
+  },
+  {
+    "schemaVersion": 4,
+    "datasetId": "mpw43_soi220nmactive_slot11_step84d_1550nm_te_rib_waveguide_propagationloss_operatoralign",
     "id": "mpw43_soi220nmactive_slot11_step84d_1550nm_te_rib_waveguide_propagationloss_operatoralign",
     "label": "MPW43_SOI220nmActive_Slot11_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
     "projectName": "MPW43",
@@ -606,15 +773,17 @@
     "measurementDate": "2026-09-15",
     "publishedDate": "2026-09-16",
     "folder": "sample-data/wst/MPW43_SOI220nmActive_Slot11_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+    "traceFolder": "sample-data/wst/MPW43_SOI220nmActive_Slot11_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
     "sourceType": "Automated WST trace set",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "measurementType": "PropagationLoss",
     "opticalMode": "1550nm_TE",
     "alignmentMode": "OperatorAlign",
     "mpw": "MPW43",
     "slot": "Slot11",
     "processStep": "Step84D",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
+    "waveguideFamily": "Waveguide",
     "platformId": "soi220nmactive",
     "platformLabel": "SOI220nmActive",
     "buildingBlockId": "rib_waveguide",
@@ -765,9 +934,15 @@
         "propagationMseThreshold": 0
       }
     },
+    "copiedToFolder": true,
+    "processedInTestingSuite": true,
     "notes": "",
-    "source": "github-library",
-    "librarySchemaVersion": 1
+    "source": "github-library-v4",
+    "librarySchemaVersion": 4,
+    "projectDisplayName": "MPW43",
+    "waferDisplayName": "Slot11",
+    "platformDisplayName": "",
+    "projectCode": "MPW43"
   },
   {
     "schemaVersion": 4,

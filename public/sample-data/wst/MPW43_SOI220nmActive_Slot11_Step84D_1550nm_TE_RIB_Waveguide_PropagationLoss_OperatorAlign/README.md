@@ -9,7 +9,7 @@ This folder contains GitHub-hosted measurement traces for MPW43.
 - Optical mode: 1550nm_TE
 - Alignment mode: OperatorAlign
 - Measurement type: PropagationLoss
-- Waveguide type: Waveguide
+- Waveguide type: Rib
 - Process step: Step84D
 - Measurement date: 2026-09-15
 - Published date: 2026-09-16

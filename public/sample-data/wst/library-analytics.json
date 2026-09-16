@@ -132,6 +132,50 @@
     }
   },
   {
+    "id": "mpw43_soi220nmactive_slot3_step84d_1550nm_te_rib_waveguide_propagationloss_operatoralign",
+    "datasetId": "mpw43_soi220nmactive_slot3_step84d_1550nm_te_rib_waveguide_propagationloss_operatoralign",
+    "label": "MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+    "projectName": "MPW43",
+    "waferName": "Slot3",
+    "selectedDate": "2026-09-15",
+    "folder": "sample-data/wst/MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+    "measurementType": "PropagationLoss",
+    "measurementMode": "Automated WST",
+    "mpw": "MPW43",
+    "slot": "Slot3",
+    "waveguideType": "Waveguide",
+    "platformId": "soi220nmactive",
+    "platformLabel": "SOI220nmActive",
+    "buildingBlockId": "rib_waveguide",
+    "buildingBlockLabel": "RIB_Waveguide",
+    "traceCount": 35,
+    "rowCount": 665035,
+    "chipCount": 5,
+    "waveguideCount": 7,
+    "analyticsSummary": {
+      "propagationAverage": 4.192469950164261,
+      "yield": 100,
+      "measuredChips": 5,
+      "computedAt": "2026-09-16T12:36:35.686Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [],
+      "includedChipIds": [],
+      "totalChipCount": null,
+      "selectedChipCount": null,
+      "measuredChips": null,
+      "fittedChips": null,
+      "failedFits": null,
+      "savedAt": "",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": null,
+        "propagationWindowNm": null,
+        "propagationSpectralStepNm": null,
+        "propagationMseThreshold": null
+      }
+    }
+  },
+  {
     "id": "mpw43_soi220nmactive_slot11_step84d_1550nm_te_rib_waveguide_propagationloss_operatoralign",
     "datasetId": "mpw43_soi220nmactive_slot11_step84d_1550nm_te_rib_waveguide_propagationloss_operatoralign",
     "label": "MPW43_SOI220nmActive_Slot11_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
@@ -140,10 +184,10 @@
     "selectedDate": "2026-09-15",
     "folder": "sample-data/wst/MPW43_SOI220nmActive_Slot11_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
     "measurementType": "PropagationLoss",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "mpw": "MPW43",
     "slot": "Slot11",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
     "platformId": "soi220nmactive",
     "platformLabel": "SOI220nmActive",
     "buildingBlockId": "rib_waveguide",
@@ -172,50 +216,6 @@
         "propagationWindowNm": null,
         "propagationSpectralStepNm": null,
         "propagationMseThreshold": null
-      }
-    }
-  },
-  {
-    "id": "mpw43_soi220nmactive_slot3_step84d_1550nm_te_rib_waveguide_propagationloss_operatoralign",
-    "datasetId": "mpw43_soi220nmactive_slot3_step84d_1550nm_te_rib_waveguide_propagationloss_operatoralign",
-    "label": "MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
-    "projectName": "MPW43",
-    "waferName": "Slot3",
-    "selectedDate": "2026-09-15",
-    "folder": "sample-data/wst/MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
-    "measurementType": "PropagationLoss",
-    "measurementMode": "AutoAlign",
-    "mpw": "MPW43",
-    "slot": "Slot3",
-    "waveguideType": "WaveguideUndefined",
-    "platformId": "soi220nmactive",
-    "platformLabel": "SOI220nmActive",
-    "buildingBlockId": "rib_waveguide",
-    "buildingBlockLabel": "RIB_Waveguide",
-    "traceCount": 35,
-    "rowCount": 665035,
-    "chipCount": 5,
-    "waveguideCount": 7,
-    "analyticsSummary": {
-      "propagationAverage": 3.606787185097896,
-      "yield": 100,
-      "measuredChips": 5,
-      "computedAt": "2026-09-16T09:36:06.186Z"
-    },
-    "analyticsReview": {
-      "excludedChipIds": [],
-      "includedChipIds": [],
-      "totalChipCount": 0,
-      "selectedChipCount": 0,
-      "measuredChips": 0,
-      "fittedChips": 0,
-      "failedFits": 0,
-      "savedAt": "",
-      "propagationSettings": {
-        "propagationTargetWavelengthNm": 0,
-        "propagationWindowNm": 0,
-        "propagationSpectralStepNm": 0,
-        "propagationMseThreshold": 0
       }
     }
   },

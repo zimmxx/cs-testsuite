@@ -406,11 +406,17 @@ export function getDatasetMeasurementDate(dataset = {}) {
   );
 }
 
+function optionalAnalyticsNumber(value) {
+  // Missing saved values must not override analysis defaults with Number(null) === 0.
+  if (value === null || value === undefined || (typeof value === "string" && !value.trim())) return null;
+  return Number.isFinite(Number(value)) ? Number(value) : null;
+}
+
 export function normalizeDatasetAnalyticsSummary(summary = {}) {
   return {
-    propagationAverage: Number.isFinite(Number(summary.propagationAverage)) ? Number(summary.propagationAverage) : null,
-    yield: Number.isFinite(Number(summary.yield)) ? Number(summary.yield) : null,
-    measuredChips: Number.isFinite(Number(summary.measuredChips)) ? Number(summary.measuredChips) : null,
+    propagationAverage: optionalAnalyticsNumber(summary.propagationAverage),
+    yield: optionalAnalyticsNumber(summary.yield),
+    measuredChips: optionalAnalyticsNumber(summary.measuredChips),
     computedAt: summary.computedAt || ""
   };
 }
@@ -427,25 +433,17 @@ export function normalizeDatasetAnalyticsReview(review = {}) {
   return {
     excludedChipIds,
     includedChipIds,
-    totalChipCount: Number.isFinite(Number(review?.totalChipCount)) ? Number(review.totalChipCount) : null,
-    selectedChipCount: Number.isFinite(Number(review?.selectedChipCount)) ? Number(review.selectedChipCount) : null,
-    measuredChips: Number.isFinite(Number(review?.measuredChips)) ? Number(review.measuredChips) : null,
-    fittedChips: Number.isFinite(Number(review?.fittedChips)) ? Number(review.fittedChips) : null,
-    failedFits: Number.isFinite(Number(review?.failedFits)) ? Number(review.failedFits) : null,
+    totalChipCount: optionalAnalyticsNumber(review?.totalChipCount),
+    selectedChipCount: optionalAnalyticsNumber(review?.selectedChipCount),
+    measuredChips: optionalAnalyticsNumber(review?.measuredChips),
+    fittedChips: optionalAnalyticsNumber(review?.fittedChips),
+    failedFits: optionalAnalyticsNumber(review?.failedFits),
     savedAt: review?.savedAt || "",
     propagationSettings: {
-      propagationTargetWavelengthNm: Number.isFinite(Number(propagationSettings.propagationTargetWavelengthNm))
-        ? Number(propagationSettings.propagationTargetWavelengthNm)
-        : null,
-      propagationWindowNm: Number.isFinite(Number(propagationSettings.propagationWindowNm))
-        ? Number(propagationSettings.propagationWindowNm)
-        : null,
-      propagationSpectralStepNm: Number.isFinite(Number(propagationSettings.propagationSpectralStepNm))
-        ? Number(propagationSettings.propagationSpectralStepNm)
-        : null,
-      propagationMseThreshold: Number.isFinite(Number(propagationSettings.propagationMseThreshold))
-        ? Number(propagationSettings.propagationMseThreshold)
-        : null
+      propagationTargetWavelengthNm: optionalAnalyticsNumber(propagationSettings.propagationTargetWavelengthNm),
+      propagationWindowNm: optionalAnalyticsNumber(propagationSettings.propagationWindowNm),
+      propagationSpectralStepNm: optionalAnalyticsNumber(propagationSettings.propagationSpectralStepNm),
+      propagationMseThreshold: optionalAnalyticsNumber(propagationSettings.propagationMseThreshold)
     }
   };
 }

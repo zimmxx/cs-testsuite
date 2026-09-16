@@ -19,7 +19,7 @@
   "alignmentMode": "OperatorAlign",
   "pdkMonitorBuildingBlock": "SOI220nm_1550nm_TE_RIB_Waveguide",
   "measurementMode": "Automated WST",
-  "waveguideType": "Waveguide",
+  "waveguideType": "Rib",
   "sourceType": "Automated WST trace set",
   "traceCount": 42,
   "rowCount": 798042,
@@ -28,10 +28,10 @@
   "wavelengthMinNm": 1525,
   "wavelengthMaxNm": 1620,
   "analyticsSummary": {
-    "propagationAverage": 3.8450331046401205,
-    "yield": 83.33333333333334,
+    "propagationAverage": 5.207007609557054,
+    "yield": 100,
     "measuredChips": 6,
-    "computedAt": "2026-09-16T09:11:43.405Z"
+    "computedAt": "2026-09-16T12:29:13.584Z"
   },
   "analyticsReview": {
     "excludedChipIds": [],
@@ -162,35 +162,35 @@
       },
       {
         "route": "WG2",
-        "lengthMm": 4
+        "lengthMm": 2
       },
       {
         "route": "WG3",
-        "lengthMm": 8
+        "lengthMm": 4
       },
       {
         "route": "WG4",
-        "lengthMm": 12
+        "lengthMm": 8
       },
       {
         "route": "WG5",
-        "lengthMm": 16
+        "lengthMm": 12
       },
       {
         "route": "WG6",
-        "lengthMm": 20
+        "lengthMm": 16
       },
       {
         "route": "WG7",
-        "lengthMm": 24
+        "lengthMm": 20
       }
     ]
   },
   "waveguideConfig": {
     "propagationWaveguideCount": 7,
     "propagationWaveguideStartMm": 0,
-    "propagationWaveguideIntervalMm": 4,
-    "propagationWaveguideManualMode": false,
+    "propagationWaveguideIntervalMm": 2,
+    "propagationWaveguideManualMode": true,
     "waveguideLengths": [
       {
         "index": 1,
@@ -198,27 +198,27 @@
       },
       {
         "index": 2,
-        "lengthMm": 4
+        "lengthMm": 2
       },
       {
         "index": 3,
-        "lengthMm": 8
+        "lengthMm": 4
       },
       {
         "index": 4,
-        "lengthMm": 12
+        "lengthMm": 8
       },
       {
         "index": 5,
-        "lengthMm": 16
+        "lengthMm": 12
       },
       {
         "index": 6,
-        "lengthMm": 20
+        "lengthMm": 16
       },
       {
         "index": 7,
-        "lengthMm": 24
+        "lengthMm": 20
       }
     ]
   },

@@ -7,27 +7,27 @@
     },
     {
       "route": "WG2",
-      "lengthMm": 4
+      "lengthMm": 2
     },
     {
       "route": "WG3",
-      "lengthMm": 8
+      "lengthMm": 4
     },
     {
       "route": "WG4",
-      "lengthMm": 12
+      "lengthMm": 8
     },
     {
       "route": "WG5",
-      "lengthMm": 16
+      "lengthMm": 12
     },
     {
       "route": "WG6",
-      "lengthMm": 20
+      "lengthMm": 16
     },
     {
       "route": "WG7",
-      "lengthMm": 24
+      "lengthMm": 20
     }
   ]
 }

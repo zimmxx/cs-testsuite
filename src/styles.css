@@ -3587,6 +3587,140 @@ body {
   outline-offset: 3px;
 }
 
+.rail-account {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+  color: var(--text);
+  text-align: left;
+}
+
+.rail-account:hover {
+  border-color: var(--brand);
+  transform: none;
+}
+
+.rail-account > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.rail-account strong,
+.rail-account small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-account strong { font-size: 0.78rem; }
+.rail-account small { color: var(--muted); font-size: 0.68rem; text-transform: capitalize; }
+
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand) 14%, var(--panel));
+  color: var(--brand);
+  font-weight: 800;
+}
+
+.account-avatar.admin { background: color-mix(in srgb, #7c3aed 16%, var(--panel)); color: #7c3aed; }
+.account-avatar.viewer,
+.account-avatar.editor { background: color-mix(in srgb, #0f8a83 16%, var(--panel)); color: #0f8a83; }
+
+.access-role-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.access-role-badge.admin { border-color: rgba(124, 58, 237, 0.28); color: #7c3aed; }
+.access-role-badge.editor,
+.access-role-badge.viewer { border-color: rgba(15, 138, 131, 0.28); color: #0f8a83; }
+
+.private-library-card {
+  border-color: color-mix(in srgb, #7c3aed 28%, var(--line));
+  background: linear-gradient(135deg, color-mix(in srgb, #7c3aed 5%, var(--panel)), var(--panel) 42%);
+}
+
+.account-login-form,
+.user-create-grid,
+.account-session-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 2fr) minmax(130px, 0.7fr) minmax(200px, 1.2fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.account-login-form { grid-template-columns: minmax(280px, 1fr) auto auto; }
+.account-session-grid { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+
+.account-session-summary {
+  display: grid;
+  gap: 3px;
+}
+
+.account-session-summary span,
+.account-session-summary small { color: var(--muted); }
+
+.one-time-key,
+.security-note {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(190, 126, 0, 0.28);
+  border-radius: 12px;
+  background: rgba(255, 191, 0, 0.08);
+}
+
+.one-time-key code {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 0.84rem;
+  user-select: all;
+}
+
+.one-time-key span,
+.security-note span { color: var(--muted); font-size: 0.78rem; }
+
+.security-note {
+  border-color: var(--line);
+  background: var(--panel-soft);
+}
+
+.user-management-table input,
+.user-management-table select { min-width: 130px; width: 100%; }
+.user-management-table small { display: block; margin-top: 5px; color: var(--muted); }
+
+@media (max-width: 1050px) {
+  .account-login-form,
+  .user-create-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 700px) {
+  .account-login-form,
+  .user-create-grid,
+  .account-session-grid { grid-template-columns: 1fr; }
+}
+
 .brand-logo {
   width: clamp(109px, 65.8%, 137px);
   max-width: 100%;

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { getDatasetPresentation } from "../lib/datasetPresentation";
 import {
   DATASET_ALIGNMENT_MODE_OPTIONS,
@@ -111,6 +112,9 @@ export default function DatasetLibraryPanel({
   onRefreshLibrary,
   remoteLibraryStatus,
   remoteDatasets,
+  privateLibraryStatus,
+  privateDatasets,
+  privateUser,
   selectedPublishedDataset,
   publishedDatasetDraft,
   onSelectPublishedDataset,
@@ -133,6 +137,7 @@ export default function DatasetLibraryPanel({
   publishingDatasetId
 }) {
   const safeRemoteDatasets = Array.isArray(remoteDatasets) ? remoteDatasets : [];
+  const safePrivateDatasets = Array.isArray(privateDatasets) ? privateDatasets : [];
   const safeLocalDatasets = Array.isArray(localDatasets) ? localDatasets : [];
   const safeGithubConfig = {
     owner: githubConfig?.owner || "",
@@ -141,6 +146,14 @@ export default function DatasetLibraryPanel({
     token: githubConfig?.token || ""
   };
   const activeDeleteId = String(deletingPublishedDatasetId || "");
+  const editorRef = useRef(null);
+
+  useEffect(() => {
+    if (!selectedPublishedDataset || !editorRef.current) return;
+    editorRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    const firstInput = editorRef.current.querySelector("input:not([disabled]), select:not([disabled])");
+    window.setTimeout(() => firstInput?.focus({ preventScroll: true }), 220);
+  }, [selectedPublishedDataset?.id]);
 
   return (
     <section className="library-stack workspace-fit-view">
@@ -162,6 +175,32 @@ export default function DatasetLibraryPanel({
           <div><strong>{currentDatasetMeta?.measurementMode || sourceMeta?.type || "Measurement"}</strong><span>Measurement mode</span></div>
           <div><strong>{safeRemoteDatasets.length}</strong><span>GitHub library sets</span></div>
           <div><strong>Snapshot to Review to Publish</strong><span>Recommended workflow</span></div>
+        </div>
+      </article>
+
+      <article className="analysis-card private-library-card">
+        <div className="analysis-card-head">
+          <div>
+            <h2>Private Measurement Data Library</h2>
+            <p>{privateUser ? privateLibraryStatus : "Sign in from Settings with an approved API key to access assigned partner datasets."}</p>
+          </div>
+          <span className={`access-role-badge ${privateUser?.role || "guest"}`}>{privateUser ? `${privateUser.name} · ${privateUser.role}` : "guest"}</span>
+        </div>
+        <div className="dashboard-table-wrap dataset-library-wide-table">
+          <table className="dataset-library-compact-table published-dataset-table">
+            <colgroup><col className="dataset-col-name" /><col className="dataset-col-details" /><col className="dataset-col-volume" /><col className="dataset-col-actions" /></colgroup>
+            <thead><tr><th>Private dataset</th><th>Details</th><th>Access</th><th>Actions</th></tr></thead>
+            <tbody>
+              {safePrivateDatasets.length ? safePrivateDatasets.map((dataset) => (
+                <tr key={`private-${dataset.id || dataset.label}`}>
+                  <td><strong>{dataset.label || "Private measurement dataset"}</strong><div className="dataset-subcopy">Private · {dataset.folder}</div></td>
+                  <td><div className="dataset-details-grid"><DatasetDetailGroup title="Run"><TableDetail label="Project" value={dataset.projectDisplayName || dataset.projectName} /><TableDetail label="Slot" value={dataset.slot} /><TableDetail label="Step" value={dataset.processStep} /></DatasetDetailGroup><DatasetDetailGroup title="Measurement"><TableDetail label="Type" value={dataset.measurementType} /><TableDetail label="Optical" value={dataset.opticalMode} /><TableDetail label="Alignment" value={dataset.alignmentMode} /></DatasetDetailGroup></div></td>
+                  <td><TableDetail label="Partner groups" value={(dataset.accessGroups || []).join(", ")} /><TableDetail label="Permission" value={dataset.canEdit ? "View + edit" : "View only"} /></td>
+                  <td className="library-table-actions"><button type="button" className="secondary-action" onClick={() => onSelectPublishedDataset(dataset)} disabled={!dataset.canEdit} title={dataset.canEdit ? "Edit private dataset metadata" : "Your account has view-only access"}>Edit</button><button type="button" onClick={() => onLoadRemoteDataset(dataset)} disabled={loadingBundledId === dataset.id}>{loadingBundledId === dataset.id ? "Loading..." : "Load"}</button></td>
+                </tr>
+              )) : <tr><td colSpan="4"><div className="chart-empty compact">{privateUser ? "No private datasets are assigned to this account." : "Private datasets remain hidden until sign-in."}</div></td></tr>}
+            </tbody>
+          </table>
         </div>
       </article>
 
@@ -325,18 +364,18 @@ export default function DatasetLibraryPanel({
         </div>
       </article>
 
-      <article className="analysis-card">
+      <article className="analysis-card" ref={editorRef} tabIndex="-1">
         <div className="analysis-card-head stacked">
           <div>
-            <h2>Published Dataset Editor</h2>
-            <p>Edit the naming metadata for an already published GitHub dataset, then save the corrected label, project details, and reviewed analytics back to the repository manifest and metadata file.</p>
+            <h2>{selectedPublishedDataset?.privateLibrary ? "Private Dataset Editor" : "Published Dataset Editor"}</h2>
+            <p>{selectedPublishedDataset?.privateLibrary ? "Edit authorised private-dataset naming metadata. Changes are written through the protected library service, never to public assets." : "Edit the naming metadata for an already published GitHub dataset, then save the corrected label, project details, and reviewed analytics back to the repository manifest and metadata file."}</p>
           </div>
           <div className="library-action-row">
             <button type="button" onClick={() => onSavePublishedDatasetMetadata(selectedPublishedDataset)} disabled={!selectedPublishedDataset || isSavingPublishedDataset}>
-              {isSavingPublishedDataset ? "Saving..." : canSaveCurrentReviewToPublishedDataset ? "Save Metadata + Current Review to GitHub" : "Save Metadata to GitHub"}
+              {isSavingPublishedDataset ? "Saving..." : selectedPublishedDataset?.privateLibrary ? "Save Private Metadata" : canSaveCurrentReviewToPublishedDataset ? "Save Metadata + Current Review to GitHub" : "Save Metadata to GitHub"}
             </button>
-            <button type="button" className="danger-action" onClick={() => onDeletePublishedDataset(selectedPublishedDataset)} disabled={!selectedPublishedDataset || Boolean(activeDeleteId)}>
-              {activeDeleteId === String(selectedPublishedDataset?.id || "") ? "Deleting..." : "Delete Published Dataset"}
+            <button type="button" className="danger-action" onClick={() => onDeletePublishedDataset(selectedPublishedDataset)} disabled={!selectedPublishedDataset || selectedPublishedDataset.privateLibrary || Boolean(activeDeleteId)} title={selectedPublishedDataset?.privateLibrary ? "Private dataset deletion is intentionally restricted to the storage administrator." : undefined}>
+              {activeDeleteId && activeDeleteId === String(selectedPublishedDataset?.id || "") ? "Deleting..." : "Delete Published Dataset"}
             </button>
           </div>
         </div>

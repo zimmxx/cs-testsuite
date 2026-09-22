@@ -153,4 +153,4 @@ Any time you change the app in a meaningful way:
 
 ## Database revision numbers
 
-App v0.7.0 identifies the private partner-library and portable-package feature release. Database V1.0, V1.1 and subsequent revisions identify published measurement snapshots and their Markdown update logs. Publishing records does not bump the app package version. Preparing release documentation does not publish a measurement snapshot.
+App v0.7.0 identifies the portable-package and shared public-library feature release. Database V1.0, V1.1 and subsequent revisions identify published measurement snapshots and their Markdown update logs. Publishing records does not bump the app package version. Preparing release documentation does not publish a measurement snapshot.

@@ -27,8 +27,7 @@ The app translates uploaded measurement data into a normalized internal schema, 
 - Device-aware insertion-loss characterization across all chips on the wafer
 - Editable manual-conversion output filenames with corrected rib-versus-strip trace naming
 - Evidence-led AI diagnostics for failed fits, spectral ripple/discontinuities, and MPW comparison
-- Private partner-library access with API-key roles and group-based visibility during local development
-- Portable `.wstpkg` project packages for secure-transfer workflows outside the public GitHub library
+- Portable `.wstpkg` project packages for sharing saved datasets without publishing them to GitHub
 
 Live deployment:
 - [https://zimmxx.github.io/cs-testsuite/](https://zimmxx.github.io/cs-testsuite/)
@@ -47,17 +46,15 @@ Live deployment:
 
 - App version: `v0.7.0`
 - Prepared: `2026-09-22` — pending PR review and merge
-- Focus: private partner-library controls and portable confidential dataset packages
+- Focus: portable dataset packages and a shared public-library workflow
 
 Key updates in this release:
 
-- Guest, viewer, editor and admin roles for the local private-library service
-- Partner access groups that limit each private dataset to approved accounts
-- Separate ignored `private/` storage, outside Vite public assets and the public GitHub repository
 - Dataset-package import and export using portable `.wstpkg` files
 - Explicit export choices for one snapshot, selected snapshots, one project, or all local snapshots
+- A simplified shared interface with no user accounts, API-key sign-in or admin-only library controls
 
-See the [private-library security guide](docs/PRIVATE_LIBRARY_SECURITY.md) and [v0.7.0 release notes](docs/releases/v0.7.0/CHANGELOG.md). App release numbers and database revision numbers are separate.
+See the [v0.7.0 release notes](docs/releases/v0.7.0/CHANGELOG.md). App release numbers and database revision numbers are separate.
 
 ## Tech Stack
 
@@ -152,7 +149,6 @@ On push to `main`, GitHub Actions:
 - [AI Diagnostics Intelligence Guide](docs/AI_DIAGNOSTICS.md)
 - [AI Backend Deployment](docs/AI_BACKEND_DEPLOYMENT.md)
 - [Local Git and GitHub Workflow](docs/LOCAL_GIT_GITHUB_WORKFLOW.md)
-- [Private Library Security Guide](docs/PRIVATE_LIBRARY_SECURITY.md)
 - [Versioning and Documentation Guide](docs/VERSIONING_AND_DOCUMENTATION.md)
 - [Dataset and Filename Standard](docs/DATASET_FILENAME_STANDARD.md)
 - [Release Features: v0.7.0](docs/releases/v0.7.0/FEATURES.md)

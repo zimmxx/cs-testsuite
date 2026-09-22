@@ -6,16 +6,14 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 
 ## Latest prepared release — 2026-09-22
 
-### v0.7.0: Private Partner Library and Portable Dataset Packages
+### v0.7.0: Portable Dataset Packages and Shared Public Library
 
 Status: implemented and locally validated; pending GitHub PR review and merge.
 
-- Added a private-library boundary for local development: ignored `private/` storage is served only through an authenticated local API and is excluded from Vite public assets and the public repository.
-- Added guest, viewer, editor and admin roles, partner access groups, API-key rotation and an admin-only user-management view.
-- Moved the confidential MPW47_DTU dataset content out of public GitHub assets.
 - Added `.wstpkg` import/export for complete reusable WST snapshots, including metadata, row data, README and multi-project manifests.
 - Added package scope controls: one dataset, a selected set, every snapshot sharing a project code, or all saved local snapshots.
-- Updated package version, README, Help links and release documentation. Production deployment still requires a separate private repository plus a server-side identity and authorization service.
+- Removed account badges, API-key sign-in, private-library access controls and admin-only user management. All users now use the same public library interface.
+- Updated package version, README, Help links and release documentation.
 - See [release changelog](releases/v0.7.0/CHANGELOG.md), [features](releases/v0.7.0/FEATURES.md) and [validation checklist](releases/v0.7.0/RELEASE_CHECKLIST.md).
 
 ## Previous release — 2026-09-09

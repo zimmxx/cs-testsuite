@@ -2,20 +2,20 @@
 
 This document captures the most useful next steps after the `v0.7.0` update.
 
-## Private-library production follow-up
+## Portable-package follow-up
 
-The local private-library API and API-key roles validate the interaction model, but they are not a multi-user production service. Next, put confidential packages in a separate private repository or managed object store, implement server-side authentication with institutional SSO/OIDC, and authorise every manifest/file request on the server. Do not expose private data, raw API keys or GitHub write credentials in a GitHub Pages build.
+The shared public library stays simple and requires no accounts. For confidential work, export a `.wstpkg` package and share it only through an approved encrypted transfer method. Do not publish confidential measurement files, package archives or access credentials to the public GitHub repository.
 
 ## Recommended Next Step
 
-The strongest next improvement is to productionise the private library: server-side identity, durable access-control records, audit events, expiring sessions, a private data repository and encrypted transfer/storage. Continue splitting the large workspace orchestration in `src/App.jsx` into smaller testable components.
+The strongest next improvement is to add package integrity and sharing guidance: checksums, optional encrypted package support, a transfer manifest and import validation guidance. Continue splitting the large workspace orchestration in `src/App.jsx` into smaller testable components.
 
 Why this should be next:
 
-- it makes partner isolation enforceable beyond one local machine
-- it removes raw API keys and GitHub credentials from browser-delivered code
-- it provides a durable audit trail for confidential dataset access and edits
-- it prepares controlled sharing of `.wstpkg` exports and imported snapshots across cleanroom users
+- it makes package handover more reliable between cleanroom and analysis workstations
+- it gives recipients a way to validate that a package was not damaged in transfer
+- it keeps confidential measurements out of the public GitHub workflow
+- it preserves a simple, account-free interface for daily public-library use
 
 ## Suggested Spectrum Architecture
 

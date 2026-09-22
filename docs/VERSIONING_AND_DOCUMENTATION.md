@@ -43,6 +43,9 @@ Version-specific docs:
 - `docs/releases/v0.6.0/FEATURES.md`
 - `docs/releases/v0.6.0/CHANGELOG.md`
 - `docs/releases/v0.6.0/RELEASE_CHECKLIST.md`
+- `docs/releases/v0.7.0/FEATURES.md`
+- `docs/releases/v0.7.0/CHANGELOG.md`
+- `docs/releases/v0.7.0/RELEASE_CHECKLIST.md`
 
 Forward-planning docs:
 
@@ -56,10 +59,10 @@ Templates for future versions:
 
 When the app is upgraded from one documented version to a later version:
 
-1. Create a new folder:
+1. Create a new folder, for example:
 
 ```text
-docs/releases/v0.5.0/
+docs/releases/v0.7.0/
 ```
 
 2. Copy the template or previous files into the new version folder
@@ -150,4 +153,4 @@ Any time you change the app in a meaningful way:
 
 ## Database revision numbers
 
-App v0.6.0 identifies the MPW Database and Comparison feature release. Database V1.0, V1.1 and subsequent revisions identify published measurement snapshots and their Markdown update logs. Publishing records does not bump the app package version. Preparing release documentation does not publish a measurement snapshot.
+App v0.7.0 identifies the private partner-library and portable-package feature release. Database V1.0, V1.1 and subsequent revisions identify published measurement snapshots and their Markdown update logs. Publishing records does not bump the app package version. Preparing release documentation does not publish a measurement snapshot.

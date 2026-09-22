@@ -1,21 +1,21 @@
 # Suggested Updates
 
-This document captures the most useful next steps after the `v0.6.0` update.
+This document captures the most useful next steps after the `v0.7.0` update.
 
-## MPW follow-up
+## Private-library production follow-up
 
-The database and comparison workflow is implemented in v0.6.0. Next, verify the first shared database publication with real repository permissions, agree on reviewed platform/mode naming for historical records, and reconcile any overlapping library/workbook cohorts. Add end-to-end coverage for concurrent editors and export behaviour as the shared database grows. Keep unknown metadata explicit until reviewed.
+The local private-library API and API-key roles validate the interaction model, but they are not a multi-user production service. Next, put confidential packages in a separate private repository or managed object store, implement server-side authentication with institutional SSO/OIDC, and authorise every manifest/file request on the server. Do not expose private data, raw API keys or GitHub write credentials in a GitHub Pages build.
 
 ## Recommended Next Step
 
-The strongest next improvement is to productionise AI Diagnostics with an authenticated, rate-limited server-side endpoint and a labelled engineering evaluation set, while continuing to split the large workspace orchestration in `src/App.jsx` into smaller testable components.
+The strongest next improvement is to productionise the private library: server-side identity, durable access-control records, audit events, expiring sessions, a private data repository and encrypted transfer/storage. Continue splitting the large workspace orchestration in `src/App.jsx` into smaller testable components.
 
 Why this should be next:
 
-- it prevents a public deployment from consuming Gemini quota without access control
-- it measures whether model explanations improve engineering decisions rather than only sounding plausible
-- it reduces regression risk when AI, spectrum, or wafer workspaces are tuned independently
-- it prepares the project for governed deployment beyond local development
+- it makes partner isolation enforceable beyond one local machine
+- it removes raw API keys and GitHub credentials from browser-delivered code
+- it provides a durable audit trail for confidential dataset access and edits
+- it prepares controlled sharing of `.wstpkg` exports and imported snapshots across cleanroom users
 
 ## Suggested Spectrum Architecture
 

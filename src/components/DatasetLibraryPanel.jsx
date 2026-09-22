@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getDatasetPresentation } from "../lib/datasetPresentation";
 import {
   DATASET_ALIGNMENT_MODE_OPTIONS,
@@ -133,12 +133,20 @@ export default function DatasetLibraryPanel({
   onLoadLocalDataset,
   onDeleteLocalDataset,
   onPublishLocalDataset,
+  onImportProjectPackage,
+  onExportSinglePackage,
+  onExportProjectPackage,
+  onExportSelectedPackage,
+  onExportAllPackages,
+  isImportingProjectPackage,
+  exportingPackageKey,
   loadingBundledId,
   publishingDatasetId
 }) {
   const safeRemoteDatasets = Array.isArray(remoteDatasets) ? remoteDatasets : [];
   const safePrivateDatasets = Array.isArray(privateDatasets) ? privateDatasets : [];
   const safeLocalDatasets = Array.isArray(localDatasets) ? localDatasets : [];
+  const localDatasetIdsKey = safeLocalDatasets.map((dataset) => dataset.id).join("|");
   const safeGithubConfig = {
     owner: githubConfig?.owner || "",
     repo: githubConfig?.repo || "",
@@ -147,6 +155,19 @@ export default function DatasetLibraryPanel({
   };
   const activeDeleteId = String(deletingPublishedDatasetId || "");
   const editorRef = useRef(null);
+  const packageImportRef = useRef(null);
+  const [selectedPackageIds, setSelectedPackageIds] = useState([]);
+  const selectedPackageIdSet = new Set(selectedPackageIds);
+  const selectedPackageDatasets = safeLocalDatasets.filter((dataset) => selectedPackageIdSet.has(dataset.id));
+  const selectedProjectNames = [...new Set(selectedPackageDatasets.map((dataset) => String(dataset.projectName || safeDatasetDisplay(dataset).projectName || "").trim()).filter(Boolean))];
+
+  useEffect(() => {
+    const availableIds = new Set(safeLocalDatasets.map((dataset) => dataset.id));
+    setSelectedPackageIds((previous) => {
+      const next = previous.filter((id) => availableIds.has(id));
+      return next.length === previous.length ? previous : next;
+    });
+  }, [localDatasetIdsKey]);
 
   useEffect(() => {
     if (!selectedPublishedDataset || !editorRef.current) return;
@@ -431,8 +452,24 @@ export default function DatasetLibraryPanel({
         <div className="analysis-card-head">
           <div>
             <h2>Saved Dataset Snapshots</h2>
-            <p>These are local browser snapshots. Load one if you want to revise its naming, then apply the current naming before publishing to GitHub.</p>
+            <p>These are local browser snapshots. Importing a WST project package saves every included slot here automatically, without sending confidential data to GitHub.</p>
           </div>
+          <div className="library-action-row">
+            <button type="button" onClick={() => packageImportRef.current?.click()} disabled={isImportingProjectPackage}>{isImportingProjectPackage ? "Importing package..." : "Import Project Package"}</button>
+            <input ref={packageImportRef} hidden type="file" accept=".wstpkg,.zip,application/zip" onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) onImportProjectPackage(file);
+            }} />
+          </div>
+        </div>
+        <div className="chart-empty compact">Select the snapshots to include, export one dataset, export every dataset with the same project code, or package all local snapshots. Packages are not encrypted; use your approved secure-transfer process for confidential work.</div>
+        <div className="library-action-row package-selection-actions">
+          <span><strong>{selectedPackageDatasets.length}</strong> selected{selectedProjectNames.length > 1 ? ` across ${selectedProjectNames.length} projects` : selectedProjectNames.length === 1 ? ` from ${selectedProjectNames[0]}` : ""}</span>
+          <button type="button" className="ghost-action" onClick={() => setSelectedPackageIds(safeLocalDatasets.map((dataset) => dataset.id))} disabled={!safeLocalDatasets.length || Boolean(exportingPackageKey)}>Select all</button>
+          <button type="button" className="ghost-action" onClick={() => setSelectedPackageIds([])} disabled={!selectedPackageDatasets.length || Boolean(exportingPackageKey)}>Clear selection</button>
+          <button type="button" className="secondary-action" onClick={() => onExportSelectedPackage(selectedPackageDatasets)} disabled={!selectedPackageDatasets.length || Boolean(exportingPackageKey)}>{exportingPackageKey === "selected" ? "Packaging selection..." : "Export selected"}</button>
+          <button type="button" className="secondary-action" onClick={onExportAllPackages} disabled={!safeLocalDatasets.length || Boolean(exportingPackageKey)}>{exportingPackageKey === "all" ? "Packaging all..." : "Export all datasets"}</button>
         </div>
         <div className="dashboard-table-wrap dataset-library-wide-table">
           <table className="dataset-library-compact-table saved-dataset-table">
@@ -456,11 +493,18 @@ export default function DatasetLibraryPanel({
               {safeLocalDatasets.length ? safeLocalDatasets.map((dataset) => {
                 const info = safeDatasetDisplay(dataset);
                 const publishValidation = validateCanonicalDatasetIdentity(info);
+                const projectKey = String(dataset.projectName || info.projectName || "").trim().toLowerCase();
+                const sameProjectDatasets = projectKey
+                  ? safeLocalDatasets.filter((candidate) => String(candidate.projectName || safeDatasetDisplay(candidate).projectName || "").trim().toLowerCase() === projectKey)
+                  : [dataset];
+                const projectExportKey = projectKey ? `project:${projectKey}` : `project:${dataset.id}`;
+                const isSelectedForPackage = selectedPackageIdSet.has(dataset.id);
                 return (
                   <tr key={dataset.id || info.fullLabel}>
                     <td>
                       <strong>{info.shortLabel}</strong>
                       {info.fullLabel !== info.shortLabel ? <div className="dataset-subcopy">{info.fullLabel}</div> : null}
+                      <label className="dataset-subcopy"><input type="checkbox" checked={isSelectedForPackage} onChange={() => setSelectedPackageIds((previous) => isSelectedForPackage ? previous.filter((id) => id !== dataset.id) : [...previous, dataset.id])} /> Include in selected package</label>
                     </td>
                     <td>
                       <div className="dataset-details-grid">
@@ -493,6 +537,8 @@ export default function DatasetLibraryPanel({
                     </td>
                     <td className="library-table-actions">
                       <button type="button" onClick={() => onLoadLocalDataset(dataset)}>Load</button>
+                      <button type="button" className="secondary-action" onClick={() => onExportSinglePackage(dataset)} disabled={Boolean(exportingPackageKey)}>{exportingPackageKey === `single:${dataset.id}` ? "Packaging..." : "Export this dataset"}</button>
+                      <button type="button" className="secondary-action" onClick={() => onExportProjectPackage(dataset)} disabled={Boolean(exportingPackageKey)}>{exportingPackageKey === projectExportKey ? "Packaging..." : `Export same project (${sameProjectDatasets.length})`}</button>
                       <button type="button" className="secondary-action" onClick={() => onPublishLocalDataset(dataset)} disabled={publishingDatasetId === dataset.id || !info.measurementDate || !publishValidation.valid} title={!info.measurementDate ? "Add a measurement date to this snapshot before publishing" : !publishValidation.valid ? `Complete: ${publishValidation.missing.join(", ")}` : "Publish this dataset to GitHub"}>{publishingDatasetId === dataset.id ? "Publishing..." : "Save to GitHub"}</button>
                       <button type="button" className="danger-action" onClick={() => onDeleteLocalDataset(dataset.id)}>Delete</button>
                     </td>

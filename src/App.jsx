@@ -41,6 +41,7 @@ import { getDatasetPresentation } from "./lib/datasetPresentation";
 import { parseHeaterMeasurementFiles } from "./lib/heaterMeasurement";
 import { generatePostProcessedArchive } from "./lib/postProcessingExport";
 import { buildWaferMapFigureModel, buildWaferMapPng, buildWaferMapSvgDocument, downloadBlob as downloadAssetBlob, openWaferMapFigureWindow, resolveWaferColorRange } from "./lib/wafermapFigure";
+import { createWstProjectPackage, importWstProjectPackage } from "./lib/wstProjectPackage";
 import {
   InteractiveHeaterTuningPlot,
   InteractivePropagationPlot,
@@ -222,8 +223,8 @@ const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
-  { label: "Feature Guide v0.6.0", path: "docs/releases/v0.6.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.6.0/FEATURES.md` },
-  { label: "Change Log v0.6.0", path: "docs/releases/v0.6.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.6.0/CHANGELOG.md` },
+  { label: "Feature Guide v0.7.0", path: "docs/releases/v0.7.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.7.0/FEATURES.md` },
+  { label: "Change Log v0.7.0", path: "docs/releases/v0.7.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.7.0/CHANGELOG.md` },
   { label: "Suggested Next Updates", path: "docs/suggested_update.md", href: `${REPO_DOC_BASE}docs/suggested_update.md` },
   { label: "Dataset Filename Standard", path: "docs/DATASET_FILENAME_STANDARD.md", href: `${REPO_DOC_BASE}docs/DATASET_FILENAME_STANDARD.md` }
 ];
@@ -2342,6 +2343,8 @@ export default function App() {
   const [githubConfig, setGithubConfig] = useState(() => ({ ...DEFAULT_GITHUB_CONFIG, ...readStoredJson(STORAGE_KEYS.github, {}) }));
   const [toastItems, setToastItems] = useState([]);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [isImportingProjectPackage, setIsImportingProjectPackage] = useState(false);
+  const [exportingProjectPackageId, setExportingProjectPackageId] = useState("");
   const [isUploadingHeaterFiles, setIsUploadingHeaterFiles] = useState(false);
   const [waferMapDisplayMode, setWaferMapDisplayMode] = useState("all");
   const [waferMapOverlayMode, setWaferMapOverlayMode] = useState("chip");
@@ -3993,6 +3996,95 @@ export default function App() {
     if (dataset) await loadDataset(dataset);
   }
   function deleteDataset(datasetId) { const target = savedDatasets.find((dataset) => dataset.id === datasetId); setSavedDatasets((previous) => previous.filter((dataset) => dataset.id !== datasetId)); appendAudit("dataset", "Dataset deleted", `Deleted dataset snapshot ${target?.label || datasetId}.`); }
+  async function importProjectPackage(file) {
+    if (isImportingProjectPackage) return;
+    setIsImportingProjectPackage(true);
+    setWorkspaceActivity({ title: "Importing project package...", message: `Validating ${file.name} and saving its dataset snapshots locally.` });
+    await waitForNextPaint();
+    try {
+      const result = await importWstProjectPackage(file);
+      if (savedDatasets.length + result.datasets.length > 40) {
+        throw new Error(`This package contains ${result.datasets.length} dataset snapshot${result.datasets.length === 1 ? "" : "s"}, but only ${Math.max(0, 40 - savedDatasets.length)} local snapshot place${40 - savedDatasets.length === 1 ? " is" : "s are"} available. Delete unused snapshots first; nothing was imported.`);
+      }
+      const importedAt = new Date().toISOString();
+      const importedSnapshots = result.datasets.map((dataset) => {
+        const snapshot = {
+          ...dataset,
+          id: createId("dataset"),
+          savedAt: importedAt,
+          autoSaved: true,
+          githubSync: { status: "local" },
+          packageImport: {
+            fileName: file.name,
+            projectName: result.manifest.projectName,
+            importedAt
+          }
+        };
+        const display = buildDatasetSnapshotMetadata(snapshot);
+        return { ...snapshot, label: snapshot.label || display.label, display };
+      });
+      setSavedDatasets((previous) => [...importedSnapshots, ...previous]);
+      setQuickDatasetProjectSelection(
+        result.manifest.projectNames?.length === 1
+          ? result.manifest.projectName
+          : importedSnapshots[0]?.projectName || ""
+      );
+      setStatusMessage(`Imported ${importedSnapshots.length} saved dataset snapshot${importedSnapshots.length === 1 ? "" : "s"} from ${file.name}.`);
+      appendAudit("dataset", "Project package imported", `Imported ${importedSnapshots.length} snapshot(s) for ${result.manifest.projectName || "the packaged project"} from ${file.name}.`);
+      pushToast("Project package imported", `${importedSnapshots.length} slot snapshot${importedSnapshots.length === 1 ? "" : "s"} were saved in the local library.`, "success");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown project package import error.";
+      setStatusMessage(`Project package import failed: ${detail}`);
+      appendAudit("dataset", "Project package import failed", detail);
+      pushToast("Project package import failed", detail, "danger");
+    } finally {
+      setIsImportingProjectPackage(false);
+      setWorkspaceActivity(null);
+    }
+  }
+  function savedSnapshotProjectKey(snapshot) {
+    return String(snapshot?.projectName || snapshot?.display?.projectName || "").trim().toLowerCase();
+  }
+  async function exportDatasetPackage(snapshots, exportKey, scopeLabel) {
+    const uniqueSnapshots = [...new Map((Array.isArray(snapshots) ? snapshots : []).filter(Boolean).map((snapshot) => [snapshot.id, snapshot])).values()];
+    if (!uniqueSnapshots.length || exportingProjectPackageId) return;
+    setExportingProjectPackageId(exportKey);
+    try {
+      const result = await createWstProjectPackage(uniqueSnapshots);
+      downloadBlob(result.blob, result.fileName, "application/vnd.cornerstone.wst-project-package+zip");
+      const detail = `Created ${result.fileName} from ${scopeLabel} with ${result.manifest.datasetCount} saved dataset snapshot${result.manifest.datasetCount === 1 ? "" : "s"}.`;
+      setStatusMessage(detail);
+      appendAudit("export", "Dataset package exported", detail);
+      pushToast("Dataset package ready", `${result.manifest.datasetCount} saved snapshot${result.manifest.datasetCount === 1 ? "" : "s"} are in ${result.fileName}.`, "success");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown project package export error.";
+      setStatusMessage(`Project package export failed: ${detail}`);
+      appendAudit("export", "Project package export failed", detail);
+      pushToast("Project package export failed", detail, "danger");
+    } finally {
+      setExportingProjectPackageId("");
+    }
+  }
+  function exportSingleDatasetPackage(dataset) {
+    if (!dataset) return;
+    exportDatasetPackage([dataset], `single:${dataset.id}`, "this dataset");
+  }
+  function exportProjectPackage(dataset) {
+    if (!dataset) return;
+    const projectKey = savedSnapshotProjectKey(dataset);
+    if (!projectKey) {
+      exportDatasetPackage([dataset], `project:${dataset.id}`, "this dataset (no project code is saved)");
+      return;
+    }
+    const projectSnapshots = savedDatasets.filter((candidate) => savedSnapshotProjectKey(candidate) === projectKey);
+    exportDatasetPackage(projectSnapshots, `project:${projectKey}`, `project ${dataset.projectName || "snapshot group"}`);
+  }
+  function exportSelectedDatasetPackage(datasets) {
+    exportDatasetPackage(datasets, "selected", "the selected datasets");
+  }
+  function exportAllDatasetPackages() {
+    exportDatasetPackage(savedDatasets, "all", "all saved datasets");
+  }
   function updateGithubConfig(field, value) { setGithubConfig((previous) => ({ ...previous, [field]: value })); }
   function saveGithubConfig() { persistStoredJson(STORAGE_KEYS.github, githubConfig); setStatusMessage(`Saved GitHub sync settings for ${githubConfig.owner}/${githubConfig.repo} on ${githubConfig.branch}.`); appendAudit("github", "GitHub settings saved", `Saved GitHub dataset sync settings for ${githubConfig.owner}/${githubConfig.repo}.`); pushToast("GitHub settings saved", `${githubConfig.owner}/${githubConfig.repo} stored in this browser.`, "success"); }
   async function refreshPrivateLibrary(session = privateSession, silent = false) {
@@ -4617,7 +4709,7 @@ export default function App() {
             </section>
 </> : null}
 
-          {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} currentDatasetMeta={currentDatasetMeta} currentDatasetNamingDraft={datasetNamingDraft} onCurrentDatasetNamingChange={updateCurrentDatasetNaming} onResetCurrentDatasetNaming={() => resetCurrentDatasetNaming()} onApplyCurrentNamingToLoadedSnapshot={applyCurrentNamingToLoadedSnapshot} canApplyCurrentNamingToLoadedSnapshot={Boolean(selectedLocalDatasetId(quickDatasetSelection))} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={() => { refreshRemoteLibrary(); refreshPrivateLibrary(); }} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} privateLibraryStatus={privateLibraryStatus} privateDatasets={privateLibraryDatasets} privateUser={privateSession.user} selectedPublishedDataset={selectedPublishedDataset} publishedDatasetDraft={publishedDatasetDraft} onSelectPublishedDataset={selectPublishedDatasetForEdit} onPublishedDatasetDraftChange={updatePublishedDatasetDraft} onSavePublishedDatasetMetadata={savePublishedDatasetMetadata} isSavingPublishedDataset={isSavingPublishedDataset} onDeletePublishedDataset={deletePublishedDataset} deletingPublishedDatasetId={deletingPublishedDatasetId} loadedGithubDataset={loadedGithubDataset} currentPublishedDatasetReview={currentPublishedDatasetReview} canSaveCurrentReviewToPublishedDataset={canSaveCurrentReviewToPublishedDataset} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
+          {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} currentDatasetMeta={currentDatasetMeta} currentDatasetNamingDraft={datasetNamingDraft} onCurrentDatasetNamingChange={updateCurrentDatasetNaming} onResetCurrentDatasetNaming={() => resetCurrentDatasetNaming()} onApplyCurrentNamingToLoadedSnapshot={applyCurrentNamingToLoadedSnapshot} canApplyCurrentNamingToLoadedSnapshot={Boolean(selectedLocalDatasetId(quickDatasetSelection))} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={() => { refreshRemoteLibrary(); refreshPrivateLibrary(); }} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} privateLibraryStatus={privateLibraryStatus} privateDatasets={privateLibraryDatasets} privateUser={privateSession.user} selectedPublishedDataset={selectedPublishedDataset} publishedDatasetDraft={publishedDatasetDraft} onSelectPublishedDataset={selectPublishedDatasetForEdit} onPublishedDatasetDraftChange={updatePublishedDatasetDraft} onSavePublishedDatasetMetadata={savePublishedDatasetMetadata} isSavingPublishedDataset={isSavingPublishedDataset} onDeletePublishedDataset={deletePublishedDataset} deletingPublishedDatasetId={deletingPublishedDatasetId} loadedGithubDataset={loadedGithubDataset} currentPublishedDatasetReview={currentPublishedDatasetReview} canSaveCurrentReviewToPublishedDataset={canSaveCurrentReviewToPublishedDataset} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} onImportProjectPackage={importProjectPackage} onExportSinglePackage={exportSingleDatasetPackage} onExportProjectPackage={exportProjectPackage} onExportSelectedPackage={exportSelectedDatasetPackage} onExportAllPackages={exportAllDatasetPackages} isImportingProjectPackage={isImportingProjectPackage} exportingPackageKey={exportingProjectPackageId} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "manual-conversion-advanced" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} advanced /> : null}
           {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={allRemoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}

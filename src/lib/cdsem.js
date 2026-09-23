@@ -13,7 +13,16 @@ const RESERVED_HINTS = [
   "comment",
   "date",
   "time",
-  "id"
+  "id",
+  "batch",
+  "etch",
+  "step",
+  "dose",
+  "design",
+  "hard mask",
+  "waveguide type",
+  "measurement date",
+  "record"
 ];
 
 function normalizeHeader(value) {

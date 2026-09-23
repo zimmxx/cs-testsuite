@@ -4,7 +4,21 @@ This file tracks the development history of the Wafer Post-Processing Suite from
 
 **Created and maintained by:** Aiman Hazim Shafizam — Research Technician, Testing and Characterisation, CORNERSTONE
 
-## Latest prepared release — 2026-09-22
+## Latest prepared release — 2026-09-23
+
+### v0.8.0: CD-SEM Wafermap Comparison
+
+Status: implemented and production build validated; pending GitHub PR review and merge.
+
+- Added multi-file CD-SEM imports and chip-matched etch-run comparison.
+- Added side-by-side CD-SEM and propagation-loss wafermaps with display modes, value/ID overlays and adjustable colour scales.
+- Coloured waveguide midpoint measurements by absolute deviation from design width; surfaced design width and dose from each run.
+- Marked unavailable parameters explicitly and added optional tolerance-based CD-SEM pass/fail filtering.
+- Updated package version, README, in-app Help links and release documentation.
+- No cleanroom measurements are included in this application-code release.
+- See [release changelog](releases/v0.8.0/CHANGELOG.md), [features](releases/v0.8.0/FEATURES.md) and [validation checklist](releases/v0.8.0/RELEASE_CHECKLIST.md).
+
+## Previous release — 2026-09-22
 
 ### v0.7.0: Portable Dataset Packages and Shared Public Library
 

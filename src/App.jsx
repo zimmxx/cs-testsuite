@@ -207,8 +207,8 @@ const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
-  { label: "Feature Guide v0.7.0", path: "docs/releases/v0.7.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.7.0/FEATURES.md` },
-  { label: "Change Log v0.7.0", path: "docs/releases/v0.7.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.7.0/CHANGELOG.md` },
+  { label: "Feature Guide v0.8.0", path: "docs/releases/v0.8.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.8.0/FEATURES.md` },
+  { label: "Change Log v0.8.0", path: "docs/releases/v0.8.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.8.0/CHANGELOG.md` },
   { label: "Suggested Next Updates", path: "docs/suggested_update.md", href: `${REPO_DOC_BASE}docs/suggested_update.md` },
   { label: "Dataset Filename Standard", path: "docs/DATASET_FILENAME_STANDARD.md", href: `${REPO_DOC_BASE}docs/DATASET_FILENAME_STANDARD.md` }
 ];
@@ -4530,7 +4530,9 @@ export default function App() {
               onAnalyzeRemoteDataset={analyzeBundledDataset}
             />
           ) : null}
-          {activeTab === "cd-sem" ? <CdSemLibraryPanel waferTemplate={currentWaferTemplate} propagationCells={propagationAllWaferCells} currentDatasetMeta={currentDatasetMeta} sourceMeta={sourceMeta} /> : null}
+          <div style={{ display: activeTab === "cd-sem" ? undefined : "none" }} aria-hidden={activeTab !== "cd-sem"}>
+            <CdSemLibraryPanel waferTemplate={currentWaferTemplate} propagationCells={propagationAllWaferCells} currentDatasetMeta={currentDatasetMeta} sourceMeta={sourceMeta} />
+          </div>
           {activeTab === "dashboard" ? <DatasetDashboardPanel remoteDatasets={allRemoteLibraryDatasets} onAnalyzeDataset={analyzeBundledDataset} onLoadDataset={(dataset) => loadBundledDataset(dataset, "dataset")} /> : null}
           {activeTab === "mpw-comparison" ? <MpwComparisonPanel key={`${githubConfig.owner}/${githubConfig.repo}/${githubConfig.branch}`} githubConfig={githubConfig} /> : null}
           {activeTab === "mpw-database" ? <MpwDatabasePanel key={`${githubConfig.owner}/${githubConfig.repo}/${githubConfig.branch}`} githubConfig={githubConfig} onLoadChips={(definition) => analyzeBundledDataset(definition, true)} /> : null}

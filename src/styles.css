@@ -3922,6 +3922,50 @@ body {
   margin-inline: auto;
 }
 
+.cdsem-wafer-workspace > .wafer-card-layout {
+  width: min(100%, 500px);
+  grid-template-columns: minmax(0, 1fr) 82px;
+  gap: 8px;
+  margin-inline: auto;
+}
+
+.cdsem-comparison-maps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.cdsem-map-panel {
+  min-width: 0;
+}
+
+.cdsem-map-panel > h3 {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.cdsem-map-caption {
+  min-height: 2.5em;
+  margin: 0 0 8px !important;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.cdsem-propagation-map {
+  width: min(100%, 500px);
+  grid-template-columns: minmax(0, 1fr) 82px;
+  gap: 8px;
+  margin-inline: auto;
+}
+
+@media (max-width: 1080px) {
+  .cdsem-comparison-maps {
+    grid-template-columns: 1fr;
+  }
+}
+
 .overview-wafer-card .wafer-outline {
   padding: 12px;
 }
@@ -3949,6 +3993,32 @@ body {
 
 .wafer-control-rail .wafer-scale-actions {
   padding-top: 2px;
+}
+
+.cdsem-display-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
+.cdsem-display-controls label {
+  display: grid;
+  gap: 4px;
+  min-width: 130px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.cdsem-display-controls select,
+.cdsem-display-controls input {
+  min-height: 36px;
+  width: 100%;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
 }
 
 .chip-summary-card {

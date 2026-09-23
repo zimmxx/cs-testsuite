@@ -44,17 +44,18 @@ Live deployment:
 
 ## Current Release
 
-- App version: `v0.7.0`
-- Prepared: `2026-09-22` — pending PR review and merge
-- Focus: portable dataset packages and a shared public-library workflow
+- App version: `v0.8.0`
+- Prepared: `2026-09-23` — pending PR review and merge
+- Focus: CD-SEM import, target-relative wafermaps and etch-run comparisons
 
 Key updates in this release:
 
-- Dataset-package import and export using portable `.wstpkg` files
-- Explicit export choices for one snapshot, selected snapshots, one project, or all local snapshots
-- A simplified shared interface with no user accounts, API-key sign-in or admin-only library controls
+- Import multiple coordinate-based CD-SEM files and compare etch runs at matched chip locations
+- Compare CD-SEM and propagation-loss wafermaps side by side with independent display and scale controls
+- Colour `waveguide_mid_nm` by its absolute deviation from the run's design width; display design width and dose
+- Report unavailable parameters explicitly; user-set tolerance enables CD-SEM pass/fail filtering
 
-See the [v0.7.0 release notes](docs/releases/v0.7.0/CHANGELOG.md). App release numbers and database revision numbers are separate.
+See the [CD-SEM import guide](docs/releases/v0.8.0/FEATURES.md) and [v0.8.0 release notes](docs/releases/v0.8.0/CHANGELOG.md). App release numbers and database revision numbers are separate.
 
 ## Tech Stack
 
@@ -151,6 +152,9 @@ On push to `main`, GitHub Actions:
 - [Local Git and GitHub Workflow](docs/LOCAL_GIT_GITHUB_WORKFLOW.md)
 - [Versioning and Documentation Guide](docs/VERSIONING_AND_DOCUMENTATION.md)
 - [Dataset and Filename Standard](docs/DATASET_FILENAME_STANDARD.md)
+- [Release Features: v0.8.0](docs/releases/v0.8.0/FEATURES.md)
+- [Release Changelog: v0.8.0](docs/releases/v0.8.0/CHANGELOG.md)
+- [Release Checklist: v0.8.0](docs/releases/v0.8.0/RELEASE_CHECKLIST.md)
 - [Release Features: v0.7.0](docs/releases/v0.7.0/FEATURES.md)
 - [Release Changelog: v0.7.0](docs/releases/v0.7.0/CHANGELOG.md)
 - [Release Checklist: v0.7.0](docs/releases/v0.7.0/RELEASE_CHECKLIST.md)

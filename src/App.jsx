@@ -1,3 +1,7 @@
+import DatasetReviewPanel from "./components/DatasetReviewPanel";
+import OverviewPanel from "./components/OverviewPanel";
+import HelpGuides from "./components/HelpGuides";
+import { datasetFields, reviewText, normalizeTestTeamApproval } from "./lib/datasetReview";
 import { useEffect, useMemo, useState, startTransition } from "react";
 import {
   buildHtmlReport,
@@ -79,6 +83,7 @@ const RAIL_SECTIONS = [
   {
     title: "Library",
     items: [
+      { id: "overview", label: "Overview", icon: "wafer" },
       { id: "dashboard", label: "Dashboard", icon: "grid" },
       { id: "mpw-database", label: "MPW Database", icon: "database" },
       { id: "mpw-comparison", label: "MPW Comparison", icon: "database" },
@@ -943,6 +948,9 @@ function createDatasetNamingDraft(dataset = {}) {
     projectName: display.projectName || "",
     slot: display.slot || "",
     processStep: display.processStep || "StepXX",
+    testTeamApproval: normalizeTestTeamApproval(reviewText({ ...dataset, ...dataset.metadata }, "testTeamApproval")),
+    stepDescription: reviewText({ ...dataset, ...dataset.metadata }, "stepDescription"),
+    testTeamComments: reviewText({ ...dataset, ...dataset.metadata }, "testTeamComments"),
     measurementDate: getDatasetMeasurementDate(dataset),
     platformLabel: display.platformLabel || "",
     opticalMode: display.opticalMode || "",
@@ -964,6 +972,9 @@ function createPublishedDatasetDraft(dataset = {}) {
     projectName: dataset.projectName || "",
     slot: dataset.slot || "",
     processStep: dataset.processStep || "StepXX",
+    testTeamApproval: normalizeTestTeamApproval(reviewText({ ...dataset, ...dataset.metadata }, "testTeamApproval")),
+    stepDescription: reviewText({ ...dataset, ...dataset.metadata }, "stepDescription"),
+    testTeamComments: reviewText({ ...dataset, ...dataset.metadata }, "testTeamComments"),
     measurementDate: getDatasetMeasurementDate(dataset),
     platformLabel: dataset.platformLabel || dataset.platformDisplayName || "",
     opticalMode: dataset.opticalMode || "",
@@ -1175,6 +1186,15 @@ function quickDatasetProject(dataset = {}) {
 
 function QuickDatasetPicker({ selection, remoteDatasets, localDatasets, disabled, placeholder, onSelect }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [filters, setFilters] = useState({});
+  const [longNames, setLongNames] = useState(false);
+  const filterKeys = [["platform", "Platform"], ["slot", "Slot number"], ["step", "Step number"], ["bb", "Building block"]];
+  const catalogue = [...remoteDatasets, ...localDatasets];
+  const matches = (dataset, keys = filterKeys.map(([key]) => key)) => keys.every((key) => !filters[key] || datasetFields(dataset)[key] === filters[key]);
+  function changeFilter(key, value) {
+    const index = filterKeys.findIndex(([field]) => field === key);
+    setFilters((previous) => ({ ...Object.fromEntries(filterKeys.slice(0, index).map(([field]) => [field, previous[field]])), [key]: value }));
+  }
   const separator = selection.indexOf(":");
   const selectedSource = separator >= 0 ? selection.slice(0, separator) : "";
   const selectedId = separator >= 0 ? selection.slice(separator + 1) : "";
@@ -1191,7 +1211,7 @@ function QuickDatasetPicker({ selection, remoteDatasets, localDatasets, disabled
     return (
       <section className="quick-dataset-option-group" aria-label={label}>
         <div className="quick-dataset-option-group-label">{label}</div>
-        {datasets.map((dataset) => {
+        {datasets.filter((dataset) => matches(dataset)).map((dataset) => {
           const value = `${source}:${dataset.id}`;
           return (
             <button
@@ -1203,7 +1223,7 @@ function QuickDatasetPicker({ selection, remoteDatasets, localDatasets, disabled
               onClick={() => selectDataset(value)}
             >
               <strong>{quickDatasetSummary(dataset) || quickDatasetName(dataset)}</strong>
-              <small>{quickDatasetName(dataset)}</small>
+              {longNames ? <small>{quickDatasetName(dataset)}</small> : <small>{reviewText(dataset, "stepDescription") || "Step description not recorded"}</small>}
             </button>
           );
         })}
@@ -1219,7 +1239,7 @@ function QuickDatasetPicker({ selection, remoteDatasets, localDatasets, disabled
         type="button"
         className="quick-dataset-trigger"
         aria-label="Quick Load Dataset"
-        aria-haspopup="listbox"
+        aria-haspopup="dialog"
         aria-expanded={isOpen}
         disabled={disabled}
         onClick={() => setIsOpen((open) => !open)}
@@ -1227,13 +1247,20 @@ function QuickDatasetPicker({ selection, remoteDatasets, localDatasets, disabled
         <i>Dataset</i>
         <span className="quick-dataset-trigger-copy">
           <strong>{selectedDataset ? quickDatasetSummary(selectedDataset) : placeholder}</strong>
-          {selectedDataset ? <small>{quickDatasetName(selectedDataset)}</small> : null}
+          {selectedDataset && longNames ? <small>{quickDatasetName(selectedDataset)}</small> : null}
         </span>
         <span className="quick-dataset-chevron" aria-hidden="true">⌄</span>
       </button>
       {isOpen ? <>
         <button type="button" className="quick-dataset-backdrop" aria-label="Close dataset list" onClick={() => setIsOpen(false)} />
-        <div className="quick-dataset-menu" role="listbox" aria-label="Available datasets">
+        <div className="quick-dataset-menu" role="dialog" aria-label="Available datasets">
+          <div className="dataset-filter-grid">{filterKeys.map(([key, label], index) => {
+            const keys = filterKeys.slice(0, index).map(([field]) => field);
+            const options = [...new Set(catalogue.filter((d) => matches(d, keys)).map((d) => datasetFields(d)[key]))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+            return <label className="mapping-field" key={key}><span>{label}</span><select value={filters[key] || ""} onChange={(event) => changeFilter(key, event.target.value)}><option value="">All available</option>{options.map((value) => <option key={value}>{value}</option>)}</select></label>;
+          })}</div>
+          <label className="dataset-name-toggle"><input type="checkbox" checked={longNames} onChange={(event) => setLongNames(event.target.checked)} /> Show full dataset names</label>
+          {!catalogue.some((d) => matches(d)) ? <p>No datasets match these filters.</p> : null}
           {renderGroup("GitHub Measurement Data Library", "github", remoteDatasets)}
           {renderGroup("Local Dataset Snapshots", "local", localDatasets)}
         </div>
@@ -2325,7 +2352,7 @@ export default function App() {
   const [isUploadingHeaterFiles, setIsUploadingHeaterFiles] = useState(false);
   const [waferMapDisplayMode, setWaferMapDisplayMode] = useState("all");
   const [waferMapOverlayMode, setWaferMapOverlayMode] = useState("chip");
-  const [isPropagationSettingsExpanded, setIsPropagationSettingsExpanded] = useState(true);
+  const [isPropagationSettingsExpanded, setIsPropagationSettingsExpanded] = useState(false);
   const [isGeneratingPostProcessed, setIsGeneratingPostProcessed] = useState(false);
   const [isGeneratingPptReport, setIsGeneratingPptReport] = useState(false);
   const [isGeneratingWordReport, setIsGeneratingWordReport] = useState(false);
@@ -2896,9 +2923,10 @@ export default function App() {
       selectedDate: nextDate,
       rawRows: snapshotRows,
       columnMap: nextMap,
-      sourceMeta: nextSourceMeta,
+      sourceMeta: { ...nextSourceMeta, testTeamApproval: normalizeTestTeamApproval(datasetNamingDraft.testTeamApproval), stepDescription: datasetNamingDraft.stepDescription || "", testTeamComments: datasetNamingDraft.testTeamComments || "" },
       summary: snapshotSummary,
       namingOverrides: { ...datasetNamingDraft },
+      ...(nextRows === currentRows ? buildReviewedAnalyticsPayload(reportState, includedPropagationChipIds, propagationChipIds, nextSourceMeta) : {}),
       autoSaved,
       savedAt: new Date().toISOString()
     };
@@ -2935,7 +2963,8 @@ export default function App() {
         rawRows: currentRows.length ? currentRows : dataset.rawRows,
         columnMap: Object.keys(currentMap).length ? currentMap : dataset.columnMap,
         sourceMeta: sourceMeta || dataset.sourceMeta,
-        namingOverrides: { ...datasetNamingDraft }
+        namingOverrides: { ...datasetNamingDraft },
+        ...buildReviewedAnalyticsPayload(reportState, includedPropagationChipIds, propagationChipIds, sourceMeta)
       };
       const display = buildDatasetSnapshotMetadata(nextDataset);
       appliedLabel = display.label;
@@ -2991,6 +3020,9 @@ export default function App() {
         mpwRun: publishedDatasetDraft.projectName || existingMetadata.mpwRun || dataset.mpw,
         slot: publishedDatasetDraft.slot || dataset.slot,
         processStep,
+        testTeamApproval: normalizeTestTeamApproval(publishedDatasetDraft.testTeamApproval),
+        stepDescription: publishedDatasetDraft.stepDescription ?? "",
+        testTeamComments: publishedDatasetDraft.testTeamComments ?? "",
         measurementDate: publishedDatasetDraft.measurementDate || existingMetadata.measurementDate || dataset.measurementDate || dataset.selectedDate || null,
         publishedDate: existingMetadata.publishedDate || dataset.publishedDate || null,
         selectedDate: publishedDatasetDraft.measurementDate || existingMetadata.measurementDate || dataset.measurementDate || dataset.selectedDate || null,
@@ -3011,6 +3043,9 @@ export default function App() {
           projectName: publishedDatasetDraft.projectName || dataset.projectName,
           slot: publishedDatasetDraft.slot || dataset.slot,
           processStep,
+          testTeamApproval: normalizeTestTeamApproval(publishedDatasetDraft.testTeamApproval),
+          stepDescription: publishedDatasetDraft.stepDescription ?? "",
+          testTeamComments: publishedDatasetDraft.testTeamComments ?? "",
           measurementDate: publishedDatasetDraft.measurementDate || existingMetadata.measurementDate || dataset.measurementDate || dataset.selectedDate || "",
           platformLabel: publishedDatasetDraft.platformLabel || dataset.platformLabel,
           opticalMode: publishedDatasetDraft.opticalMode || dataset.opticalMode || "",
@@ -3041,6 +3076,9 @@ export default function App() {
       });
 
       setRemoteLibraryDatasets((result.manifestV2 || result.manifest).map(normalizeLibraryDataset));
+      if (isLoadedPublishedDataset) {
+        setDatasetNamingDraft((previous) => ({ ...previous, testTeamApproval: nextMetadata.testTeamApproval, stepDescription: nextMetadata.stepDescription, testTeamComments: nextMetadata.testTeamComments }));
+      }
       setStatusMessage(`Updated published dataset metadata for ${publishedDatasetDraft.label || dataset.label}.`);
       setRemoteLibraryStatus(`GitHub metadata update complete for ${publishedDatasetDraft.label || dataset.label}.`);
       appendAudit("github", "Published dataset metadata updated", `Updated GitHub metadata for ${dataset.id}.`);
@@ -3186,6 +3224,9 @@ export default function App() {
           projectName: nextProjectName,
           slot: packageMetadata.slot || nextWaferName,
           processStep: packageMetadata.processStep,
+          testTeamApproval: normalizeTestTeamApproval(packageMetadata.testTeamApproval),
+          stepDescription: packageMetadata.stepDescription,
+          testTeamComments: packageMetadata.testTeamComments,
           platformLabel: packageMetadata.platform || packageMetadata.platformLabel,
           opticalMode: packageMetadata.opticalMode,
           buildingBlockLabel: packageMetadata.buildingBlock || packageMetadata.buildingBlockLabel,
@@ -3446,6 +3487,9 @@ export default function App() {
         ...buildDefaultSourceMeta(databaseMode ? DEFAULT_SETTINGS : appSettings),
         ...fallbackSettings,
         name: definition.label,
+        testTeamApproval: normalizeTestTeamApproval(metadata?.testTeamApproval ?? definition.testTeamApproval),
+        stepDescription: metadata?.stepDescription ?? definition.stepDescription ?? "",
+        testTeamComments: metadata?.testTeamComments ?? definition.testTeamComments ?? "",
         type: definition.sourceType,
         traceInputUnit: parsingMeta.traceInputUnit || (databaseMode ? 'watts' : appSettings.traceInputUnit || 'watts')
       },
@@ -3899,8 +3943,8 @@ export default function App() {
       setIsGeneratingPdfReport(false);
     }
   }
-  function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const currentPresentation = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }); const projectRecord = { id: createId("project"), projectName: currentPresentation.projectDisplayName, waferName: currentPresentation.waferDisplayName, slot: currentPresentation.slot, waveguideType: currentPresentation.waveguideType, measurementMode: currentPresentation.measurementMode, measurementType: currentPresentation.measurementType, datasetLabel: sourceMeta?.name || `${currentPresentation.projectDisplayName} ${currentPresentation.slot}`, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, excludedPropagationChipIds, rawRows: currentRows, columnMap: currentMap, sourceMeta, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${currentPresentation.projectDisplayName} for slot ${currentPresentation.slot}.`); setStatusMessage(`Saved project ${currentPresentation.projectDisplayName}. You can reopen it later from the Projects section.`); }
-  function loadProject(project) { const presented = presentDataset(project); setProjectName(presented.projectDisplayName); setWaferName(presented.waferDisplayName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setQuickDatasetSelection(""); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setExcludedPropagationChipIds(project.excludedPropagationChipIds || {}); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${presented.projectDisplayName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${presented.projectDisplayName} for wafer run ${presented.waferDisplayName}.`); }
+  function saveCurrentProject() { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Project save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("project", "Project save skipped", detail); pushToast("Project save skipped", "This workspace is too large for reliable browser storage.", "progress"); return; } const currentPresentation = getDatasetPresentation({ projectName, waferName, sourceMeta, rawRows: currentRows }); const projectRecord = { id: createId("project"), projectName: currentPresentation.projectDisplayName, waferName: currentPresentation.waferDisplayName, slot: currentPresentation.slot, waveguideType: currentPresentation.waveguideType, measurementMode: currentPresentation.measurementMode, measurementType: currentPresentation.measurementType, datasetLabel: sourceMeta?.name || `${currentPresentation.projectDisplayName} ${currentPresentation.slot}`, selectedDate, activeTab: isWorkspaceTab ? activeTab : "propagation", selectedWaferMetric, selectedChip, excludedPropagationChipIds, rawRows: currentRows, columnMap: currentMap, sourceMeta: { ...sourceMeta, testTeamApproval: normalizeTestTeamApproval(datasetNamingDraft.testTeamApproval), stepDescription: datasetNamingDraft.stepDescription || "", testTeamComments: datasetNamingDraft.testTeamComments || "" }, summary: datasetSummary, savedAt: new Date().toISOString() }; setSavedProjects((previous) => [projectRecord, ...previous].slice(0, 30)); appendAudit("project", "Project saved", `Saved project ${currentPresentation.projectDisplayName} for slot ${currentPresentation.slot}.`); setStatusMessage(`Saved project ${currentPresentation.projectDisplayName}. You can reopen it later from the Projects section.`); }
+  function loadProject(project) { const presented = presentDataset(project); setProjectName(presented.projectDisplayName); setWaferName(presented.waferDisplayName); setSelectedDate(project.selectedDate); setRawRows(project.rawRows || []); setColumnMap(project.columnMap || {}); setSourceMeta(project.sourceMeta || buildDefaultSourceMeta(appSettings)); setDatasetNamingDraft(createDatasetNamingDraft(project)); setQuickDatasetSelection(""); setSelectedWaferMetric(project.selectedWaferMetric || "propagation"); setSelectedChip(project.selectedChip || ""); setExcludedPropagationChipIds(project.excludedPropagationChipIds || {}); setActiveTab(project.activeTab || "propagation"); setStatusMessage(`Loaded project ${presented.projectDisplayName} from local browser storage.`); appendAudit("project", "Project loaded", `Loaded project ${presented.projectDisplayName} for wafer run ${presented.waferDisplayName}.`); }
   function deleteProject(projectId) { const target = savedProjects.find((project) => project.id === projectId); setSavedProjects((previous) => previous.filter((project) => project.id !== projectId)); appendAudit("project", "Project deleted", `Deleted saved project ${target?.projectName || projectId}.`); }
   function saveCurrentDataset(autoSaved = false) { const snapshotCapacity = evaluateLocalSnapshotCapacity(currentRows, sourceMeta); if (!supportsIndexedDbPersistence() && !snapshotCapacity.ok) { const detail = `Dataset save skipped. ${snapshotCapacity.reason}`; setStatusMessage(detail); appendAudit("dataset", autoSaved ? "Dataset auto-save skipped" : "Dataset save skipped", detail); pushToast(autoSaved ? "Auto-save skipped" : "Dataset save skipped", "This dataset is too large for reliable browser storage.", "progress"); return; } const snapshot = rememberDatasetSnapshot(autoSaved, currentRows, currentMap, sourceMeta, sourceMeta.name); appendAudit("dataset", autoSaved ? "Dataset auto-saved" : "Dataset saved", `Stored dataset ${snapshot.label} with ${snapshot.summary.rows} normalized rows.`); setStatusMessage(`Saved dataset snapshot ${snapshot.label} to the local library.`); }
   async function loadDataset(dataset) {
@@ -3919,7 +3963,7 @@ export default function App() {
     setQuickDatasetProjectSelection(quickDatasetProject(dataset));
     setQuickDatasetSelection(`local:${dataset.id}`);
     setSelectedChip(rows[0]?.chip_id || "");
-    setExcludedPropagationChipIds({});
+    setExcludedPropagationChipIds(Object.fromEntries((dataset.analyticsReview?.excludedChipIds || []).map((id) => [String(id), true])));
     setActiveTab("propagation");
     setSelectedWaferMetric("propagation");
     setStatusMessage(`Loaded dataset snapshot ${dataset.label} from the local browser library.`);
@@ -4306,6 +4350,8 @@ export default function App() {
               <ShellStat label="Wafer Yield" value={propagationYield !== null && propagationYield !== undefined ? `${propagationYield.toFixed(1)}%` : "--"} note={`Pass criteria: MSE <= ${sourceMeta.propagationMseThreshold}`} tone="yield" icon="wafer-yield" />
             </section>
 
+            <DatasetReviewPanel dataset={currentDatasetMeta ? { ...currentDatasetMeta, namingOverrides: datasetNamingDraft } : null} review={currentDatasetMeta ? buildReviewedAnalyticsPayload(reportState, includedPropagationChipIds, propagationChipIds, sourceMeta).analyticsReview : null} onChange={updateCurrentDatasetNaming} />
+
             {activeTab === "propagation" ? <MatlabSummaryPanel summary={reportState.matlabSummary} /> : null}
 
             {activeTab === "propagation" ? (
@@ -4518,6 +4564,7 @@ export default function App() {
             </section>
 </> : null}
 
+          {activeTab === "overview" ? <OverviewPanel datasets={[...allRemoteLibraryDatasets.map((d) => ({ ...d, overviewKey: `github:${d.id}`, overviewSource: "github" })), ...currentDatasetRows.map((d) => ({ ...d, overviewKey: `local:${d.id}`, overviewSource: "local" }))]} onLoad={(d) => d.overviewSource === "github" ? loadBundledDataset(d, "dataset") : loadDataset(d)} currentDataset={currentDatasetMeta} currentReview={buildReviewedAnalyticsPayload(reportState, includedPropagationChipIds, propagationChipIds, sourceMeta).analyticsReview} dies={metrics.propagation.byChip} excludedIds={propagationChipIds.filter((id) => !includedPropagationChipIds.includes(id)).map(String)} /> : null}
           {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} currentDatasetMeta={currentDatasetMeta} currentDatasetNamingDraft={datasetNamingDraft} onCurrentDatasetNamingChange={updateCurrentDatasetNaming} onResetCurrentDatasetNaming={() => resetCurrentDatasetNaming()} onApplyCurrentNamingToLoadedSnapshot={applyCurrentNamingToLoadedSnapshot} canApplyCurrentNamingToLoadedSnapshot={Boolean(selectedLocalDatasetId(quickDatasetSelection))} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={() => { refreshRemoteLibrary(); }} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} selectedPublishedDataset={selectedPublishedDataset} publishedDatasetDraft={publishedDatasetDraft} onSelectPublishedDataset={selectPublishedDatasetForEdit} onPublishedDatasetDraftChange={updatePublishedDatasetDraft} onSavePublishedDatasetMetadata={savePublishedDatasetMetadata} isSavingPublishedDataset={isSavingPublishedDataset} onDeletePublishedDataset={deletePublishedDataset} deletingPublishedDatasetId={deletingPublishedDatasetId} loadedGithubDataset={loadedGithubDataset} currentPublishedDatasetReview={currentPublishedDatasetReview} canSaveCurrentReviewToPublishedDataset={canSaveCurrentReviewToPublishedDataset} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} onImportProjectPackage={importProjectPackage} onExportSinglePackage={exportSingleDatasetPackage} onExportProjectPackage={exportProjectPackage} onExportSelectedPackage={exportSelectedDatasetPackage} onExportAllPackages={exportAllDatasetPackages} isImportingProjectPackage={isImportingProjectPackage} exportingPackageKey={exportingProjectPackageId} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "manual-conversion-advanced" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} advanced /> : null}
@@ -4837,7 +4884,7 @@ export default function App() {
           {activeTab === "wafermaps" ? <WafermapsLibrary draft={waferTemplateDraft} onDraftChange={updateWaferTemplateDraft} onSaveTemplate={saveWaferTemplate} templates={allWaferTemplates} selectedTemplateId={currentWaferTemplate?.id || ""} onUseTemplate={useWaferTemplate} onDeleteTemplate={deleteWaferTemplate} /> : null}
           {activeTab === "report-generator" ? <ReportGeneratorPanel reportState={reportState} sourceMeta={sourceMeta} isGeneratingPptReport={isGeneratingPptReport} isGeneratingWordReport={isGeneratingWordReport} isGeneratingPdfReport={isGeneratingPdfReport} isGeneratingPostProcessed={isGeneratingPostProcessed} onGeneratePptReport={generatePowerPointDeck} onGenerateWordReport={generateWordDeck} onGeneratePdfReport={generatePdfDeck} onGeneratePostProcessedFiles={generatePostProcessedFiles} /> : null}
           {activeTab === "audit" ? <section className="library-stack workspace-fit-view"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Audit Log</h2><p>Review the local activity trail for uploads, exports, saves, loads, and settings changes.</p></div><div className="library-action-row"><button type="button" className="ghost-action" onClick={clearAuditLog}>Clear Audit Log</button></div></div><LibraryTable columns={["Action", "Type", "Detail", "Time"]} rows={auditRows} emptyMessage="No audit entries yet." /></article></section> : null}
-          {activeTab === "help" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Help Center</h2><p>Quick in-app guidance for the current release, focused on how data flows through propagation processing, storage, and reporting.</p></div><div className="library-action-row"><button type="button" onClick={() => updateTab("datasets")}>Open Dataset Snapshots</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Open Propagation View</button></div></div><div className="help-grid">{HELP_TOPICS.map((topic) => <article key={topic.title} className="help-card"><h3>{topic.title}</h3><p>{topic.body}</p></article>)}</div><div className="doc-link-list">{DOC_LINKS.map((doc) => <a key={doc.label} className="doc-link-item" href={doc.href} target="_blank" rel="noreferrer"><strong>{doc.label}</strong><span>{doc.path}</span></a>)}</div></article></section> : null}
+          {activeTab === "help" ? <section className="library-stack"><article className="analysis-card"><div className="analysis-card-head"><div><h2>Help Center</h2><p>Quick in-app guidance for the current release, focused on how data flows through propagation processing, storage, and reporting.</p></div><div className="library-action-row"><button type="button" onClick={() => updateTab("datasets")}>Open Dataset Snapshots</button><button type="button" className="ghost-action" onClick={() => updateTab("propagation")}>Open Propagation View</button></div></div><HelpGuides /><div className="help-grid">{HELP_TOPICS.map((topic) => <article key={topic.title} className="help-card"><h3>{topic.title}</h3><p>{topic.body}</p></article>)}</div><div className="doc-link-list">{DOC_LINKS.map((doc) => <a key={doc.label} className="doc-link-item" href={doc.href} target="_blank" rel="noreferrer"><strong>{doc.label}</strong><span>{doc.path}</span></a>)}</div></article></section> : null}
         </main>
       </div>
     </div>

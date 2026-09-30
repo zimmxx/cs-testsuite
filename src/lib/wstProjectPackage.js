@@ -39,6 +39,8 @@ function exportableSnapshot(snapshot) {
     sourceMeta: plainJson(snapshot.sourceMeta || {}),
     summary: plainJson(snapshot.summary || {}),
     namingOverrides: plainJson(snapshot.namingOverrides || {}),
+    analyticsReview: plainJson(snapshot.analyticsReview || {}),
+    analyticsSummary: plainJson(snapshot.analyticsSummary || {}),
     display: plainJson(snapshot.display || {})
   };
 }

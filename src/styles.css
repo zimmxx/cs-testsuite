@@ -2398,6 +2398,8 @@ tbody tr:last-child td {
 
 .toast-card {
   display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
   gap: 4px;
   padding: 14px 16px;
   border-radius: 16px;
@@ -4505,3 +4507,30 @@ body {
   .ai-provider-controls select,
   .ai-provider-controls input { width: 100%; }
 }
+.dataset-filter-grid, .dataset-parameter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.dataset-filter-grid { padding: 14px; }
+.dataset-name-toggle { display: flex; align-items: center; gap: 8px; padding: 0 14px 14px; }
+.dataset-parameter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 16px 0; }
+.dataset-parameter-grid dt { font-size: 12px; opacity: .7; }
+.dataset-parameter-grid dd { margin: 4px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+.review-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 16px 0; }
+.mapping-field textarea { width: 100%; min-height: 74px; padding: 10px; border: 1px solid #aab5c4; border-radius: 8px; font: inherit; color: inherit; background: transparent; resize: vertical; box-sizing: border-box; }
+.review-verdict { display: inline-block; padding: 7px 14px; border-radius: 8px; font-weight: 700; }
+.review-verdict.pass, .overview-die.pass { background: #ddf6e6; color: #176538; }
+.review-verdict.fail, .overview-die.fail { background: #ffe2e2; color: #942323; }
+.review-verdict.pending, .overview-die.pending { background: #edf0f4; color: #465264; }
+.review-verdict.issues { background: #fff0c2; color: #805600; }
+.test-team-approval-field { padding: 16px; border: 1px solid var(--line); border-radius: 10px; margin: 16px 0; }
+.test-team-approval-field .mapping-field { max-width: 320px; width: 100%; display: inline-flex; flex-direction: column; vertical-align: middle; margin-right: 14px; }
+.test-team-approval-field select { width: 100%; min-width: 0; }
+.dataset-review-panel .analysis-card-head > .review-verdict { max-width: 100%; overflow-wrap: anywhere; }
+.test-team-approval-field p { margin: 10px 0 0; }
+.settings-grid > .test-team-approval-field { grid-column: 1 / -1; margin: 0; }
+.overview-wafer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 20px; }
+.overview-wafer-grid button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); background: var(--panel); cursor: pointer; font: inherit; }
+.overview-die-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin-top: 16px; }
+.overview-die { display: flex; flex-direction: column; padding: 12px; border-radius: 8px; }
+.help-guide { margin: 14px 0; border: 1px solid #aab5c4; border-radius: 10px; padding: 14px; }
+.help-guide summary { cursor: pointer; font-weight: 700; }
+.help-guide pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.65; }
+@media (max-width: 700px) { .review-edit-grid, .dataset-parameter-grid, .dataset-filter-grid { grid-template-columns: 1fr; } .quick-dataset-menu { max-width: calc(100vw - 32px); } }

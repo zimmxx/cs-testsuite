@@ -610,14 +610,14 @@
     "folder": "sample-data/wst/MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
     "traceFolder": "sample-data/wst/MPW43_SOI220nmActive_Slot3_Step84D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
     "sourceType": "Automated WST trace set",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "measurementType": "PropagationLoss",
     "opticalMode": "1550nm_TE",
     "alignmentMode": "OperatorAlign",
     "mpw": "MPW43",
     "slot": "Slot3",
     "processStep": "Step84D",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
     "waveguideFamily": "Rib",
     "platformId": "soi220nmactive",
     "platformLabel": "SOI220nmActive",
@@ -766,7 +766,11 @@
     "processedInTestingSuite": true,
     "notes": "",
     "source": "github-library-v4",
-    "librarySchemaVersion": 4
+    "librarySchemaVersion": 4,
+    "projectDisplayName": "MPW43",
+    "waferDisplayName": "Slot3",
+    "platformDisplayName": "",
+    "projectCode": "MPW43"
   },
   {
     "schemaVersion": 4,
@@ -2323,6 +2327,127 @@
     "waferDisplayName": "Slot5",
     "platformDisplayName": "",
     "projectCode": "MPW46"
+  },
+  {
+    "schemaVersion": 4,
+    "datasetId": "mpw48_soi220nmpassive_slot7_step104_1310nm_te_strip_waveguide_propagationloss_operatoralign",
+    "id": "mpw48_soi220nmpassive_slot7_step104_1310nm_te_strip_waveguide_propagationloss_operatoralign",
+    "label": "MPW48_SOI220nmPassive_Slot7_Step104_1310nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "projectName": "MPW48",
+    "waferName": "Slot7",
+    "selectedDate": "2026-10-06",
+    "measurementDate": "2026-10-06",
+    "publishedDate": "2026-10-13",
+    "folder": "sample-data/wst/MPW48_SOI220nmPassive_Slot7_Step104_1310nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "traceFolder": "sample-data/wst/MPW48_SOI220nmPassive_Slot7_Step104_1310nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "sourceType": "Automated WST trace set",
+    "measurementMode": "Automated WST",
+    "measurementType": "PropagationLoss",
+    "opticalMode": "1310nm_TE",
+    "alignmentMode": "OperatorAlign",
+    "mpw": "MPW48",
+    "slot": "Slot7",
+    "processStep": "Step104",
+    "testTeamApproval": "Awaiting review",
+    "stepDescription": "",
+    "testTeamComments": "Off-the-shelf",
+    "waveguideType": "Waveguide",
+    "waveguideFamily": "Waveguide",
+    "platformId": "soi220nmpassive",
+    "platformLabel": "SOI220nmPassive",
+    "buildingBlockId": "strip_waveguide",
+    "buildingBlockLabel": "STRIP_Waveguide",
+    "pdkMonitorBuildingBlock": "SOI220nm_1310nm_TE_STRIP_Waveguide",
+    "traceCount": 4,
+    "rowCount": 72004,
+    "chipCount": 1,
+    "waveguideCount": 4,
+    "wavelengthMinNm": 1270,
+    "wavelengthMaxNm": 1360,
+    "files": [
+      "Chip1_WG1.txt",
+      "Chip1_WG2.txt",
+      "Chip1_WG3.txt",
+      "Chip1_WG4.txt"
+    ],
+    "readme": "MPW48_SOI220nmPassive_Slot7_Step104_1310nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/README.md",
+    "metadataFile": "MPW48_SOI220nmPassive_Slot7_Step104_1310nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/metadata.json",
+    "configFile": "MPW48_SOI220nmPassive_Slot7_Step104_1310nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/route-config.json",
+    "filenameManifest": "MPW48_SOI220nmPassive_Slot7_Step104_1310nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/filename-manifest.csv",
+    "routeConfig": {
+      "measurementType": "PropagationLoss",
+      "routes": [
+        {
+          "route": "WG1",
+          "lengthMm": 4
+        },
+        {
+          "route": "WG2",
+          "lengthMm": 8
+        },
+        {
+          "route": "WG3",
+          "lengthMm": 16
+        },
+        {
+          "route": "WG4",
+          "lengthMm": 24
+        }
+      ]
+    },
+    "waveguideConfig": {
+      "propagationWaveguideCount": 4,
+      "propagationWaveguideStartMm": 4,
+      "propagationWaveguideIntervalMm": 4,
+      "propagationWaveguideManualMode": true,
+      "waveguideLengths": [
+        {
+          "index": 1,
+          "lengthMm": 4
+        },
+        {
+          "index": 2,
+          "lengthMm": 8
+        },
+        {
+          "index": 3,
+          "lengthMm": 16
+        },
+        {
+          "index": 4,
+          "lengthMm": 24
+        }
+      ]
+    },
+    "analyticsSummary": {
+      "propagationAverage": 6.038509231495512,
+      "yield": 100,
+      "measuredChips": 1,
+      "computedAt": "2026-10-13T13:18:49.404Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [
+        "Chip1"
+      ],
+      "includedChipIds": [],
+      "totalChipCount": 1,
+      "selectedChipCount": 1,
+      "measuredChips": 1,
+      "fittedChips": 0,
+      "failedFits": 0,
+      "savedAt": "2026-10-13T13:18:15.938Z",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 1310,
+        "propagationWindowNm": 5,
+        "propagationSpectralStepNm": 10,
+        "propagationMseThreshold": 0.5
+      }
+    },
+    "copiedToFolder": true,
+    "processedInTestingSuite": true,
+    "notes": "",
+    "source": "github-library-v4",
+    "librarySchemaVersion": 4
   },
   {
     "schemaVersion": 4,

@@ -12,7 +12,7 @@ This folder contains GitHub-hosted measurement traces for MPW48.
 - Waveguide type: Waveguide
 - Process step: Step104
 - Step description: Not recorded
-- Test-team comments: Off-the shelf
+- Test-team comments: Off-the-shelf
 - Latest measurement acceptance and test-team comments: [metadata.json](metadata.json) (updated through the Published Dataset Editor)
 - Measurement date: 2026-10-06
 - Published date: 2026-10-13

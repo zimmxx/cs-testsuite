@@ -593,24 +593,24 @@
     "chipCount": 1,
     "waveguideCount": 4,
     "analyticsSummary": {
-      "propagationAverage": 2.8773783075169583,
-      "yield": 100,
+      "propagationAverage": null,
+      "yield": 0,
       "measuredChips": 1,
-      "computedAt": "2026-10-13T13:23:19.272Z"
+      "computedAt": "2026-10-13T15:14:01.196Z"
     },
     "analyticsReview": {
-      "excludedChipIds": [],
-      "includedChipIds": [
+      "excludedChipIds": [
         "Chip1"
       ],
+      "includedChipIds": [],
       "totalChipCount": 1,
       "selectedChipCount": 1,
       "measuredChips": 1,
-      "fittedChips": 1,
+      "fittedChips": 0,
       "failedFits": 0,
-      "savedAt": "2026-10-13T13:23:04.080Z",
+      "savedAt": "2026-10-13T15:13:49.415Z",
       "propagationSettings": {
-        "propagationTargetWavelengthNm": 1310,
+        "propagationTargetWavelengthNm": 1550,
         "propagationWindowNm": 5,
         "propagationSpectralStepNm": 10,
         "propagationMseThreshold": 0.5

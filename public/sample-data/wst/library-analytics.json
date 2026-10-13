@@ -572,6 +572,52 @@
     }
   },
   {
+    "id": "mpw48_soi220nmpassive_slot7_step104_1310nm_te_rib_waveguide_propagationloss_operatoralign",
+    "datasetId": "mpw48_soi220nmpassive_slot7_step104_1310nm_te_rib_waveguide_propagationloss_operatoralign",
+    "label": "MPW48_SOI220nmPassive_Slot7_Step104_1310nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+    "projectName": "MPW48",
+    "waferName": "Slot7",
+    "selectedDate": "2026-10-06",
+    "folder": "sample-data/wst/MPW48_SOI220nmPassive_Slot7_Step104_1310nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+    "measurementType": "PropagationLoss",
+    "measurementMode": "Automated WST",
+    "mpw": "MPW48",
+    "slot": "Slot7",
+    "waveguideType": "Waveguide",
+    "platformId": "soi220nmpassive",
+    "platformLabel": "SOI220nmPassive",
+    "buildingBlockId": "rib_waveguide",
+    "buildingBlockLabel": "RIB_Waveguide",
+    "traceCount": 4,
+    "rowCount": 72004,
+    "chipCount": 1,
+    "waveguideCount": 4,
+    "analyticsSummary": {
+      "propagationAverage": 2.8773783075169583,
+      "yield": 100,
+      "measuredChips": 1,
+      "computedAt": "2026-10-13T13:23:19.272Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [],
+      "includedChipIds": [
+        "Chip1"
+      ],
+      "totalChipCount": 1,
+      "selectedChipCount": 1,
+      "measuredChips": 1,
+      "fittedChips": 1,
+      "failedFits": 0,
+      "savedAt": "2026-10-13T13:23:04.080Z",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 1310,
+        "propagationWindowNm": 5,
+        "propagationSpectralStepNm": 10,
+        "propagationMseThreshold": 0.5
+      }
+    }
+  },
+  {
     "id": "mpw48_soi220nmpassive_slot7_step104_1310nm_te_strip_waveguide_propagationloss_operatoralign",
     "datasetId": "mpw48_soi220nmpassive_slot7_step104_1310nm_te_strip_waveguide_propagationloss_operatoralign",
     "label": "MPW48_SOI220nmPassive_Slot7_Step104_1310nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
@@ -580,10 +626,10 @@
     "selectedDate": "2026-10-06",
     "folder": "sample-data/wst/MPW48_SOI220nmPassive_Slot7_Step104_1310nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
     "measurementType": "PropagationLoss",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "mpw": "MPW48",
     "slot": "Slot7",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
     "platformId": "soi220nmpassive",
     "platformLabel": "SOI220nmPassive",
     "buildingBlockId": "strip_waveguide",

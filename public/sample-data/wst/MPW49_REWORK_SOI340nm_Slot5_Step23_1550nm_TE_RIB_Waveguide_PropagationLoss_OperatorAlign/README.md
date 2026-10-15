@@ -14,19 +14,19 @@ This folder contains GitHub-hosted measurement traces for MPW49_REWORK.
 - Step description: Not recorded
 - Test-team comments: Not recorded
 - Latest measurement acceptance and test-team comments: [metadata.json](metadata.json) (updated through the Published Dataset Editor)
-- Measurement date: 2026-10-14
+- Measurement date: 2026-10-15
 - Published date: 2026-10-15
-- Files: 20
-- Chips: Chip63, Chip64, Chip76, Chip88, Chip97
+- Files: 52
+- Chips: Chip33, Chip34, Chip35, Chip36, Chip63, Chip64, Chip66, Chip67, Chip68, Chip69, Chip76, Chip88, Chip97
 - Waveguides: WG1, WG2, WG3, WG4
 - Metadata: metadata.json
 - Route config: route-config.json
 - Filename manifest: filename-manifest.csv
 - Publisher: CORNERSTONE
 - License: Pending
-- Normalized rows: 360020
+- Normalized rows: 936052
 - Wavelength span: 1530.000 nm to 1620.000 nm
-- Notes: 20mJ dose
+- Notes: Dose sweep
 ## Filename Pattern
 Each trace uses `Chip#_WG#.txt`. The filename manifest maps every original filename to its published trace filename and SHA-256 checksum.
 Each trace is a headerless, tab-delimited, two-column text file:

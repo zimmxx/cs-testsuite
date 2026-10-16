@@ -1016,6 +1016,50 @@
     }
   },
   {
+    "id": "mpw49_soi340nm_slot9_step24_1550nm_te_rib_waveguide_insertionloss_operatoralign",
+    "datasetId": "mpw49_soi340nm_slot9_step24_1550nm_te_rib_waveguide_insertionloss_operatoralign",
+    "label": "MPW49_SOI340nm_Slot9_Step24_1550nm_TE_RIB_Waveguide_InsertionLoss_OperatorAlign",
+    "projectName": "MPW49",
+    "waferName": "Slot9",
+    "selectedDate": "2026-08-12",
+    "folder": "sample-data/wst/MPW49_SOI340nm_Slot9_Step24_1550nm_TE_RIB_Waveguide_InsertionLoss_OperatorAlign",
+    "measurementType": "InsertionLoss",
+    "measurementMode": "Automated WST",
+    "mpw": "MPW49",
+    "slot": "Slot9",
+    "waveguideType": "Waveguide",
+    "platformId": "soi340nm",
+    "platformLabel": "SOI340nm",
+    "buildingBlockId": "rib_waveguide",
+    "buildingBlockLabel": "RIB_Waveguide",
+    "traceCount": 11,
+    "rowCount": 209011,
+    "chipCount": 9,
+    "waveguideCount": 3,
+    "analyticsSummary": {
+      "propagationAverage": null,
+      "yield": null,
+      "measuredChips": 0,
+      "computedAt": "2026-10-16T12:22:15.967Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [],
+      "includedChipIds": [],
+      "totalChipCount": 0,
+      "selectedChipCount": 0,
+      "measuredChips": 0,
+      "fittedChips": 0,
+      "failedFits": 0,
+      "savedAt": "2026-10-16T12:22:01.401Z",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 1550,
+        "propagationWindowNm": 5,
+        "propagationSpectralStepNm": 10,
+        "propagationMseThreshold": 0.5
+      }
+    }
+  },
+  {
     "id": "mpw49_soi340nm_slot9_step24_1550nm_te_strip_waveguide_insertionloss_operatoralign",
     "datasetId": "mpw49_soi340nm_slot9_step24_1550nm_te_strip_waveguide_insertionloss_operatoralign",
     "label": "MPW49_SOI340nm_Slot9_Step24_1550nm_TE_STRIP_Waveguide_InsertionLoss_OperatorAlign",
@@ -1024,10 +1068,10 @@
     "selectedDate": "2026-08-12",
     "folder": "sample-data/wst/MPW49_SOI340nm_Slot9_Step24_1550nm_TE_STRIP_Waveguide_InsertionLoss_OperatorAlign",
     "measurementType": "InsertionLoss",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "mpw": "MPW49",
     "slot": "Slot9",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
     "platformId": "soi340nm",
     "platformLabel": "SOI340nm",
     "buildingBlockId": "strip_waveguide",

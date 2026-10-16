@@ -672,6 +672,9 @@ export function routeConfigToWaveguideConfig(routeConfig = {}) {
 
 export function buildDatasetMetadata(dataset, identity, traceFiles, routeConfig, waveguideConfig) {
   const sourceMeta = dataset?.sourceMeta || {};
+  const insertionSources = identity.measurementType === "InsertionLoss"
+    ? new Map(buildNormalizedRows(dataset.rawRows || [], dataset.columnMap || {}, sourceMeta).map((row) => [row.source_name, row]))
+    : null;
   const analyticsSummary = buildDatasetAnalyticsSummary(dataset);
   const measurementDate = getDatasetMeasurementDate(dataset);
   return {
@@ -694,6 +697,17 @@ export function buildDatasetMetadata(dataset, identity, traceFiles, routeConfig,
     buildingBlock: identity.buildingBlockLabel,
     buildingBlockId: identity.buildingBlockId,
     measurementType: identity.measurementType,
+    ...(identity.measurementType === "InsertionLoss" ? {
+      launchPowerDbm: sourceMeta.launchPowerDbm,
+      insertionTraceMap: Object.fromEntries(traceFiles.map((file) => {
+        const row = insertionSources.get(file.sourceName) || {};
+        return [file.fileName, {
+          deviceLabel: row.block_name || file.sourceName,
+          buildingBlock: row.waveguide_type || identity.buildingBlockLabel,
+          originalSource: sourceMeta.insertionTraceMap?.[file.sourceName]?.originalSource || file.sourceName
+        }];
+      }))
+    } : {}),
     opticalMode: identity.opticalMode,
     alignmentMode: identity.alignmentMode,
     pdkMonitorBuildingBlock: buildPdkMonitorBuildingBlockName(identity),

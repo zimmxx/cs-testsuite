@@ -54,6 +54,7 @@ import {
   InteractiveTransmissionSpectrumPlot
 } from "./components/InteractivePlots";
 import ManualConversionPanel from "./components/ManualConversionPanel";
+import InsertionConversionPanel from "./components/InsertionConversionPanel";
 import DatasetLibraryPanel from "./components/DatasetLibraryPanel";
 import ComparisonLibraryPanel from "./components/ComparisonLibraryPanel";
 import CdSemLibraryPanel from "./components/CdSemLibraryPanel";
@@ -91,6 +92,7 @@ const RAIL_SECTIONS = [
       { id: "comparison", label: "Comparison", icon: "compare" },
       { id: "manual-conversion", label: "Manual Conversion", icon: "document" },
       { id: "manual-conversion-advanced", label: "Manual Conversion (Advanced)", icon: "document-settings" },
+      { id: "manual-conversion-insertion", label: "Manual Conversion (Advanced Insertion Loss)", icon: "document-settings" },
       { id: "filename-conversion", label: "Filename Conversion", icon: "tag" },
       { id: "cd-sem", label: "CD-SEM Data", icon: "scan" },
       { id: "spectrum-viewer", label: "Spectrum Viewer", icon: "spectrum" },
@@ -3172,13 +3174,14 @@ export default function App() {
     });
     await waitForNextPaint();
     try {
+      const packageMetadata = await readUploadedDatasetPackage(packageFiles);
       const rows = await readFilesInBatches(
         measurementFiles,
         async (file) => (await readFileRows(file, {
-          launchPowerDbm: sourceMeta.launchPowerDbm,
+          launchPowerDbm: packageMetadata.launchPowerDbm ?? sourceMeta.launchPowerDbm,
           defaultMetricFamily: sourceMeta.defaultMetricFamily,
           defaultWavelengthNm: sourceMeta.defaultWavelengthNm,
-          traceValueUnit: sourceMeta.traceInputUnit
+          traceValueUnit: packageMetadata.traceFormat?.columns?.[1] === "optical_power_w" ? "watts" : sourceMeta.traceInputUnit
         })).map((row) => ({ ...row, __source_name: row.source_name || file.name })),
         UPLOAD_BATCH_SIZE,
         (completed, total) => {
@@ -3194,14 +3197,18 @@ export default function App() {
         appendAudit("upload", "Upload failed", `The uploaded selection (${files.map((file) => file.name).join(", ")}) did not produce readable rows.`);
         return;
       }
-      const packageMetadata = await readUploadedDatasetPackage(packageFiles);
       const configPatch = await readUploadedDatasetConfig(configFiles, packageMetadata);
       const firstType = sourceTypeLabel(measurementFiles[0].name);
       const sharedType = measurementFiles.every((file) => sourceTypeLabel(file.name) === firstType)
         ? (measurementFiles.length > 1 && firstType === "Automated WST trace" ? "Automated WST trace set" : firstType)
         : "Mixed measurement upload";
       const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
-      const nextSourceMeta = { ...sourceMeta, ...configPatch, notes: packageMetadata.notes || sourceMeta.notes, name: measurementFiles.length === 1 ? measurementFiles[0].name : `${measurementFiles.length} measurement files`, type: sharedType, traceInputUnit: sourceMeta.traceInputUnit || "watts" };
+      const nextSourceMeta = { ...sourceMeta, ...configPatch,
+        measurementType: packageMetadata.measurementType || "",
+        insertionTraceMap: packageMetadata.insertionTraceMap || {},
+        buildingBlock: packageMetadata.buildingBlock || "",
+        launchPowerDbm: packageMetadata.launchPowerDbm ?? sourceMeta.launchPowerDbm,
+        notes: packageMetadata.notes || sourceMeta.notes, name: measurementFiles.length === 1 ? measurementFiles[0].name : `${measurementFiles.length} measurement files`, type: sharedType, traceInputUnit: packageMetadata.traceFormat?.columns?.[1] === "optical_power_w" ? "watts" : sourceMeta.traceInputUnit || "watts" };
       const nextProjectName = packageMetadata.projectName || packageMetadata.mpwRun || "";
       const nextWaferName = packageMetadata.waferName || packageMetadata.slot || "";
       const nextMeasurementDate = packageMetadata.measurementDate || packageMetadata.selectedDate || "";
@@ -3235,6 +3242,10 @@ export default function App() {
         }
       }));
       setQuickDatasetSelection("");
+      if (packageMetadata.measurementType === "InsertionLoss") {
+        setInsertionDeviceType(Object.values(packageMetadata.insertionTraceMap || {}).some((trace) => /mmi/i.test(trace.deviceLabel)) ? "mmi" : "other-device");
+        setActiveTab("insertion");
+      }
       setStatusMessage(`${measurementFiles.length === 1 ? `Loaded ${rows.length} rows from ${measurementFiles[0].name}.` : `Loaded ${rows.length} rows from ${measurementFiles.length} uploaded measurement files.`}${configFiles.length ? " Route configuration applied." : ""}${packageMetadata.projectName ? " Dataset metadata applied." : ""}`);
       appendAudit("upload", "Measurement file uploaded", `Loaded ${rows.length} rows from ${measurementFiles.length} file(s) as ${sharedType}${configFiles.length ? "; applied route/waveguide configuration" : ""}${packageMetadata.projectName ? "; applied package metadata" : ""}.`);
       pushToast("Files loaded", `${measurementFiles.length === 1 ? `${measurementFiles[0].name} loaded` : `${measurementFiles.length} measurement files loaded`}${packageMetadata.projectName ? " with dataset metadata" : ""}${configFiles.length ? " and route configuration" : ""}.`, "success");
@@ -3451,6 +3462,7 @@ export default function App() {
             .catch(() => null)
         : Promise.resolve(null);
     const configPromise = fetchBundledRouteConfig(definition);
+    const metadata = await metadataPromise;
     const rowSets = await readItemsInBatches(
       fileNames,
       async (fileName) => {
@@ -3460,16 +3472,15 @@ export default function App() {
         }
         const text = await response.text();
         return readNamedTextRows(fileName, text, {
-          launchPowerDbm: parsingMeta.launchPowerDbm ?? appSettings.launchPowerDbm,
+          launchPowerDbm: metadata?.launchPowerDbm ?? parsingMeta.launchPowerDbm ?? appSettings.launchPowerDbm,
           defaultMetricFamily: databaseMode ? (/heater/i.test(definition.measurementType) ? 'heater' : /insertion/i.test(definition.measurementType) ? 'insertion' : 'propagation') : parsingMeta.defaultMetricFamily ?? appSettings.defaultMetricFamily,
           defaultWavelengthNm: parsingMeta.defaultWavelengthNm ?? appSettings.defaultWavelengthNm,
-          traceValueUnit: parsingMeta.traceInputUnit || (databaseMode ? 'watts' : appSettings.traceInputUnit || 'watts')
+          traceValueUnit: metadata?.traceFormat?.columns?.[1] === "optical_power_w" ? "watts" : parsingMeta.traceInputUnit || (databaseMode ? 'watts' : appSettings.traceInputUnit || 'watts')
         });
       },
       BUNDLED_ANALYSIS_BATCH_SIZE,
       onProgress
     );
-    const metadata = await metadataPromise;
     const routeConfig = await configPromise;
     const rows = rowSets.flat();
     if (databaseMode && /propagation/i.test(definition.measurementType) && !routeConfig) throw new Error('Published route lengths are required to calculate database chip results.');
@@ -3487,11 +3498,15 @@ export default function App() {
         ...buildDefaultSourceMeta(databaseMode ? DEFAULT_SETTINGS : appSettings),
         ...fallbackSettings,
         name: definition.label,
+        measurementType: metadata?.measurementType || definition.measurementType || "",
+        insertionTraceMap: metadata?.insertionTraceMap || {},
+        buildingBlock: metadata?.buildingBlock || definition.buildingBlockLabel || "",
+        launchPowerDbm: metadata?.launchPowerDbm ?? parsingMeta.launchPowerDbm ?? appSettings.launchPowerDbm,
         testTeamApproval: normalizeTestTeamApproval(metadata?.testTeamApproval ?? definition.testTeamApproval),
         stepDescription: metadata?.stepDescription ?? definition.stepDescription ?? "",
         testTeamComments: metadata?.testTeamComments ?? definition.testTeamComments ?? "",
         type: definition.sourceType,
-        traceInputUnit: parsingMeta.traceInputUnit || (databaseMode ? 'watts' : appSettings.traceInputUnit || 'watts')
+        traceInputUnit: metadata?.traceFormat?.columns?.[1] === "optical_power_w" ? "watts" : parsingMeta.traceInputUnit || (databaseMode ? 'watts' : appSettings.traceInputUnit || 'watts')
       },
       {
         ...configuredSettings,
@@ -3554,7 +3569,8 @@ export default function App() {
       setQuickDatasetSelection(`github:${definition.id}`);
       setSelectedWaferMetric("propagation");
       setSelectedChip(rows[0]?.chip_id || "");
-      setActiveTab("propagation");
+      setActiveTab(metadata?.measurementType === "InsertionLoss" ? "insertion" : "propagation");
+      if (metadata?.measurementType === "InsertionLoss") setInsertionDeviceType(Object.values(metadata.insertionTraceMap || {}).some((trace) => /mmi/i.test(trace.deviceLabel)) ? "mmi" : "other-device");
       setStatusMessage(
         savedReview.excludedChipIds.length
           ? `Loaded bundled sample ${definition.label} from GitHub-hosted files (${fileNames.length} traces) with ${savedReview.excludedChipIds.length} saved chip exclusions.`
@@ -4568,6 +4584,7 @@ export default function App() {
           {activeTab === "datasets" ? <DatasetLibraryPanel sourceMeta={sourceMeta} currentDatasetMeta={currentDatasetMeta} currentDatasetNamingDraft={datasetNamingDraft} onCurrentDatasetNamingChange={updateCurrentDatasetNaming} onResetCurrentDatasetNaming={() => resetCurrentDatasetNaming()} onApplyCurrentNamingToLoadedSnapshot={applyCurrentNamingToLoadedSnapshot} canApplyCurrentNamingToLoadedSnapshot={Boolean(selectedLocalDatasetId(quickDatasetSelection))} statusMessage={statusMessage} githubConfig={githubConfig} onGithubConfigChange={updateGithubConfig} onSaveGithubConfig={saveGithubConfig} onRefreshLibrary={() => { refreshRemoteLibrary(); }} remoteLibraryStatus={remoteLibraryStatus} remoteDatasets={remoteLibraryDatasets} selectedPublishedDataset={selectedPublishedDataset} publishedDatasetDraft={publishedDatasetDraft} onSelectPublishedDataset={selectPublishedDatasetForEdit} onPublishedDatasetDraftChange={updatePublishedDatasetDraft} onSavePublishedDatasetMetadata={savePublishedDatasetMetadata} isSavingPublishedDataset={isSavingPublishedDataset} onDeletePublishedDataset={deletePublishedDataset} deletingPublishedDatasetId={deletingPublishedDatasetId} loadedGithubDataset={loadedGithubDataset} currentPublishedDatasetReview={currentPublishedDatasetReview} canSaveCurrentReviewToPublishedDataset={canSaveCurrentReviewToPublishedDataset} localDatasets={currentDatasetRows} onSaveCurrentDataset={saveCurrentDataset} onClearWorkspace={clearWorkspace} onLoadRemoteDataset={(dataset) => loadBundledDataset(dataset, "dataset")} onLoadLocalDataset={loadDataset} onDeleteLocalDataset={deleteDataset} onPublishLocalDataset={publishDatasetToGithub} onImportProjectPackage={importProjectPackage} onExportSinglePackage={exportSingleDatasetPackage} onExportProjectPackage={exportProjectPackage} onExportSelectedPackage={exportSelectedDatasetPackage} onExportAllPackages={exportAllDatasetPackages} isImportingProjectPackage={isImportingProjectPackage} exportingPackageKey={exportingProjectPackageId} loadingBundledId={loadingBundledId} publishingDatasetId={publishingDatasetId} /> : null}
           {activeTab === "manual-conversion" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "manual-conversion-advanced" ? <ManualConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} advanced /> : null}
+          {activeTab === "manual-conversion-insertion" ? <InsertionConversionPanel defaultLaunchPowerDbm={sourceMeta.launchPowerDbm ?? appSettings.launchPowerDbm} /> : null}
           {activeTab === "comparison" ? <ComparisonLibraryPanel remoteDatasets={allRemoteLibraryDatasets} localDatasets={currentDatasetRows} sourceMeta={sourceMeta} waferTemplate={currentWaferTemplate} /> : null}
           {activeTab === "ai-diagnostics" ? (
             <AiDiagnosticsPanel

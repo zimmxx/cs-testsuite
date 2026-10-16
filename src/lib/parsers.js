@@ -388,6 +388,27 @@ export async function readSpectrumFile(file, options = {}) {
   return readNamedSpectrumRows(file.name, text, options);
 }
 
+export function applyInsertionTraceMetadata(row, sourceMeta = {}) {
+  if (sourceMeta.measurementType !== "InsertionLoss" || row.metric_family !== "propagation") return row;
+  const name = String(row.source_name || "").split(/[\\/]/).pop();
+  const trace = sourceMeta.insertionTraceMap?.[name] || {};
+  const launchPowerDbm = numeric(sourceMeta.launchPowerDbm) ?? numeric(row.launch_power_dbm);
+  const powerDbm = numeric(row.optical_power_dbm) ?? toDbmFromWatts(numeric(row.optical_power_w));
+  const loss = launchPowerDbm !== null && powerDbm !== null ? launchPowerDbm - powerDbm : numeric(row.loss_db);
+  return {
+    ...row,
+    metric_family: "insertion",
+    block_name: trace.deviceLabel || sourceMeta.buildingBlock || name,
+    waveguide_type: trace.buildingBlock || sourceMeta.buildingBlock || row.waveguide_type,
+    launch_power_dbm: launchPowerDbm,
+    optical_power_dbm: powerDbm,
+    insertion_loss_db: loss,
+    loss_db: loss,
+    transmission_db: null,
+    relative_length_mm: null
+  };
+}
+
 export function buildNormalizedRows(rows, mapping, sourceMeta) {
   const templateChoice = sourceMeta?.waferTemplateLayout?.length ? sourceMeta.waferTemplateLayout : sourceMeta?.waferTemplateId;
   return rows.map((row, index) => {
@@ -408,7 +429,7 @@ export function buildNormalizedRows(rows, mapping, sourceMeta) {
         die_y: numeric(row.die_y),
         row_index: row.row_index ?? index + 1
       }, templateChoice);
-      return normalized;
+      return applyInsertionTraceMetadata(normalized, sourceMeta);
     }
 
     const normalized = applyWaferTemplate({

@@ -2,6 +2,8 @@
 
 Unified web application for processing and analysing optical and electrical silicon photonics wafer measurements.
 
+**Manual Conversion (Advanced Insertion Loss)** converts arbitrarily named Excel, CSV, TSV and TXT spectra with editable sheet, row, column and unit mappings. See the [insertion-loss conversion guide](docs/INSERTION_LOSS_CONVERSION.md) for the BORDER rib/strip workflow and package upload steps.
+
 **Created by:** Aiman Hazim Shafizam — Research Technician, Testing and Characterisation, CORNERSTONE
 
 This app is designed to unify two measurement routes into one analysis pipeline:

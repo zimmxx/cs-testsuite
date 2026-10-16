@@ -330,7 +330,18 @@ function manualRowsFromEntries(entries = []) {
     chip_id: entry.standardMeta?.chipId || entry.chipId,
     waveguide_id: entry.standardMeta?.waveguideId || entry.waveguideId,
     source_name: entry.sourcePath || entry.sourceName,
-    wafer_label: entry.datasetFields?.slot || ""
+    wafer_label: entry.datasetFields?.slot || "",
+    ...(entry.datasetFields?.measurementType === "InsertionLoss" ? {
+      __normalized: true,
+      metric_family: "insertion",
+      block_name: entry.deviceLabel || entry.sourceName,
+      waveguide_type: entry.datasetFields.buildingBlockLabel,
+      insertion_loss_db: row.ilDb,
+      loss_db: row.ilDb,
+      optical_power_dbm: row.opticalPowerDbm,
+      launch_power_dbm: entry.launchPowerDbm,
+      relative_length_mm: null
+    } : {})
   })));
 }
 
@@ -348,8 +359,10 @@ export function validateManualDatasetPackage(entries = [], datasetFields = {}, r
 
   const routes = [...new Set(entries.map((entry) => entry.standardMeta?.waveguideId || entry.waveguideId).filter(Boolean))]
     .sort((left, right) => Number(left.replace(/\D/g, "")) - Number(right.replace(/\D/g, "")));
-  if (routes.some((route) => !Number.isFinite(Number(routeLengths[route])))) missing.push("a physical length for every WG route");
-  if (routes.length && !routeLengthsConfirmed) missing.push("confirmation of the WG route lengths");
+  if (datasetFields.measurementType !== "InsertionLoss") {
+    if (routes.some((route) => !Number.isFinite(Number(routeLengths[route])))) missing.push("a physical length for every WG route");
+    if (routes.length && !routeLengthsConfirmed) missing.push("confirmation of the WG route lengths");
+  }
 
   return {
     valid: missing.length === 0,
@@ -408,7 +421,7 @@ export function buildGithubReadyManualDatasetPackage({
   const traceFiles = buildDatasetTraceFiles(rows, identity);
   const routeConfig = {
     measurementType: datasetFields.measurementType,
-    routes: validation.routes.map((route) => ({ route, lengthMm: Number(routeLengths[route]) }))
+    routes: datasetFields.measurementType === "InsertionLoss" ? [] : validation.routes.map((route) => ({ route, lengthMm: Number(routeLengths[route]) }))
   };
   const waveguideConfig = routeConfigToWaveguideConfig(routeConfig);
   const dataset = {

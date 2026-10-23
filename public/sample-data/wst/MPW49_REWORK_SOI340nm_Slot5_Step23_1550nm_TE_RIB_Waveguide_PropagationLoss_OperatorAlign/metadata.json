@@ -1,7 +1,7 @@
 {
   "schemaVersion": 4,
   "datasetId": "mpw49_rework_soi340nm_slot5_step23_1550nm_te_rib_waveguide_propagationloss_operatoralign",
-  "label": "MPW49_REWORK_SOI340nm_Slot5_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+  "label": "MPW49_REWORK_SOI340nm_Slot5_Step23_1550nm_TE_STRIP1_Waveguide_PropagationLoss_OperatorAlign",
   "projectName": "MPW49_REWORK",
   "waferName": "Slot5",
   "measurementDate": "2026-10-15",
@@ -15,12 +15,12 @@
   "testTeamComments": "",
   "platform": "SOI340nm",
   "platformId": "soi340nm",
-  "buildingBlock": "RIB_Waveguide",
+  "buildingBlock": "STRIP_Waveguide",
   "buildingBlockId": "rib_waveguide",
   "measurementType": "PropagationLoss",
   "opticalMode": "1550nm_TE",
   "alignmentMode": "OperatorAlign",
-  "pdkMonitorBuildingBlock": "SOI340nm_1550nm_TE_RIB_Waveguide",
+  "pdkMonitorBuildingBlock": "SOI340nm_1550nm_TE_STRIP_Waveguide",
   "measurementMode": "Automated WST",
   "waveguideType": "Waveguide",
   "sourceType": "Automated WST trace set",
@@ -238,5 +238,20 @@
   },
   "legacyFolder": "sample-data/wst/MPW49_REWORK_SOI340nm_Slot5_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
   "metadataFile": "MPW49_REWORK_SOI340nm_Slot5_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/metadata.json",
-  "configFile": "MPW49_REWORK_SOI340nm_Slot5_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/route-config.json"
+  "configFile": "MPW49_REWORK_SOI340nm_Slot5_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/route-config.json",
+  "namingOverrides": {
+    "label": "MPW49_REWORK_SOI340nm_Slot5_Step23_1550nm_TE_STRIP1_Waveguide_PropagationLoss_OperatorAlign",
+    "projectName": "MPW49_REWORK",
+    "slot": "Slot5",
+    "processStep": "Step23",
+    "testTeamApproval": "Awaiting review",
+    "stepDescription": "",
+    "testTeamComments": "",
+    "measurementDate": "2026-10-15",
+    "platformLabel": "SOI340nm",
+    "opticalMode": "1550nm_TE",
+    "buildingBlockLabel": "STRIP_Waveguide",
+    "measurementType": "PropagationLoss",
+    "alignmentMode": "OperatorAlign"
+  }
 }

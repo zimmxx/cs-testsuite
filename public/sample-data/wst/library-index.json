@@ -3797,6 +3797,8 @@
     "projectCode": "MPW48"
   },
   {
+    "schemaVersion": 4,
+    "datasetId": "mpw49_soi340nm_slot9_step24_1550nm_te_rib_waveguide_insertionloss_operatoralign",
     "id": "mpw49_soi340nm_slot9_step24_1550nm_te_rib_waveguide_insertionloss_operatoralign",
     "label": "MPW49_SOI340nm_Slot9_Step24_1550nm_TE_RIB_Waveguide_InsertionLoss_OperatorAlign",
     "projectName": "MPW49",
@@ -3805,8 +3807,9 @@
     "measurementDate": "2026-08-12",
     "publishedDate": "2026-10-16",
     "folder": "sample-data/wst/MPW49_SOI340nm_Slot9_Step24_1550nm_TE_RIB_Waveguide_InsertionLoss_OperatorAlign",
+    "traceFolder": "sample-data/wst/MPW49_SOI340nm_Slot9_Step24_1550nm_TE_RIB_Waveguide_InsertionLoss_OperatorAlign",
     "sourceType": "Automated WST trace set",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "measurementType": "InsertionLoss",
     "opticalMode": "1550nm_TE",
     "alignmentMode": "OperatorAlign",
@@ -3816,7 +3819,8 @@
     "testTeamApproval": "Awaiting review",
     "stepDescription": "",
     "testTeamComments": "",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
+    "waveguideFamily": "Rib",
     "platformId": "soi340nm",
     "platformLabel": "SOI340nm",
     "buildingBlockId": "rib_waveguide",
@@ -3903,9 +3907,15 @@
         "propagationMseThreshold": 0.5
       }
     },
+    "copiedToFolder": true,
+    "processedInTestingSuite": true,
     "notes": "",
-    "source": "github-library",
-    "librarySchemaVersion": 1
+    "source": "github-library-v4",
+    "librarySchemaVersion": 4,
+    "projectDisplayName": "MPW49",
+    "waferDisplayName": "Slot9",
+    "platformDisplayName": "340nmSOI",
+    "projectCode": "MPW49"
   },
   {
     "schemaVersion": 4,
@@ -4032,7 +4042,7 @@
     "schemaVersion": 4,
     "datasetId": "mpw49_rework_soi340nm_slot5_step23_1550nm_te_rib_waveguide_propagationloss_operatoralign",
     "id": "mpw49_rework_soi340nm_slot5_step23_1550nm_te_rib_waveguide_propagationloss_operatoralign",
-    "label": "MPW49_REWORK_SOI340nm_Slot5_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+    "label": "MPW49_REWORK_SOI340nm_Slot5_Step23_1550nm_TE_STRIP1_Waveguide_PropagationLoss_OperatorAlign",
     "projectName": "MPW49_REWORK",
     "waferName": "Slot5",
     "selectedDate": "2026-10-15",
@@ -4056,8 +4066,8 @@
     "platformId": "soi340nm",
     "platformLabel": "SOI340nm",
     "buildingBlockId": "rib_waveguide",
-    "buildingBlockLabel": "RIB_Waveguide",
-    "pdkMonitorBuildingBlock": "SOI340nm_1550nm_TE_RIB_Waveguide",
+    "buildingBlockLabel": "STRIP_Waveguide",
+    "pdkMonitorBuildingBlock": "SOI340nm_1550nm_TE_STRIP_Waveguide",
     "traceCount": 52,
     "rowCount": 936052,
     "chipCount": 13,

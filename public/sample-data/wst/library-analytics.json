@@ -1104,6 +1104,58 @@
     }
   },
   {
+    "id": "mpw49_rework_soi340nm_slot5_step23d_1550nm_te_strip_waveguide_propagationloss_operatoralign",
+    "datasetId": "mpw49_rework_soi340nm_slot5_step23d_1550nm_te_strip_waveguide_propagationloss_operatoralign",
+    "label": "MPW49_REWORK_SOI340nm_Slot5_Step23D_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "projectName": "MPW49_REWORK",
+    "waferName": "Slot5",
+    "selectedDate": "2026-10-28",
+    "folder": "sample-data/wst/MPW49_REWORK_SOI340nm_Slot5_Step23D_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "measurementType": "PropagationLoss",
+    "measurementMode": "Automated WST",
+    "mpw": "MPW49_REWORK",
+    "slot": "Slot5",
+    "waveguideType": "Waveguide",
+    "platformId": "soi340nm",
+    "platformLabel": "SOI340nm",
+    "buildingBlockId": "strip_waveguide",
+    "buildingBlockLabel": "STRIP_Waveguide",
+    "traceCount": 24,
+    "rowCount": 432024,
+    "chipCount": 6,
+    "waveguideCount": 4,
+    "analyticsSummary": {
+      "propagationAverage": 24.066393593544312,
+      "yield": 33.33333333333333,
+      "measuredChips": 6,
+      "computedAt": "2026-10-29T09:46:43.438Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [
+        "Chip63",
+        "Chip66",
+        "Chip67",
+        "Chip97"
+      ],
+      "includedChipIds": [
+        "Chip33",
+        "Chip36"
+      ],
+      "totalChipCount": 6,
+      "selectedChipCount": 2,
+      "measuredChips": 6,
+      "fittedChips": 2,
+      "failedFits": 0,
+      "savedAt": "2026-10-29T09:45:36.976Z",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 1550,
+        "propagationWindowNm": 5,
+        "propagationSpectralStepNm": 10,
+        "propagationMseThreshold": 0.5
+      }
+    }
+  },
+  {
     "id": "mpw49_rework_soi340nm_slot5_step23_1550nm_te_strip_waveguide_propagationloss_operatoralign",
     "datasetId": "mpw49_rework_soi340nm_slot5_step23_1550nm_te_strip_waveguide_propagationloss_operatoralign",
     "label": "MPW49_REWORK_SOI340nm_Slot5_Step23_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
@@ -1112,10 +1164,10 @@
     "selectedDate": "2026-10-15",
     "folder": "sample-data/wst/MPW49_REWORK_SOI340nm_Slot5_Step23_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
     "measurementType": "PropagationLoss",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "mpw": "MPW49_REWORK",
     "slot": "Slot5",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
     "platformId": "soi340nm",
     "platformLabel": "SOI340nm",
     "buildingBlockId": "strip_waveguide",

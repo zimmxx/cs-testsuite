@@ -1,5 +1,61 @@
 [
   {
+    "id": "dev_mit_soi220nmpassive_slot18_step11_1550nm_te_rib_waveguide_propagationloss_operatoralign",
+    "datasetId": "dev_mit_soi220nmpassive_slot18_step11_1550nm_te_rib_waveguide_propagationloss_operatoralign",
+    "label": "DEV_MIT_SOI220nmPassive_Slot18_Step11_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+    "projectName": "DEV_MIT",
+    "waferName": "Slot18",
+    "selectedDate": "2026-10-26",
+    "folder": "sample-data/wst/DEV_MIT_SOI220nmPassive_Slot18_Step11_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+    "measurementType": "PropagationLoss",
+    "measurementMode": "Automated WST",
+    "mpw": "DEV_MIT",
+    "slot": "Slot18",
+    "waveguideType": "Waveguide",
+    "platformId": "soi220nmpassive",
+    "platformLabel": "SOI220nmPassive",
+    "buildingBlockId": "rib_waveguide",
+    "buildingBlockLabel": "RIB_Waveguide",
+    "traceCount": 60,
+    "rowCount": 1080060,
+    "chipCount": 10,
+    "waveguideCount": 6,
+    "analyticsSummary": {
+      "propagationAverage": 2.795650670088816,
+      "yield": 80,
+      "measuredChips": 10,
+      "computedAt": "2026-10-29T10:42:50.293Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [
+        "Chip61",
+        "Chip67"
+      ],
+      "includedChipIds": [
+        "Chip13",
+        "Chip35",
+        "Chip38",
+        "Chip41",
+        "Chip45",
+        "Chip51",
+        "Chip57",
+        "Chip89"
+      ],
+      "totalChipCount": 10,
+      "selectedChipCount": 8,
+      "measuredChips": 10,
+      "fittedChips": 8,
+      "failedFits": 0,
+      "savedAt": "2026-10-29T10:39:25.932Z",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 1550,
+        "propagationWindowNm": 5,
+        "propagationSpectralStepNm": 10,
+        "propagationMseThreshold": 0.5
+      }
+    }
+  },
+  {
     "id": "dev_mit_soi220nmpassive_slot14_step11_1550nm_te_rib_waveguide_propagationloss_operatoralign",
     "datasetId": "dev_mit_soi220nmpassive_slot14_step11_1550nm_te_rib_waveguide_propagationloss_operatoralign",
     "label": "DEV_MIT_SOI220nmPassive_Slot14_Step11_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
@@ -1112,10 +1168,10 @@
     "selectedDate": "2026-10-28",
     "folder": "sample-data/wst/MPW49_REWORK_SOI340nm_Slot5_Step23D_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
     "measurementType": "PropagationLoss",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "mpw": "MPW49_REWORK",
     "slot": "Slot5",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
     "platformId": "soi340nm",
     "platformLabel": "SOI340nm",
     "buildingBlockId": "rib_waveguide",

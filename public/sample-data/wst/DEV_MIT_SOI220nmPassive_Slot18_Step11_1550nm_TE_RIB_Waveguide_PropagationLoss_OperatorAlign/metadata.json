@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 4,
+  "datasetId": "dev_mit_soi220nmpassive_slot18_step11_1550nm_te_rib_waveguide_propagationloss_operatoralign",
+  "label": "DEV_MIT_SOI220nmPassive_Slot18_Step11_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+  "projectName": "DEV_MIT",
+  "waferName": "Slot18",
+  "measurementDate": "2026-10-26",
+  "publishedDate": "2026-10-29",
+  "selectedDate": "2026-10-26",
+  "mpwRun": "DEV_MIT",
+  "slot": "Slot18",
+  "processStep": "Step11",
+  "testTeamApproval": "Accepted",
+  "stepDescription": "",
+  "testTeamComments": "10 chips are measured across the wafer.  Chip 61 (Die1) has an issue with WG6 with noticable line pass through the waveguide to chip62.",
+  "platform": "SOI220nmPassive",
+  "platformId": "soi220nmpassive",
+  "buildingBlock": "RIB_Waveguide",
+  "buildingBlockId": "rib_waveguide",
+  "measurementType": "PropagationLoss",
+  "opticalMode": "1550nm_TE",
+  "alignmentMode": "OperatorAlign",
+  "pdkMonitorBuildingBlock": "SOI220nm_1550nm_TE_RIB_Waveguide",
+  "measurementMode": "Automated WST",
+  "waveguideType": "Rib",
+  "sourceType": "Automated WST trace set",
+  "traceCount": 60,
+  "rowCount": 1080060,
+  "chipCount": 10,
+  "waveguideCount": 6,
+  "wavelengthMinNm": 1530,
+  "wavelengthMaxNm": 1620,
+  "analyticsSummary": {
+    "propagationAverage": 2.795650670088816,
+    "yield": 80,
+    "measuredChips": 10,
+    "computedAt": "2026-10-29T10:42:50.293Z"
+  },
+  "analyticsReview": {
+    "excludedChipIds": [
+      "Chip61",
+      "Chip67"
+    ],
+    "includedChipIds": [
+      "Chip13",
+      "Chip35",
+      "Chip38",
+      "Chip41",
+      "Chip45",
+      "Chip51",
+      "Chip57",
+      "Chip89"
+    ],
+    "totalChipCount": 10,
+    "selectedChipCount": 8,
+    "measuredChips": 10,
+    "fittedChips": 8,
+    "failedFits": 0,
+    "savedAt": "2026-10-29T10:39:25.932Z",
+    "propagationSettings": {
+      "propagationTargetWavelengthNm": 1550,
+      "propagationWindowNm": 5,
+      "propagationSpectralStepNm": 10,
+      "propagationMseThreshold": 0.5
+    }
+  },
+  "copiedToFolder": true,
+  "processedInTestingSuite": true,
+  "notes": "PFAS",
+  "publisher": "CORNERSTONE",
+  "license": null,
+  "sourceNames": [
+    "Chip13_WG1.txt",
+    "Chip13_WG2.txt",
+    "Chip13_WG3.txt",
+    "Chip13_WG4.txt",
+    "Chip13_WG5.txt",
+    "Chip13_WG6.txt",
+    "Chip35_WG1.txt",
+    "Chip35_WG2.txt",
+    "Chip35_WG3.txt",
+    "Chip35_WG4.txt",
+    "Chip35_WG5.txt",
+    "Chip35_WG6.txt",
+    "Chip38_WG1.txt",
+    "Chip38_WG2.txt",
+    "Chip38_WG3.txt",
+    "Chip38_WG4.txt",
+    "Chip38_WG5.txt",
+    "Chip38_WG6.txt",
+    "Chip41_WG1.txt",
+    "Chip41_WG2.txt",
+    "Chip41_WG3.txt",
+    "Chip41_WG4.txt",
+    "Chip41_WG5.txt",
+    "Chip41_WG6.txt",
+    "Chip45_WG1.txt",
+    "Chip45_WG2.txt",
+    "Chip45_WG3.txt",
+    "Chip45_WG4.txt",
+    "Chip45_WG5.txt",
+    "Chip45_WG6.txt",
+    "Chip51_WG1.txt",
+    "Chip51_WG2.txt",
+    "Chip51_WG3.txt",
+    "Chip51_WG4.txt",
+    "Chip51_WG5.txt",
+    "Chip51_WG6.txt",
+    "Chip57_WG1.txt",
+    "Chip57_WG2.txt",
+    "Chip57_WG3.txt",
+    "Chip57_WG4.txt",
+    "Chip57_WG5.txt",
+    "Chip57_WG6.txt",
+    "Chip61_WG1.txt",
+    "Chip61_WG2.txt",
+    "Chip61_WG3.txt",
+    "Chip61_WG4.txt",
+    "Chip61_WG5.txt",
+    "Chip61_WG6.txt",
+    "Chip67_WG1.txt",
+    "Chip67_WG2.txt",
+    "Chip67_WG3.txt",
+    "Chip67_WG4.txt",
+    "Chip67_WG5.txt",
+    "Chip67_WG6.txt",
+    "Chip89_WG1.txt",
+    "Chip89_WG2.txt",
+    "Chip89_WG3.txt",
+    "Chip89_WG4.txt",
+    "Chip89_WG5.txt",
+    "Chip89_WG6.txt"
+  ],
+  "traceFiles": [
+    "Chip13_WG1.txt",
+    "Chip13_WG2.txt",
+    "Chip13_WG3.txt",
+    "Chip13_WG4.txt",
+    "Chip13_WG5.txt",
+    "Chip13_WG6.txt",
+    "Chip35_WG1.txt",
+    "Chip35_WG2.txt",
+    "Chip35_WG3.txt",
+    "Chip35_WG4.txt",
+    "Chip35_WG5.txt",
+    "Chip35_WG6.txt",
+    "Chip38_WG1.txt",
+    "Chip38_WG2.txt",
+    "Chip38_WG3.txt",
+    "Chip38_WG4.txt",
+    "Chip38_WG5.txt",
+    "Chip38_WG6.txt",
+    "Chip41_WG1.txt",
+    "Chip41_WG2.txt",
+    "Chip41_WG3.txt",
+    "Chip41_WG4.txt",
+    "Chip41_WG5.txt",
+    "Chip41_WG6.txt",
+    "Chip45_WG1.txt",
+    "Chip45_WG2.txt",
+    "Chip45_WG3.txt",
+    "Chip45_WG4.txt",
+    "Chip45_WG5.txt",
+    "Chip45_WG6.txt",
+    "Chip51_WG1.txt",
+    "Chip51_WG2.txt",
+    "Chip51_WG3.txt",
+    "Chip51_WG4.txt",
+    "Chip51_WG5.txt",
+    "Chip51_WG6.txt",
+    "Chip57_WG1.txt",
+    "Chip57_WG2.txt",
+    "Chip57_WG3.txt",
+    "Chip57_WG4.txt",
+    "Chip57_WG5.txt",
+    "Chip57_WG6.txt",
+    "Chip61_WG1.txt",
+    "Chip61_WG2.txt",
+    "Chip61_WG3.txt",
+    "Chip61_WG4.txt",
+    "Chip61_WG5.txt",
+    "Chip61_WG6.txt",
+    "Chip67_WG1.txt",
+    "Chip67_WG2.txt",
+    "Chip67_WG3.txt",
+    "Chip67_WG4.txt",
+    "Chip67_WG5.txt",
+    "Chip67_WG6.txt",
+    "Chip89_WG1.txt",
+    "Chip89_WG2.txt",
+    "Chip89_WG3.txt",
+    "Chip89_WG4.txt",
+    "Chip89_WG5.txt",
+    "Chip89_WG6.txt"
+  ],
+  "filenamePattern": "Chip#_WG#.txt",
+  "filenameManifest": "DEV_MIT_SOI220nmPassive_Slot18_Step11_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/filename-manifest.csv",
+  "traceFormat": {
+    "fileType": "text/plain",
+    "delimiter": "tab",
+    "header": false,
+    "columns": [
+      "wavelength_nm",
+      "optical_power_w"
+    ]
+  },
+  "routeConfig": {
+    "measurementType": "PropagationLoss",
+    "routes": [
+      {
+        "route": "WG1",
+        "lengthMm": 0
+      },
+      {
+        "route": "WG2",
+        "lengthMm": 4
+      },
+      {
+        "route": "WG3",
+        "lengthMm": 8
+      },
+      {
+        "route": "WG4",
+        "lengthMm": 12
+      },
+      {
+        "route": "WG5",
+        "lengthMm": 16
+      },
+      {
+        "route": "WG6",
+        "lengthMm": 20
+      }
+    ]
+  },
+  "waveguideConfig": {
+    "propagationWaveguideCount": 6,
+    "propagationWaveguideStartMm": 0,
+    "propagationWaveguideIntervalMm": 4,
+    "propagationWaveguideManualMode": false,
+    "waveguideLengths": [
+      {
+        "index": 1,
+        "lengthMm": 0
+      },
+      {
+        "index": 2,
+        "lengthMm": 4
+      },
+      {
+        "index": 3,
+        "lengthMm": 8
+      },
+      {
+        "index": 4,
+        "lengthMm": 12
+      },
+      {
+        "index": 5,
+        "lengthMm": 16
+      },
+      {
+        "index": 6,
+        "lengthMm": 20
+      }
+    ]
+  },
+  "legacyFolder": "sample-data/wst/DEV_MIT_SOI220nmPassive_Slot18_Step11_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
+  "metadataFile": "DEV_MIT_SOI220nmPassive_Slot18_Step11_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/metadata.json",
+  "configFile": "DEV_MIT_SOI220nmPassive_Slot18_Step11_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign/route-config.json"
+}

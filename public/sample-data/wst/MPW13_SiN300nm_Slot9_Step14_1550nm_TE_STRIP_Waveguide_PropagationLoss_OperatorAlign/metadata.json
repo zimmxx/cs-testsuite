@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 4,
+  "datasetId": "mpw13_sin300nm_slot9_step14_1550nm_te_strip_waveguide_propagationloss_operatoralign",
+  "label": "MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+  "projectName": "MPW13",
+  "waferName": "SlotUndefined",
+  "measurementDate": "2026-11-11",
+  "publishedDate": "2026-11-12",
+  "selectedDate": "2026-11-11",
+  "mpwRun": "MPW13",
+  "slot": "Slot9",
+  "processStep": "Step14",
+  "testTeamApproval": "Awaiting review",
+  "stepDescription": "",
+  "testTeamComments": "",
+  "platform": "SiN300nm",
+  "platformId": "sin300nm",
+  "buildingBlock": "STRIP_Waveguide",
+  "buildingBlockId": "strip_waveguide",
+  "measurementType": "PropagationLoss",
+  "opticalMode": "1550nm_TE",
+  "alignmentMode": "OperatorAlign",
+  "pdkMonitorBuildingBlock": "SiN300nm_1550nm_TE_STRIP_Waveguide",
+  "measurementMode": "Manual converted",
+  "waveguideType": "Strip",
+  "sourceType": "Automated WST trace set",
+  "traceCount": 50,
+  "rowCount": 900050,
+  "chipCount": 10,
+  "waveguideCount": 5,
+  "wavelengthMinNm": 1530,
+  "wavelengthMaxNm": 1620,
+  "analyticsSummary": {
+    "propagationAverage": 0.4506605237133579,
+    "yield": 100,
+    "measuredChips": 10,
+    "computedAt": "2026-11-12T10:59:19.329Z"
+  },
+  "analyticsReview": {
+    "excludedChipIds": [],
+    "includedChipIds": [
+      "Chip14",
+      "Chip37",
+      "Chip41",
+      "Chip45",
+      "Chip49",
+      "Chip53",
+      "Chip57",
+      "Chip61",
+      "Chip65",
+      "Chip88"
+    ],
+    "totalChipCount": 10,
+    "selectedChipCount": 10,
+    "measuredChips": 10,
+    "fittedChips": 10,
+    "failedFits": 0,
+    "savedAt": "2026-11-12T10:55:13.323Z",
+    "propagationSettings": {
+      "propagationTargetWavelengthNm": 1550,
+      "propagationWindowNm": 5,
+      "propagationSpectralStepNm": 10,
+      "propagationMseThreshold": 0.5
+    }
+  },
+  "copiedToFolder": true,
+  "processedInTestingSuite": true,
+  "notes": "",
+  "publisher": "CORNERSTONE",
+  "license": null,
+  "sourceNames": [
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip14_WG1.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip14_WG2.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip14_WG3.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip14_WG4.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip14_WG5.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip37_WG1.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip37_WG2.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip37_WG3.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip37_WG4.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip37_WG5.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip41_WG1.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip41_WG2.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip41_WG3.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip41_WG4.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip41_WG5.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip45_WG1.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip45_WG2.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip45_WG3.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip45_WG4.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip45_WG5.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip49_WG1.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip49_WG2.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip49_WG3.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip49_WG4.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip49_WG5.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip53_WG1.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip53_WG2.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip53_WG3.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip53_WG4.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip53_WG5.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip57_WG1.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip57_WG2.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip57_WG3.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip57_WG4.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip57_WG5.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip61_WG1.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip61_WG2.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip61_WG3.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip61_WG4.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip61_WG5.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip65_WG1.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip65_WG2.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip65_WG3.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip65_WG4.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip65_WG5.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip88_WG1.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip88_WG2.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip88_WG3.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip88_WG4.txt",
+    "MPW13_300nmSiN_Slot9_StripWaveguide_PropagationLoss_Manual_Chip88_WG5.txt"
+  ],
+  "traceFiles": [
+    "Chip14_WG1.txt",
+    "Chip14_WG2.txt",
+    "Chip14_WG3.txt",
+    "Chip14_WG4.txt",
+    "Chip14_WG5.txt",
+    "Chip37_WG1.txt",
+    "Chip37_WG2.txt",
+    "Chip37_WG3.txt",
+    "Chip37_WG4.txt",
+    "Chip37_WG5.txt",
+    "Chip41_WG1.txt",
+    "Chip41_WG2.txt",
+    "Chip41_WG3.txt",
+    "Chip41_WG4.txt",
+    "Chip41_WG5.txt",
+    "Chip45_WG1.txt",
+    "Chip45_WG2.txt",
+    "Chip45_WG3.txt",
+    "Chip45_WG4.txt",
+    "Chip45_WG5.txt",
+    "Chip49_WG1.txt",
+    "Chip49_WG2.txt",
+    "Chip49_WG3.txt",
+    "Chip49_WG4.txt",
+    "Chip49_WG5.txt",
+    "Chip53_WG1.txt",
+    "Chip53_WG2.txt",
+    "Chip53_WG3.txt",
+    "Chip53_WG4.txt",
+    "Chip53_WG5.txt",
+    "Chip57_WG1.txt",
+    "Chip57_WG2.txt",
+    "Chip57_WG3.txt",
+    "Chip57_WG4.txt",
+    "Chip57_WG5.txt",
+    "Chip61_WG1.txt",
+    "Chip61_WG2.txt",
+    "Chip61_WG3.txt",
+    "Chip61_WG4.txt",
+    "Chip61_WG5.txt",
+    "Chip65_WG1.txt",
+    "Chip65_WG2.txt",
+    "Chip65_WG3.txt",
+    "Chip65_WG4.txt",
+    "Chip65_WG5.txt",
+    "Chip88_WG1.txt",
+    "Chip88_WG2.txt",
+    "Chip88_WG3.txt",
+    "Chip88_WG4.txt",
+    "Chip88_WG5.txt"
+  ],
+  "filenamePattern": "Chip#_WG#.txt",
+  "filenameManifest": "MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/filename-manifest.csv",
+  "traceFormat": {
+    "fileType": "text/plain",
+    "delimiter": "tab",
+    "header": false,
+    "columns": [
+      "wavelength_nm",
+      "optical_power_w"
+    ]
+  },
+  "routeConfig": {
+    "measurementType": "PropagationLoss",
+    "routes": [
+      {
+        "route": "WG1",
+        "lengthMm": 2
+      },
+      {
+        "route": "WG2",
+        "lengthMm": 4
+      },
+      {
+        "route": "WG3",
+        "lengthMm": 8
+      },
+      {
+        "route": "WG4",
+        "lengthMm": 12
+      },
+      {
+        "route": "WG5",
+        "lengthMm": 16
+      }
+    ]
+  },
+  "waveguideConfig": {
+    "propagationWaveguideCount": 5,
+    "propagationWaveguideStartMm": 2,
+    "propagationWaveguideIntervalMm": 4,
+    "propagationWaveguideManualMode": true,
+    "waveguideLengths": [
+      {
+        "index": 1,
+        "lengthMm": 2
+      },
+      {
+        "index": 2,
+        "lengthMm": 4
+      },
+      {
+        "index": 3,
+        "lengthMm": 8
+      },
+      {
+        "index": 4,
+        "lengthMm": 12
+      },
+      {
+        "index": 5,
+        "lengthMm": 16
+      }
+    ]
+  },
+  "legacyFolder": "sample-data/wst/MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+  "metadataFile": "MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/metadata.json",
+  "configFile": "MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/route-config.json"
+}

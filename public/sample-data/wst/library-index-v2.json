@@ -12,7 +12,7 @@
     "folder": "sample-data/wst/DEV_MIT_SOI220nmPassive_Slot18_Step11_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
     "traceFolder": "sample-data/wst/DEV_MIT_SOI220nmPassive_Slot18_Step11_1550nm_TE_RIB_Waveguide_PropagationLoss_OperatorAlign",
     "sourceType": "Automated WST trace set",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "measurementType": "PropagationLoss",
     "opticalMode": "1550nm_TE",
     "alignmentMode": "OperatorAlign",
@@ -22,7 +22,7 @@
     "testTeamApproval": "Accepted",
     "stepDescription": "",
     "testTeamComments": "10 chips are measured across the wafer.  Chip 61 (Die1) has an issue with WG6 with noticable line pass through the waveguide to chip62.",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
     "waveguideFamily": "Rib",
     "platformId": "soi220nmpassive",
     "platformLabel": "SOI220nmPassive",
@@ -200,7 +200,11 @@
     "processedInTestingSuite": true,
     "notes": "PFAS",
     "source": "github-library-v4",
-    "librarySchemaVersion": 4
+    "librarySchemaVersion": 4,
+    "projectDisplayName": "DEV_MIT",
+    "waferDisplayName": "Slot18",
+    "platformDisplayName": "",
+    "projectCode": "DEV_MIT"
   },
   {
     "schemaVersion": 4,
@@ -665,6 +669,190 @@
     "waferDisplayName": "Slot3",
     "platformDisplayName": "",
     "projectCode": "DEV_PICBOOTCAMP"
+  },
+  {
+    "schemaVersion": 4,
+    "datasetId": "mpw13_sin300nm_slot9_step14_1550nm_te_strip_waveguide_propagationloss_operatoralign",
+    "id": "mpw13_sin300nm_slot9_step14_1550nm_te_strip_waveguide_propagationloss_operatoralign",
+    "label": "MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "projectName": "MPW13",
+    "waferName": "SlotUndefined",
+    "selectedDate": "2026-11-11",
+    "measurementDate": "2026-11-11",
+    "publishedDate": "2026-11-12",
+    "folder": "sample-data/wst/MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "traceFolder": "sample-data/wst/MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "sourceType": "Automated WST trace set",
+    "measurementMode": "Manual converted",
+    "measurementType": "PropagationLoss",
+    "opticalMode": "1550nm_TE",
+    "alignmentMode": "OperatorAlign",
+    "mpw": "MPW13",
+    "slot": "Slot9",
+    "processStep": "Step14",
+    "testTeamApproval": "Awaiting review",
+    "stepDescription": "",
+    "testTeamComments": "",
+    "waveguideType": "Waveguide",
+    "waveguideFamily": "Strip",
+    "platformId": "sin300nm",
+    "platformLabel": "SiN300nm",
+    "buildingBlockId": "strip_waveguide",
+    "buildingBlockLabel": "STRIP_Waveguide",
+    "pdkMonitorBuildingBlock": "SiN300nm_1550nm_TE_STRIP_Waveguide",
+    "traceCount": 50,
+    "rowCount": 900050,
+    "chipCount": 10,
+    "waveguideCount": 5,
+    "wavelengthMinNm": 1530,
+    "wavelengthMaxNm": 1620,
+    "files": [
+      "Chip14_WG1.txt",
+      "Chip14_WG2.txt",
+      "Chip14_WG3.txt",
+      "Chip14_WG4.txt",
+      "Chip14_WG5.txt",
+      "Chip37_WG1.txt",
+      "Chip37_WG2.txt",
+      "Chip37_WG3.txt",
+      "Chip37_WG4.txt",
+      "Chip37_WG5.txt",
+      "Chip41_WG1.txt",
+      "Chip41_WG2.txt",
+      "Chip41_WG3.txt",
+      "Chip41_WG4.txt",
+      "Chip41_WG5.txt",
+      "Chip45_WG1.txt",
+      "Chip45_WG2.txt",
+      "Chip45_WG3.txt",
+      "Chip45_WG4.txt",
+      "Chip45_WG5.txt",
+      "Chip49_WG1.txt",
+      "Chip49_WG2.txt",
+      "Chip49_WG3.txt",
+      "Chip49_WG4.txt",
+      "Chip49_WG5.txt",
+      "Chip53_WG1.txt",
+      "Chip53_WG2.txt",
+      "Chip53_WG3.txt",
+      "Chip53_WG4.txt",
+      "Chip53_WG5.txt",
+      "Chip57_WG1.txt",
+      "Chip57_WG2.txt",
+      "Chip57_WG3.txt",
+      "Chip57_WG4.txt",
+      "Chip57_WG5.txt",
+      "Chip61_WG1.txt",
+      "Chip61_WG2.txt",
+      "Chip61_WG3.txt",
+      "Chip61_WG4.txt",
+      "Chip61_WG5.txt",
+      "Chip65_WG1.txt",
+      "Chip65_WG2.txt",
+      "Chip65_WG3.txt",
+      "Chip65_WG4.txt",
+      "Chip65_WG5.txt",
+      "Chip88_WG1.txt",
+      "Chip88_WG2.txt",
+      "Chip88_WG3.txt",
+      "Chip88_WG4.txt",
+      "Chip88_WG5.txt"
+    ],
+    "readme": "MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/README.md",
+    "metadataFile": "MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/metadata.json",
+    "configFile": "MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/route-config.json",
+    "filenameManifest": "MPW13_SiN300nm_Slot9_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign/filename-manifest.csv",
+    "routeConfig": {
+      "measurementType": "PropagationLoss",
+      "routes": [
+        {
+          "route": "WG1",
+          "lengthMm": 2
+        },
+        {
+          "route": "WG2",
+          "lengthMm": 4
+        },
+        {
+          "route": "WG3",
+          "lengthMm": 8
+        },
+        {
+          "route": "WG4",
+          "lengthMm": 12
+        },
+        {
+          "route": "WG5",
+          "lengthMm": 16
+        }
+      ]
+    },
+    "waveguideConfig": {
+      "propagationWaveguideCount": 5,
+      "propagationWaveguideStartMm": 2,
+      "propagationWaveguideIntervalMm": 4,
+      "propagationWaveguideManualMode": true,
+      "waveguideLengths": [
+        {
+          "index": 1,
+          "lengthMm": 2
+        },
+        {
+          "index": 2,
+          "lengthMm": 4
+        },
+        {
+          "index": 3,
+          "lengthMm": 8
+        },
+        {
+          "index": 4,
+          "lengthMm": 12
+        },
+        {
+          "index": 5,
+          "lengthMm": 16
+        }
+      ]
+    },
+    "analyticsSummary": {
+      "propagationAverage": 0.4506605237133579,
+      "yield": 100,
+      "measuredChips": 10,
+      "computedAt": "2026-11-12T10:59:19.329Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [],
+      "includedChipIds": [
+        "Chip14",
+        "Chip37",
+        "Chip41",
+        "Chip45",
+        "Chip49",
+        "Chip53",
+        "Chip57",
+        "Chip61",
+        "Chip65",
+        "Chip88"
+      ],
+      "totalChipCount": 10,
+      "selectedChipCount": 10,
+      "measuredChips": 10,
+      "fittedChips": 10,
+      "failedFits": 0,
+      "savedAt": "2026-11-12T10:55:13.323Z",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 1550,
+        "propagationWindowNm": 5,
+        "propagationSpectralStepNm": 10,
+        "propagationMseThreshold": 0.5
+      }
+    },
+    "copiedToFolder": true,
+    "processedInTestingSuite": true,
+    "notes": "",
+    "source": "github-library-v4",
+    "librarySchemaVersion": 4
   },
   {
     "schemaVersion": 4,

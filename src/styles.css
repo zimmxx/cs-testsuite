@@ -4542,6 +4542,21 @@ body {
 .propagation-statistics-details { margin: 0 20px 18px; }
 .propagation-statistics-details summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
 .propagation-statistics-details p { font-size: 13px; line-height: 1.6; }
+.anova-workspace { min-width: 0; }
+.anova-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: end; gap: 14px; margin: 16px 20px; }
+.anova-controls input, .anova-controls select { min-width: 0; width: 100%; }
+.anova-status, .anova-note, .anova-import, .anova-independence, .anova-observations, .anova-pairwise, .anova-conclusion, .anova-errors { margin: 16px 20px; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+.anova-workspace summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.anova-workspace textarea { display: block; box-sizing: border-box; width: 100%; min-height: 130px; padding: 12px; font: inherit; border: 1px solid var(--line); border-radius: 10px; margin: 8px 0 14px; }
+.anova-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.anova-table td, .anova-table th { padding: 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; text-transform: none; }
+.anova-table td input[type="text"] { min-width: 170px; width: 100%; max-width: 360px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.anova-table td span, .anova-table td small { display: block; max-width: 360px; white-space: normal; overflow-wrap: anywhere; }
+.anova-independence { display: flex; align-items: start; gap: 10px; }
+.anova-independence input, .anova-table input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
+.anova-errors { border: 1px solid #e2b4b4; background: #fff5f5; padding: 14px; border-radius: 8px; }
+.anova-observations pre { white-space: pre-wrap; font-size: 12px; }
+.anova-conclusion { padding: 14px; border: 1px solid var(--line); background: #f8fafc; border-radius: 8px; font-weight: 600; }
 .propagation-waveguide-review .analysis-card-head { padding: 0; gap: 12px; flex-wrap: wrap; }
 .propagation-waveguide-review p { font-size: 13px; line-height: 1.5; }
 .propagation-waveguide-summary { cursor: pointer; line-height: 1.5; }

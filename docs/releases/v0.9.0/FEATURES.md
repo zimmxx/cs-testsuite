@@ -20,6 +20,12 @@ Waveguide exclusions affect the fit within a chip; chip exclusions separately co
 
 The propagation workspace reports the arithmetic mean, sample SD, SEM and two-sided 95% Student's t confidence interval for included chips passing the current MSE criteria with finite loss values. A collapsible distribution plot shows chip values and the wafer mean with a CI error bar. A CSV records statistics, inclusion rule, method and chip IDs/values. Empty/single-chip selections report unavailable spread/CI; the error bar is not an invented uncertainty for each chip. The CI assumes independent representative measurements; spatial correlation may make it too narrow.
 
+## Propagation ANOVA workspace
+
+Compare independent groups of accepted chip-level propagation-loss estimates from saved local/GitHub datasets, the live propagation review or grouped CSV. Select/rename groups, inspect box plots and group summaries, then run Welch (default) or classical one-way ANOVA. Results include F, df, p, median-centred Levene variance diagnostic and Holm-adjusted pairwise t-tests; classical results also include SS/MS, η² and ω². Export report CSV or portable ANOVA project JSON.
+
+Dataset imports preserve their fit settings and exclusions. Independence acknowledgement is required; known shared wafer/chip observations and duplicate source datasets are blocked. Repeated/paired and hierarchical designs are not implemented. For wafer-level treatments, chips within a wafer do not replace independent wafer replication. See the [ANOVA guide](../../PROPAGATION_ANOVA.md).
+
 ## Electrical Analysis workspace
 
 Upload `.txt`/`.csv` files ending in `_Chip#_D#`, for example `WaferThox_Wafer1_test1_Chip4_D2.txt`. The two columns are applied voltage in **V** and measured current in **A**. The filename prefix identifies the run, and chip/device IDs remain separate. Uploading the same run/chip/device replaces that device's sweep; other runs remain separate. Malformed rows are reported, and acquisition order is retained.

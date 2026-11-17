@@ -62,6 +62,12 @@ Measurement acceptance: a manual acceptance decision, separate from the automati
 
 CD-SEM: critical-dimension scanning electron microscopy, used to measure fabricated dimensions. Design width is the intended width; measured width and deviation from design are different values. A tolerance is an allowed deviation chosen for that review. Dose describes the exposure setting and needs the process-specific units.
 
+## Propagation ANOVA terms
+
+ANOVA compares group population means under a statistical model. This workspace implements independent-groups, one-factor ANOVA using one chip loss estimate per observation. F measures between-group separation relative to within-group variability; numerator and denominator degrees of freedom define its null distribution. Welch ANOVA allows unequal group variances and adjusts denominator degrees of freedom. Classical ANOVA assumes equal variances and reports sums of squares (SS), mean squares (MS), η² and ω² effect-size estimates.
+
+A p-value is the probability, under the null model and its assumptions, of a statistic at least as extreme as observed. It is not the probability that the null hypothesis is true. α is the chosen significance threshold. Holm adjusts the family of pairwise p-values for multiple comparisons. A median-centred Levene/Brown–Forsythe variance test checks variance homogeneity; it does not test normality or prove equal variances when non-significant. No detected difference is not proof of equality or equivalence. See the [Propagation ANOVA guide](PROPAGATION_ANOVA.md) for assumptions and independence limits.
+
 ## Learn more
 
 Optical terminology: ISO 11807-1, Integrated optics — Optical waveguide basic terms and symbols:

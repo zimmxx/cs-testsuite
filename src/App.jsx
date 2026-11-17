@@ -64,6 +64,9 @@ import CdSemLibraryPanel from "./components/CdSemLibraryPanel";
 import DatasetDashboardPanel from "./components/DatasetDashboardPanel";
 import HeaterEfficiencyPanel from "./components/HeaterEfficiencyPanel";
 import ElectricalAnalysisPanel from "./components/ElectricalAnalysisPanel";
+import AnovaPanel from "./components/AnovaPanel";
+import { localPropagationAnovaGroup, propagationAnovaGroup } from "./lib/anovaDatasets";
+import { summarizeAcceptedPropagation } from "./lib/propagationStatistics";
 import FilenameConversionPanel from "./components/FilenameConversionPanel";
 import ReportGeneratorPanel from "./components/ReportGeneratorPanel";
 import ToastTray from "./components/ToastTray";
@@ -75,7 +78,8 @@ const APP_TABS = [
   { id: "propagation", label: "Propagation Loss", icon: "pulse" },
   { id: "insertion", label: "Insertion Loss", icon: "trend" },
   { id: "heater", label: "Heater Efficiency", icon: "thermometer" },
-  { id: "electrical", label: "Electrical Analysis", icon: "pulse" }
+  { id: "electrical", label: "Electrical Analysis", icon: "pulse" },
+  { id: "anova", label: "Propagation ANOVA", icon: "trend" }
 ];
 
 const RAIL_SECTIONS = [
@@ -217,6 +221,7 @@ const GITHUB_LIBRARY_ANALYTICS_PATH = "public/sample-data/wst/library-analytics.
 const GITHUB_LIBRARY_ANALYTICS_MIRROR_PATH = null;
 const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "main", token: "" };
 const DOC_LINKS = [
+  { label: "Propagation ANOVA guide", path: "docs/PROPAGATION_ANOVA.md", href: `${REPO_DOC_BASE}docs/PROPAGATION_ANOVA.md` },
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
   { label: "Feature Guide v0.9.0", path: "docs/releases/v0.9.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.9.0/FEATURES.md` },
@@ -2656,7 +2661,7 @@ export default function App() {
   const propagationYield = metrics.propagation.passRate;
   const matchedDevices = Math.max(datasetSummary.rows - 2, 0);
   const unmatchedDevices = datasetSummary.rows - matchedDevices;
-  const isWorkspaceTab = activeTab !== "electrical" && APP_TABS.some((tab) => tab.id === activeTab);
+  const isWorkspaceTab = !["electrical", "anova"].includes(activeTab) && APP_TABS.some((tab) => tab.id === activeTab);
   const chipSelectionRows = useMemo(
     () => metrics.propagation.byChip
       .map((item) => ({
@@ -3632,6 +3637,7 @@ export default function App() {
         spectralStepNm: bundle.sourceMeta.propagationSpectralStepNm,
         mseThreshold: bundle.sourceMeta.propagationMseThreshold,
         excludedWaveguideIdsByChip: bundle.sourceMeta.excludedWaveguideIdsByChip,
+        waveguideLengthByIndex: bundle.sourceMeta.waveguideLengthByIndex,
         launchPowerDbm: bundle.sourceMeta.launchPowerDbm,
         traceInputUnit: bundle.sourceMeta.traceInputUnit
       };
@@ -3640,6 +3646,7 @@ export default function App() {
         propagation: /propagation/i.test(type) ? computePropagationLoss(normalized, settings) : null,
         insertion: /insertion/i.test(type) ? computeInsertionLoss(normalized) : null,
         heater: /heater/i.test(type) ? computeHeaterEfficiency(normalized) : null,
+        analyticsReview: normalizeDatasetAnalyticsReview(bundle.metadata?.analyticsReview || definition.analyticsReview),
         settings
       };
     }
@@ -4345,7 +4352,7 @@ export default function App() {
               <h1>Wafer Post-Processing Suite</h1>
               <p>Unified processing and analysis for silicon photonics wafer measurements.</p>
             </div>
-            {activeTab !== "electrical" ? <div className="dashboard-header-filters">
+            {!["electrical", "anova"].includes(activeTab) ? <div className="dashboard-header-filters">
               <div className="filter-field quick-dataset-field">
                 <span>Quick Load Dataset</span>
                 <div className="quick-dataset-controls">
@@ -4379,6 +4386,18 @@ export default function App() {
             </div> : null}
           </header>
           <WorkspaceProgressNotice activity={activeWorkspaceNotice} />
+          <div style={{ display: activeTab === "anova" ? undefined : "none" }} aria-hidden={activeTab !== "anova"}>
+            <AnovaPanel datasets={[
+              ...allRemoteLibraryDatasets.map((dataset) => ({ ...dataset, scope: "remote", anovaSourceKey: `remote:${dataset.id}` })),
+              ...currentDatasetRows.map((dataset) => ({ ...dataset, scope: "local", anovaSourceKey: `local:${dataset.id}` }))
+            ]}
+              currentChipCount={summarizeAcceptedPropagation(metrics.propagation.byChip, includedPropagationChipIds).count}
+              addCurrent={() => propagationAnovaGroup({ id: `workspace:${sourceMeta.name}:${projectName}:${waferName}`, label: sourceMeta.name || `${projectName} ${waferName}`, projectName, waferName, slot: currentDatasetMeta?.slot, scope: "local" }, {
+                propagation: metrics.propagation, settings: { ...sourceMeta, name: undefined },
+                analyticsReview: buildReviewedAnalyticsPayload(reportState, includedPropagationChipIds, propagationChipIds, sourceMeta).analyticsReview
+              })}
+              loadDataset={async (dataset) => dataset.scope === "local" ? localPropagationAnovaGroup(dataset) : propagationAnovaGroup(dataset, await analyzeBundledDataset(dataset, true))} />
+          </div>
           <div style={{ display: activeTab === "electrical" ? undefined : "none" }} aria-hidden={activeTab !== "electrical"}>
             <ElectricalAnalysisPanel active={activeTab === "electrical"} waferTemplate={currentWaferTemplate} waferTemplates={allWaferTemplates}
               onTemplateChange={(id) => { const template = allWaferTemplates.find((item) => item.id === id); if (template) useWaferTemplate(template); }}

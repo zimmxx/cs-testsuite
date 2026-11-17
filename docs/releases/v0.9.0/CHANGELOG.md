@@ -4,6 +4,8 @@ Prepared 17 November 2026; pending review and merge.
 
 ## Added
 
+- Propagation ANOVA workspace: saved-review/current/CSV chip groups, selectable Welch/classical tests, group distributions, variance diagnostic, Holm pairwise comparisons, classical effect sizes and CSV/JSON exports.
+- ANOVA independence/overlap validation, retained processing provenance and numerical regression fixtures checked against published references and analytic probabilities.
 - Electrical Analysis workspace with filename-aware DC sweep parsing, I–V/resistance/power/residual plots, device summaries and chip-linked wafermaps.
 - Searchable custom comparisons, optional graphs, paginated tables, explicit CSV export scopes, local persistence and portable project JSON.
 - Per-device electrical fit overrides and all-device settings, preserving original measurements.

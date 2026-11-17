@@ -16,6 +16,7 @@ The app translates uploaded measurement data into a normalized internal schema, 
 - Propagation loss analysis in `dB/cm`
 - Per-chip waveguide exclusions for propagation fitting, preserving original WG identifiers and lengths
 - Accepted-chip propagation statistics: mean, sample SD, SEM, 95% confidence interval and error-bar plot
+- [Propagation ANOVA](docs/PROPAGATION_ANOVA.md): independent chip groups, Welch/classical tests, variance diagnostic and Holm-adjusted pairwise comparisons
 - DC electrical heater analysis: I–V, two-terminal resistance, power and fit residuals by chip/device
 - Insertion loss analysis in `dB`
 - MZI heater efficiency analysis in `mW/pi`
@@ -59,6 +60,7 @@ Key updates in this release:
 - Choose comparison curves, visible graphs and CSV export scope; click figure legends to hide/show or isolate curves
 - Apply electrical fit settings to one device or all loaded devices; retain original data in local saves and project JSON
 - Exclude faulty waveguides separately for each chip without renumbering or changing assigned lengths; retain exclusions in metadata and portable snapshots
+- Compare independent propagation-loss groups using saved reviews or grouped CSV; inspect distributions, ANOVA and adjusted pairwise results, and export the study as CSV/JSON
 
 See the [v0.9.0 feature guide](docs/releases/v0.9.0/FEATURES.md), [change log](docs/releases/v0.9.0/CHANGELOG.md) and [release checklist](docs/releases/v0.9.0/RELEASE_CHECKLIST.md). The [CD-SEM import guide](docs/releases/v0.8.0/FEATURES.md) remains available. App release numbers and database revision numbers are separate.
 

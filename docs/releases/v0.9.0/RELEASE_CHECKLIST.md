@@ -2,11 +2,12 @@
 
 Prepared 17 November 2026.
 
-- [x] Regression command passes: 49 tests (electrical, view/persistence, propagation, statistics, insertion conversion and MPW database).
+- [x] Regression command passes: 68 tests (ANOVA, dataset adapters, electrical, view/persistence, propagation, statistics, insertion conversion and MPW database).
 - [x] Production build completes. Existing large-chunk and mixed static/dynamic `xlsx` import warnings remain.
 - [ ] PR validation workflow passes against current `main`.
 - [x] Propagation review: synthetic browser check verified middle-WG exclusion, unchanged successor ID/length and chip isolation; save/package round trips covered by regression tests.
 - [x] Propagation statistics: browser check with 2/4/6 dB/cm confirms n=3, mean=4, SD=2, SEM=1.155 and 95% CI; single-chip selection reports unavailable spread/CI. Empty cases and t critical values covered by tests.
+- [x] ANOVA: browser check verified synthetic Welch/classical results, pairwise table, distribution chart, group-toggle result invalidation, repeated chip/wafer blocking, report CSV and project JSON download, and JSON restoration with fresh acknowledgement. Regression checks cover a published SciPy classical fixture, hand-calculated Welch F/df, analytic F tails, Holm, JSON/CSV validation and saved chip/waveguide/MSE selection.
 - [x] Electrical review: supplied sweeps and the saved 81-device workspace were checked; custom search/selection, legend toggling/isolation and per-device fit isolation verified.
 - [x] Electrical persistence and exports: local save/reload and JSON/CSV round trips checked; export scopes verified against 2 comparison curves, 4 filtered devices and all 81 loaded devices.
 - [ ] Verify Help renders the updated user guide and glossary; release links resolve after merge.

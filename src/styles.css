@@ -4605,3 +4605,13 @@ body {
   .electrical-stats strong { font-size: 19px; }
   .electrical-device-details > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }
+:root .insertion-trace-card { min-width: 0; }
+.insertion-trace-card .analysis-card-head p { overflow-wrap: anywhere; }
+.insertion-source-preview { max-width: 100%; margin-block: 12px; }
+.insertion-source-preview td, .insertion-source-preview th { white-space: nowrap; }
+.insertion-conversion-error { color: #a62632; }
+.insertion-conversion-result { padding: 8px 12px; border-left: 3px solid #21877b; background: #f1f8f6; }
+.insertion-preview-caption { margin-top: 16px; }
+.insertion-paste { margin-block: 16px; }
+.insertion-paste .mapping-field { margin-block: 12px; }
+.insertion-paste textarea { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; resize: vertical; }

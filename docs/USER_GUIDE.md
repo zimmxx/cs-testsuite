@@ -1,6 +1,6 @@
 # CORNERSTONE interface user guide
 
-Updated 16 November 2026.
+Updated 17 November 2026.
 
 ## 1. Test team — load, process, review and publish
 

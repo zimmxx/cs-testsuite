@@ -327,6 +327,7 @@ async function loadRemoteDatasetRows(dataset, sourceMeta) {
 function buildComparisonSourceMeta(dataset, sourceMeta) {
   return {
     ...sourceMeta,
+    excludedWaveguideIdsByChip: dataset.analyticsReview?.excludedWaveguideIdsByChip ?? dataset.sourceMeta?.excludedWaveguideIdsByChip ?? {},
     name: dataset.label || getDatasetPresentation(dataset).projectDisplayName || dataset.projectName || "Measurement dataset",
     type: dataset.measurementMode || dataset.sourceType || "Measurement"
   };
@@ -448,7 +449,8 @@ export default function ComparisonLibraryPanel({
             targetWavelengthNm: nextSourceMeta.propagationTargetWavelengthNm,
             windowNm: nextSourceMeta.propagationWindowNm,
             spectralStepNm: nextSourceMeta.propagationSpectralStepNm,
-            mseThreshold: nextSourceMeta.propagationMseThreshold
+            mseThreshold: nextSourceMeta.propagationMseThreshold,
+            excludedWaveguideIdsByChip: nextSourceMeta.excludedWaveguideIdsByChip
           }
         });
         nextResults.push({

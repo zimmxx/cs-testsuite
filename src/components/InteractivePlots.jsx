@@ -131,7 +131,7 @@ function buildStandalonePlotHtml({ title, data, layout, config }) {
 </html>`;
 }
 
-function PlotlyFigure({ data, layout, config, emptyMessage, windowTitle, height = 360, exportBaseName, enableHtmlExport = true }) {
+export function PlotlyFigure({ data, layout, config, emptyMessage, windowTitle, height = 360, exportBaseName, enableHtmlExport = true }) {
   const ref = useRef(null);
   const [error, setError] = useState("");
 
@@ -628,7 +628,7 @@ export function InteractiveTransmissionSpectrumPlot({ series, targetWavelengthNm
         name: item.label || item.waveguideId,
         x: item.points.map((point) => point.wavelengthNm),
         y: item.points.map((point) => point.transmissionDb),
-        line: { color: palette[index % palette.length], width: 2.4 },
+        line: { color: palette[index % palette.length], width: 2.4, dash: item.excluded ? "dash" : "solid" },
         hovertemplate: `${item.label || item.waveguideId}<br>Wavelength: %{x:.2f} nm<br>Loss: %{y:.2f} dB<extra></extra>`
       })),
       layout: {

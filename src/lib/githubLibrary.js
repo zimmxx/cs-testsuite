@@ -1,4 +1,6 @@
 import { computePropagationLoss } from "./analysis";
+import { normalizeWaveguideExclusions } from "./propagationReview.js";
+import { normalizeTestTeamApproval } from "./datasetReview";
 import { buildNormalizedRows } from "./parsers";
 
 export const ROUTE_CONFIG_FILE_NAME = "route-config.json";
@@ -303,6 +305,9 @@ export function inferDatasetIdentity({ projectName = "", waferName = "", sourceM
     mpw: tokens.mpw,
     slot: tokens.slot,
     processStep: tokens.processStep,
+    testTeamApproval: normalizeTestTeamApproval(sourceMeta.testTeamApproval),
+    stepDescription: sourceMeta.stepDescription || "",
+    testTeamComments: sourceMeta.testTeamComments || "",
     waveguideType: titleizeToken(tokens.waveguideType),
     measurementMode: tokens.mode === "manual" ? "Manual converted" : tokens.mode === "wst" ? "Automated WST" : "Measurement",
     sourceType: sourceMeta.type || (tokens.mode === "manual" ? "Manual converted trace set" : "Automated WST trace set"),
@@ -362,6 +367,9 @@ export function applyDatasetNamingOverrides(identity, namingOverrides = {}) {
     mpw: normalizeOverrideText(namingOverrides.mpw || namingOverrides.projectName, identity.mpw),
     slot: nextSlot,
     processStep: nextProcessStep,
+    testTeamApproval: normalizeTestTeamApproval(namingOverrides.testTeamApproval ?? identity.testTeamApproval),
+    stepDescription: String(namingOverrides.stepDescription ?? identity.stepDescription ?? ""),
+    testTeamComments: String(namingOverrides.testTeamComments ?? identity.testTeamComments ?? ""),
     platformLabel: nextPlatformLabel,
     platformId: nextPlatformLabel ? slugify(nextPlatformLabel).toLowerCase() : identity.platformId,
     buildingBlockLabel: nextBuildingBlockLabel,
@@ -432,6 +440,7 @@ export function normalizeDatasetAnalyticsReview(review = {}) {
 
   return {
     excludedChipIds,
+    excludedWaveguideIdsByChip: normalizeWaveguideExclusions(review?.excludedWaveguideIdsByChip),
     includedChipIds,
     totalChipCount: optionalAnalyticsNumber(review?.totalChipCount),
     selectedChipCount: optionalAnalyticsNumber(review?.selectedChipCount),
@@ -494,7 +503,8 @@ export function buildDatasetAnalyticsSummary(dataset) {
     targetWavelengthNm: sourceMeta.propagationTargetWavelengthNm,
     windowNm: sourceMeta.propagationWindowNm,
     spectralStepNm: sourceMeta.propagationSpectralStepNm,
-    mseThreshold: sourceMeta.propagationMseThreshold
+    mseThreshold: sourceMeta.propagationMseThreshold,
+    excludedWaveguideIdsByChip: dataset?.analyticsReview?.excludedWaveguideIdsByChip ?? sourceMeta.excludedWaveguideIdsByChip
   });
 
   return normalizeDatasetAnalyticsSummary({
@@ -518,6 +528,9 @@ function upgradeManifestEntryToV2(entry = {}) {
     measurementDate: entry.measurementDate || entry.selectedDate || null,
     publishedDate: entry.publishedDate || null,
     processStep: entry.processStep || "StepXX",
+    testTeamApproval: normalizeTestTeamApproval(entry.testTeamApproval),
+    stepDescription: entry.stepDescription || "",
+    testTeamComments: entry.testTeamComments || "",
     folder: entry.folder,
     traceFolder: entry.folder,
     sourceType: entry.sourceType,
@@ -676,6 +689,9 @@ export function buildDatasetMetadata(dataset, identity, traceFiles, routeConfig,
     mpwRun: identity.mpw,
     slot: identity.slot,
     processStep: identity.processStep,
+    testTeamApproval: normalizeTestTeamApproval(identity.testTeamApproval ?? sourceMeta.testTeamApproval),
+    stepDescription: identity.stepDescription ?? sourceMeta.stepDescription ?? "",
+    testTeamComments: identity.testTeamComments ?? sourceMeta.testTeamComments ?? "",
     platform: identity.platformLabel,
     platformId: identity.platformId,
     buildingBlock: identity.buildingBlockLabel,
@@ -694,7 +710,10 @@ export function buildDatasetMetadata(dataset, identity, traceFiles, routeConfig,
     wavelengthMinNm: identity.wavelengthMinNm,
     wavelengthMaxNm: identity.wavelengthMaxNm,
     analyticsSummary,
-    analyticsReview: normalizeDatasetAnalyticsReview(dataset?.analyticsReview),
+    analyticsReview: normalizeDatasetAnalyticsReview({
+      ...dataset?.analyticsReview,
+      excludedWaveguideIdsByChip: dataset?.analyticsReview?.excludedWaveguideIdsByChip ?? sourceMeta.excludedWaveguideIdsByChip
+    }),
     copiedToFolder: true,
     processedInTestingSuite: true,
     notes: sourceMeta.notes || "",
@@ -858,6 +877,9 @@ export function buildDatasetReadme(identity, traceFiles, metadata) {
     `- Measurement type: ${identity.measurementType}`,
     `- Waveguide type: ${identity.waveguideFamily}`,
     `- Process step: ${identity.processStep}`,
+    `- Step description: ${metadata.stepDescription || "Not recorded"}`,
+    `- Test-team comments: ${metadata.testTeamComments || "Not recorded"}`,
+    `- Latest measurement acceptance and test-team comments: [metadata.json](metadata.json) (updated through the Published Dataset Editor)`,
     `- Measurement date: ${formatDateLabel(metadata?.measurementDate)}`,
     `- Published date: ${formatDateLabel(metadata?.publishedDate)}`,
     `- Files: ${traceFiles.length}`,
@@ -901,6 +923,9 @@ export function buildDatasetManifestEntry(identity, traceFiles, routeConfig, wav
     mpw: identity.mpw,
     slot: identity.slot,
     processStep: identity.processStep,
+    testTeamApproval: normalizeTestTeamApproval(metadata?.testTeamApproval ?? identity.testTeamApproval),
+    stepDescription: metadata?.stepDescription ?? identity.stepDescription ?? "",
+    testTeamComments: metadata?.testTeamComments ?? identity.testTeamComments ?? "",
     waveguideType: identity.waveguideType,
     platformId: identity.platformId,
     platformLabel: identity.platformLabel,
@@ -949,6 +974,9 @@ export function buildDatasetManifestEntryV2(identity, traceFiles, routeConfig, w
     mpw: identity.mpw,
     slot: identity.slot,
     processStep: identity.processStep,
+    testTeamApproval: normalizeTestTeamApproval(metadata?.testTeamApproval ?? identity.testTeamApproval),
+    stepDescription: metadata?.stepDescription ?? identity.stepDescription ?? "",
+    testTeamComments: metadata?.testTeamComments ?? identity.testTeamComments ?? "",
     waveguideType: identity.waveguideType,
     waveguideFamily: identity.waveguideFamily,
     platformId: identity.platformId,
@@ -1020,6 +1048,9 @@ export function buildUpdatedPublishedDatasetManifestEntry(dataset, namingOverrid
     projectName: nextProjectName,
     slot: nextSlot,
     processStep: nextProcessStep,
+    testTeamApproval: normalizeTestTeamApproval(metadata.testTeamApproval ?? namingOverrides.testTeamApproval ?? dataset.testTeamApproval),
+    stepDescription: metadata.stepDescription ?? namingOverrides.stepDescription ?? dataset.stepDescription ?? "",
+    testTeamComments: metadata.testTeamComments ?? namingOverrides.testTeamComments ?? dataset.testTeamComments ?? "",
     mpw: normalizeOverrideText(namingOverrides.mpw || namingOverrides.projectName, dataset.mpw),
     platformLabel: nextPlatformLabel,
     buildingBlockLabel: nextBuildingBlockLabel,

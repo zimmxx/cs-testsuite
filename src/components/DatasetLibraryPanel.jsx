@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import TestTeamApprovalField from "./TestTeamApprovalField";
 import { getDatasetPresentation } from "../lib/datasetPresentation";
 import {
   DATASET_ALIGNMENT_MODE_OPTIONS,
@@ -231,6 +232,9 @@ export default function DatasetLibraryPanel({
             <span>Measurement date</span>
             <input type="date" required value={currentDatasetNamingDraft?.measurementDate || ""} onChange={(event) => onCurrentDatasetNamingChange("measurementDate", event.target.value)} disabled={!currentDatasetMeta?.rowCount} />
           </label>
+<TestTeamApprovalField value={currentDatasetNamingDraft?.testTeamApproval} onChange={(value) => onCurrentDatasetNamingChange("testTeamApproval", value)} disabled={!currentDatasetMeta?.rowCount} />
+<label className="mapping-field"><span>Step description</span><textarea aria-label="Step description" value={currentDatasetNamingDraft?.stepDescription || ""} onChange={(event) => onCurrentDatasetNamingChange("stepDescription", event.target.value)} disabled={!currentDatasetMeta?.rowCount} /></label>
+<label className="mapping-field"><span>Test-team comments</span><textarea aria-label="Test-team comments" value={currentDatasetNamingDraft?.testTeamComments || ""} onChange={(event) => onCurrentDatasetNamingChange("testTeamComments", event.target.value)} disabled={!currentDatasetMeta?.rowCount} /></label>
           <ControlledSelect label="Platform" field="platformLabel" value={currentDatasetNamingDraft?.platformLabel} options={DATASET_PLATFORM_OPTIONS} onChange={onCurrentDatasetNamingChange} disabled={!currentDatasetMeta?.rowCount} />
           <ControlledSelect label="Optical mode" field="opticalMode" value={currentDatasetNamingDraft?.opticalMode} options={DATASET_OPTICAL_MODE_OPTIONS} onChange={onCurrentDatasetNamingChange} disabled={!currentDatasetMeta?.rowCount} />
           <ControlledSelect label="Building block" field="buildingBlockLabel" value={currentDatasetNamingDraft?.buildingBlockLabel} options={DATASET_BUILDING_BLOCK_OPTIONS} onChange={onCurrentDatasetNamingChange} disabled={!currentDatasetMeta?.rowCount} />
@@ -359,7 +363,7 @@ export default function DatasetLibraryPanel({
         <div className="analysis-card-head stacked">
           <div>
             <h2>Published Dataset Editor</h2>
-            <p>Edit the naming metadata for an already published GitHub dataset, then save the corrected label, project details, and reviewed analytics back to the repository manifest and metadata file.</p>
+            <p>Set measurement acceptance or edit metadata for an already published dataset. Save metadata and the current review to GitHub without uploading the measurement traces again.</p>
           </div>
           <div className="library-action-row">
             <button type="button" onClick={() => onSavePublishedDatasetMetadata(selectedPublishedDataset)} disabled={!selectedPublishedDataset || isSavingPublishedDataset}>
@@ -391,6 +395,9 @@ export default function DatasetLibraryPanel({
             <span>Measurement date</span>
             <input type="date" value={publishedDatasetDraft?.measurementDate || ""} onChange={(event) => onPublishedDatasetDraftChange("measurementDate", event.target.value)} disabled={!selectedPublishedDataset} />
           </label>
+<TestTeamApprovalField value={publishedDatasetDraft?.testTeamApproval} onChange={(value) => onPublishedDatasetDraftChange("testTeamApproval", value)} disabled={!selectedPublishedDataset} />
+<label className="mapping-field"><span>Step description</span><textarea aria-label="Step description" value={publishedDatasetDraft?.stepDescription || ""} onChange={(event) => onPublishedDatasetDraftChange("stepDescription", event.target.value)} disabled={!selectedPublishedDataset} /></label>
+<label className="mapping-field"><span>Test-team comments</span><textarea aria-label="Test-team comments" value={publishedDatasetDraft?.testTeamComments || ""} onChange={(event) => onPublishedDatasetDraftChange("testTeamComments", event.target.value)} disabled={!selectedPublishedDataset} /></label>
           <ControlledSelect label="Platform" field="platformLabel" value={publishedDatasetDraft?.platformLabel} options={DATASET_PLATFORM_OPTIONS} onChange={onPublishedDatasetDraftChange} disabled={!selectedPublishedDataset} />
           <ControlledSelect label="Optical mode" field="opticalMode" value={publishedDatasetDraft?.opticalMode} options={DATASET_OPTICAL_MODE_OPTIONS} onChange={onPublishedDatasetDraftChange} disabled={!selectedPublishedDataset} />
           <ControlledSelect label="Building block" field="buildingBlockLabel" value={publishedDatasetDraft?.buildingBlockLabel} options={DATASET_BUILDING_BLOCK_OPTIONS} onChange={onPublishedDatasetDraftChange} disabled={!selectedPublishedDataset} />

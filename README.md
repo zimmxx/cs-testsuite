@@ -65,6 +65,13 @@ See the [CD-SEM import guide](docs/releases/v0.8.0/FEATURES.md) and [v0.8.0 rele
 - `pptxgenjs` for browser-based PowerPoint export
 - GitHub Actions + GitHub Pages for deployment
 
+## User documentation
+
+- [User guide: Test team, Cleanroom team and PDK team](docs/USER_GUIDE.md)
+- [Measurement glossary](docs/MEASUREMENT_GLOSSARY.md)
+
+Both guides are also available directly in Help. Library > Overview provides wafer and die propagation fit results with process descriptions and test-team comments.
+
 ## Local Development
 
 Install dependencies:

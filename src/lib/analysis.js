@@ -1,3 +1,5 @@
+import { normalizeWaveguideExclusions, propagationWaveguideId } from "./propagationReview.js";
+
 const CHIP_KEYS = ["chip_id", "die_x", "die_y"];
 
 const METRIC_DESCRIPTIONS = {
@@ -214,6 +216,7 @@ function summarizeTransmission(series) {
 }
 
 export function computePropagationLoss(normalizedRows, options = {}) {
+  const exclusions = normalizeWaveguideExclusions(options.excludedWaveguideIdsByChip);
   const targetWavelengthNm = toNumber(options.targetWavelengthNm) ?? 1550;
   const windowNm = toNumber(options.windowNm) ?? 5;
   const mseThreshold = toNumber(options.mseThreshold) ?? 0.5;
@@ -227,8 +230,10 @@ export function computePropagationLoss(normalizedRows, options = {}) {
 
   const byChip = Array.from(groups.entries())
     .map(([chipId, rows]) => {
-      const spectralSeries = buildIntervalSpectralSeries(rows, spectralStepNm, windowNm);
-      const windowedSamples = buildWindowAveragedSamples(rows, targetWavelengthNm, windowNm);
+      const excludedWaveguideIds = Object.hasOwn(exclusions, chipId) ? exclusions[chipId] : [];
+      const fitRows = rows.filter((row) => !excludedWaveguideIds.includes(propagationWaveguideId(row)));
+      const spectralSeries = buildIntervalSpectralSeries(fitRows, spectralStepNm, windowNm);
+      const windowedSamples = buildWindowAveragedSamples(fitRows, targetWavelengthNm, windowNm);
       const fit = linearRegression(
         windowedSamples.map((row) => ({
           x: row.relative_length_mm,
@@ -241,15 +246,18 @@ export function computePropagationLoss(normalizedRows, options = {}) {
         )[0]
         : null;
       const windowAverage = nearestSpectralPoint?.lossDbPerCm ?? null;
-      if (!fit && windowAverage === null && !spectralSeries.length) return null;
-
-      const transmissionSeries = buildTransmissionSeries(rows);
+      const transmissionSeries = buildTransmissionSeries(rows).map((item) => ({
+        ...item,
+        excluded: excludedWaveguideIds.includes(item.waveguideId),
+        label: excludedWaveguideIds.includes(item.waveguideId) ? `${item.waveguideId} (excluded from fit)` : item.waveguideId
+      }));
       const transmissionSummary = summarizeTransmission(transmissionSeries);
       const mse = fit?.mse ?? null;
       const passMse = mse === null ? false : mse <= mseThreshold;
 
       return {
         chipId,
+        excludedWaveguideIds,
         dieX: rows[0].die_x,
         dieY: rows[0].die_y,
         measurementCount: rows.length,

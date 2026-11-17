@@ -48,6 +48,8 @@ MMI: multimode interference device, commonly used to split or combine optical po
 
 ## Processing quality and fabrication measurements
 
+Sample SD (dB/cm): observed chip-to-chip propagation-loss spread using denominator n−1. SEM (dB/cm): SD/√n, a sampling-model standard error of the mean. The 95% CI shown for accepted chips is mean ± t(0.975, n−1)×SEM. It assumes independent representative measurements and can understate uncertainty when chip measurements are spatially correlated. It is not a separate fit error bar for every chip or an instrument calibration uncertainty. SD, SEM and CI require at least two accepted chips.
+
 MSE / mean squared error: average squared residual between fit predictions and measured values. The app uses an MSE threshold to screen propagation fits. Smaller values mean closer agreement with that model; they do not prove a fabrication process meets its specifications.
 
 Pass / Fail: in the Workspace and Overview, a die passes when its propagation fit meets the current MSE threshold and returns a loss value. The Chip Summary Table retains Pass/Fail for these individual MSE outcomes. The dataset-level fit quality is labelled Meets fit criteria or Needs fit review. Unusable fits need review. This is post-processing fit quality, not formal wafer acceptance. A high propagation loss can still have a good fit.

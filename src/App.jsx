@@ -2,6 +2,7 @@ import DatasetReviewPanel from "./components/DatasetReviewPanel";
 import OverviewPanel from "./components/OverviewPanel";
 import HelpGuides from "./components/HelpGuides";
 import PropagationWaveguideReview from "./components/PropagationWaveguideReview";
+import PropagationStatisticsPanel from "./components/PropagationStatisticsPanel";
 import { normalizeWaveguideExclusions } from "./lib/propagationReview";
 import { datasetFields, reviewText, normalizeTestTeamApproval } from "./lib/datasetReview";
 import { useEffect, useMemo, useState, startTransition } from "react";
@@ -218,8 +219,8 @@ const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "
 const DOC_LINKS = [
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
-  { label: "Feature Guide v0.8.0", path: "docs/releases/v0.8.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.8.0/FEATURES.md` },
-  { label: "Change Log v0.8.0", path: "docs/releases/v0.8.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.8.0/CHANGELOG.md` },
+  { label: "Feature Guide v0.9.0", path: "docs/releases/v0.9.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.9.0/FEATURES.md` },
+  { label: "Change Log v0.9.0", path: "docs/releases/v0.9.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.9.0/CHANGELOG.md` },
   { label: "Suggested Next Updates", path: "docs/suggested_update.md", href: `${REPO_DOC_BASE}docs/suggested_update.md` },
   { label: "Dataset Filename Standard", path: "docs/DATASET_FILENAME_STANDARD.md", href: `${REPO_DOC_BASE}docs/DATASET_FILENAME_STANDARD.md` }
 ];
@@ -4398,6 +4399,7 @@ export default function App() {
             <DatasetReviewPanel dataset={currentDatasetMeta ? { ...currentDatasetMeta, namingOverrides: datasetNamingDraft } : null} review={currentDatasetMeta ? buildReviewedAnalyticsPayload(reportState, includedPropagationChipIds, propagationChipIds, sourceMeta).analyticsReview : null} onChange={updateCurrentDatasetNaming} />
 
             {activeTab === "propagation" ? <MatlabSummaryPanel summary={reportState.matlabSummary} /> : null}
+            {activeTab === "propagation" ? <PropagationStatisticsPanel chips={metrics.propagation.byChip} includedChipIds={includedPropagationChipIds} /> : null}
 
             {activeTab === "propagation" ? (
               <PropagationSettingsPanel

@@ -51,6 +51,15 @@ test('too few included lengths leaves chip available for recovery and contribute
   }
 });
 
+test('propagation-only waveguide exclusions preserve original transmission summary metrics', () => {
+  const rows = waveguideReviewRows();
+  const baseline = computePropagationLoss(rows).byChip[0];
+  const reviewed = computePropagationLoss(rows, { excludedWaveguideIdsByChip: { Chip1: ['WG1'] } }).byChip[0];
+  assert.deepEqual(reviewed.transmissionSummary, baseline.transmissionSummary);
+  assert.equal(reviewed.transmissionSummary.waveguideId, 'WG1');
+  assert.ok(!reviewed.samples.some(row => row.waveguide_id === 'WG1'));
+});
+
 test('per-chip exclusions survive metadata, manifests, analytics cache and portable package round trip', async () => {
   const exclusions = { Chip1: ['WG3'], Chip2: ['WG2', 'WG4'] };
   const dataset = { id: 'review-test', projectName: 'MPW48', label: 'Review test', rawRows: waveguideReviewRows(), sourceMeta: { excludedWaveguideIdsByChip: exclusions }, analyticsReview: { excludedWaveguideIdsByChip: exclusions } };

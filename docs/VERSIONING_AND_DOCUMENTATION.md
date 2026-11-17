@@ -25,6 +25,10 @@ Top-level docs:
 
 Version-specific docs:
 
+- `docs/releases/v0.9.0/FEATURES.md` — electrical analysis and per-chip propagation review
+- `docs/releases/v0.9.0/CHANGELOG.md`
+- `docs/releases/v0.9.0/RELEASE_CHECKLIST.md`
+
 - `docs/releases/v0.1.0/FEATURES.md`
 - `docs/releases/v0.1.0/CHANGELOG.md`
 - `docs/releases/v0.2.0/FEATURES.md`

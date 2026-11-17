@@ -14,6 +14,10 @@ This app is designed to unify two measurement routes into one analysis pipeline:
 The app translates uploaded measurement data into a normalized internal schema, then uses that shared dataset for:
 
 - Propagation loss analysis in `dB/cm`
+- Per-chip waveguide exclusions for propagation fitting, preserving original WG identifiers and lengths
+- Accepted-chip propagation statistics: mean, sample SD, SEM, 95% confidence interval and error-bar plot
+- [Propagation ANOVA](docs/PROPAGATION_ANOVA.md): independent chip groups, Welch/classical tests, variance diagnostic and Holm-adjusted pairwise comparisons
+- DC electrical heater analysis: I–V, two-terminal resistance, power and fit residuals by chip/device
 - Insertion loss analysis in `dB`
 - MZI heater efficiency analysis in `mW/pi`
 - Wafermap visualization
@@ -46,18 +50,19 @@ Live deployment:
 
 ## Current Release
 
-- App version: `v0.8.0`
-- Prepared: `2026-09-23` — pending PR review and merge
-- Focus: CD-SEM import, target-relative wafermaps and etch-run comparisons
+- App version: `v0.9.0` (proposed; pending PR review and merge)
+- Prepared: `2026-11-17`
+- Focus: electrical analysis and reproducible per-chip propagation fit review
 
 Key updates in this release:
 
-- Import multiple coordinate-based CD-SEM files and compare etch runs at matched chip locations
-- Compare CD-SEM and propagation-loss wafermaps side by side with independent display and scale controls
-- Colour `waveguide_mid_nm` by its absolute deviation from the run's design width; display design width and dose
-- Report unavailable parameters explicitly; user-set tolerance enables CD-SEM pass/fail filtering
+- Import two-column voltage/current sweeps using `_Chip#_D#` filenames and inspect electrical results by run, chip and device
+- Choose comparison curves, visible graphs and CSV export scope; click figure legends to hide/show or isolate curves
+- Apply electrical fit settings to one device or all loaded devices; retain original data in local saves and project JSON
+- Exclude faulty waveguides separately for each chip without renumbering or changing assigned lengths; retain exclusions in metadata and portable snapshots
+- Compare independent propagation-loss groups using saved reviews or grouped CSV; inspect distributions, ANOVA and adjusted pairwise results, and export the study as CSV/JSON
 
-See the [CD-SEM import guide](docs/releases/v0.8.0/FEATURES.md) and [v0.8.0 release notes](docs/releases/v0.8.0/CHANGELOG.md). App release numbers and database revision numbers are separate.
+See the [v0.9.0 feature guide](docs/releases/v0.9.0/FEATURES.md), [change log](docs/releases/v0.9.0/CHANGELOG.md) and [release checklist](docs/releases/v0.9.0/RELEASE_CHECKLIST.md). The [CD-SEM import guide](docs/releases/v0.8.0/FEATURES.md) remains available. App release numbers and database revision numbers are separate.
 
 ## Tech Stack
 
@@ -93,6 +98,14 @@ Create a production build:
 ```bash
 pnpm build
 ```
+
+Run the analysis, persistence and conversion regression checks:
+
+```bash
+pnpm test
+```
+
+Pull requests targeting `main` run the tests and production build. Deployment runs after changes are merged into `main`.
 
 Preview the production build locally:
 

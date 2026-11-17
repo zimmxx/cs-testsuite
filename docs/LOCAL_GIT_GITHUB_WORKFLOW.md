@@ -71,10 +71,10 @@ git commit -m "Update v0.1.1 feature documentation"
 ### 7. Push to GitHub
 
 ```bash
-git push origin main
+git push -u origin HEAD
 ```
 
-After pushing to `main`, GitHub Actions will automatically rebuild and redeploy the app.
+Work on a named feature branch such as `codex/electrical-waveguide-review`, then open a pull request targeting `main`. Run `pnpm test` and `pnpm build` before requesting review. Pull requests run the validation workflow. The Pages deployment runs after the reviewed changes are merged into `main`; pushing a feature branch does not deploy the app.
 
 ## Useful Git Commands
 

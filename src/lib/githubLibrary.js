@@ -1,4 +1,5 @@
 import { computePropagationLoss } from "./analysis";
+import { normalizeWaveguideExclusions } from "./propagationReview.js";
 import { normalizeTestTeamApproval } from "./datasetReview";
 import { buildNormalizedRows } from "./parsers";
 
@@ -439,6 +440,7 @@ export function normalizeDatasetAnalyticsReview(review = {}) {
 
   return {
     excludedChipIds,
+    excludedWaveguideIdsByChip: normalizeWaveguideExclusions(review?.excludedWaveguideIdsByChip),
     includedChipIds,
     totalChipCount: optionalAnalyticsNumber(review?.totalChipCount),
     selectedChipCount: optionalAnalyticsNumber(review?.selectedChipCount),
@@ -501,7 +503,8 @@ export function buildDatasetAnalyticsSummary(dataset) {
     targetWavelengthNm: sourceMeta.propagationTargetWavelengthNm,
     windowNm: sourceMeta.propagationWindowNm,
     spectralStepNm: sourceMeta.propagationSpectralStepNm,
-    mseThreshold: sourceMeta.propagationMseThreshold
+    mseThreshold: sourceMeta.propagationMseThreshold,
+    excludedWaveguideIdsByChip: dataset?.analyticsReview?.excludedWaveguideIdsByChip ?? sourceMeta.excludedWaveguideIdsByChip
   });
 
   return normalizeDatasetAnalyticsSummary({
@@ -721,7 +724,10 @@ export function buildDatasetMetadata(dataset, identity, traceFiles, routeConfig,
     wavelengthMinNm: identity.wavelengthMinNm,
     wavelengthMaxNm: identity.wavelengthMaxNm,
     analyticsSummary,
-    analyticsReview: normalizeDatasetAnalyticsReview(dataset?.analyticsReview),
+    analyticsReview: normalizeDatasetAnalyticsReview({
+      ...dataset?.analyticsReview,
+      excludedWaveguideIdsByChip: dataset?.analyticsReview?.excludedWaveguideIdsByChip ?? sourceMeta.excludedWaveguideIdsByChip
+    }),
     copiedToFolder: true,
     processedInTestingSuite: true,
     notes: sourceMeta.notes || "",

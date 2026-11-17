@@ -4534,6 +4534,99 @@ body {
 .help-guide summary { cursor: pointer; font-weight: 700; }
 .help-guide pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.65; }
 @media (max-width: 700px) { .review-edit-grid, .dataset-parameter-grid, .dataset-filter-grid { grid-template-columns: 1fr; } .quick-dataset-menu { max-width: calc(100vw - 32px); } }
+.propagation-waveguide-review { padding: 16px 20px; border-top: 1px solid var(--border-color, #d9e2ec); }
+.propagation-statistics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; padding: 0 20px 18px; }
+.propagation-statistics-grid > div { padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #f8fafc; }
+.propagation-statistics-grid strong { display: block; font-size: 18px; }
+.propagation-statistics-grid span { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.propagation-statistics-details { margin: 0 20px 18px; }
+.propagation-statistics-details summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.propagation-statistics-details p { font-size: 13px; line-height: 1.6; }
+.anova-workspace { min-width: 0; }
+.anova-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: end; gap: 14px; margin: 16px 20px; }
+.anova-controls input, .anova-controls select { min-width: 0; width: 100%; }
+.anova-status, .anova-note, .anova-import, .anova-independence, .anova-observations, .anova-pairwise, .anova-conclusion, .anova-errors { margin: 16px 20px; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+.anova-workspace summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.anova-workspace textarea { display: block; box-sizing: border-box; width: 100%; min-height: 130px; padding: 12px; font: inherit; border: 1px solid var(--line); border-radius: 10px; margin: 8px 0 14px; }
+.anova-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.anova-table td, .anova-table th { padding: 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; text-transform: none; }
+.anova-table td input[type="text"] { min-width: 170px; width: 100%; max-width: 360px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.anova-table td span, .anova-table td small { display: block; max-width: 360px; white-space: normal; overflow-wrap: anywhere; }
+.anova-independence { display: flex; align-items: start; gap: 10px; }
+.anova-independence input, .anova-table input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
+.anova-errors { border: 1px solid #e2b4b4; background: #fff5f5; padding: 14px; border-radius: 8px; }
+.anova-observations pre { white-space: pre-wrap; font-size: 12px; }
+.anova-conclusion { padding: 14px; border: 1px solid var(--line); background: #f8fafc; border-radius: 8px; font-weight: 600; }
+.propagation-waveguide-review .analysis-card-head { padding: 0; gap: 12px; flex-wrap: wrap; }
+.propagation-waveguide-review p { font-size: 13px; line-height: 1.5; }
+.propagation-waveguide-summary { cursor: pointer; line-height: 1.5; }
+.propagation-waveguide-summary span { display: block; margin: 4px 0 0 18px; font-size: 13px; }
+.propagation-waveguide-review details[open] > summary { margin-bottom: 14px; }
+.propagation-waveguide-options { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.waveguide-choice { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border-color, #d9e2ec); border-radius: 8px; cursor: pointer; }
+.waveguide-choice input { width: 18px; height: 18px; flex-shrink: 0; }
+.waveguide-choice small { display: block; margin-top: 4px; }
+.waveguide-choice.excluded { border-style: dashed; opacity: 0.7; }
+.electrical-workspace { min-width: 0; }
+.electrical-toggle-group { display: flex; flex-wrap: wrap; gap: 12px 22px; margin: 12px 20px; padding: 12px; border: 1px solid var(--line, #d9e2ec); border-radius: 10px; }
+.electrical-toggle-group legend { font-size: 13px; font-weight: 600; padding: 0 6px; }
+.electrical-toggle-group label, .electrical-table-toolbar > label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+.electrical-toggle-group input, .electrical-curve-choice input, .electrical-summary-table input { width: 17px; height: 17px; }
+.electrical-curve-chooser { margin: 18px 20px; }
+.electrical-curve-chooser summary { cursor: pointer; font-weight: 600; padding: 10px 0; }
+.electrical-curve-chooser > p { font-size: 13px; line-height: 1.5; }
+.electrical-curve-chooser .electrical-control-grid { margin: 14px 0; }
+.electrical-curve-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; max-height: 260px; overflow-y: auto; padding: 4px; margin-top: 12px; }
+.electrical-curve-choice { display: flex; gap: 8px; align-items: center; border: 1px solid #d9e2ec; border-radius: 8px; padding: 10px; cursor: pointer; }
+.electrical-curve-choice.chosen { background: #eef5ff; border-color: #7ba6e7; }
+.electrical-curve-choice small { display: block; margin-top: 4px; font-size: 11px; }
+.electrical-legend-note { font-size: 12px; margin: 0 20px; color: var(--muted); }
+.electrical-table-toolbar, .electrical-table-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 20px; }
+.electrical-table-toolbar .mapping-field { flex-direction: column; align-items: stretch; }
+.electrical-summary-scroll { max-height: 540px; overflow: auto; }
+.electrical-summary-table thead th { position: sticky; top: 0; background: #f8fafc; z-index: 1; }
+.electrical-plots-grid > :only-child, .electrical-detail-grid > :only-child { grid-column: 1 / -1; }
+.electrical-plots-grid:empty, .electrical-detail-grid:empty { display: none; }
+.electrical-workspace code { overflow-wrap: anywhere; }
+.electrical-workspace .wafer-card-layout { grid-template-columns: minmax(0, 1fr) 96px; gap: 8px; padding: 0 12px 14px; }
+.electrical-workspace .library-action-row .secondary-action { width: auto; margin-top: 0; }
+.electrical-status, .electrical-method-note, .electrical-actions, .electrical-fit-settings, .electrical-point-table, .electrical-notes { margin: 16px 20px; }
+.electrical-status { font-size: 14px; overflow-wrap: anywhere; }
+.electrical-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.electrical-stats > div { background: #f7fafc; padding: 18px; border: 1px solid #d9e2ec; border-radius: 12px; }
+.electrical-stats strong { display: block; font-size: 22px; color: #16323b; }
+.electrical-stats span { display: block; font-size: 13px; margin-top: 6px; }
+.electrical-control-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 14px 20px; align-items: end; }
+.electrical-control-grid input, .electrical-control-grid select { min-width: 0; width: 100%; }
+.electrical-plots-grid, .electrical-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.electrical-plots-grid > *, .electrical-detail-grid > * { min-width: 0; }
+.electrical-plot-card .analysis-card-head { min-height: 64px; }
+.electrical-detail-grid .electrical-control-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.electrical-device-details { margin: 0 20px 20px; }
+.electrical-device-details > div { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e3ecef; }
+.electrical-device-details dd { margin: 0; overflow-wrap: anywhere; font-weight: 600; }
+.electrical-review-notes { margin: 20px; padding: 16px; background: #f7fafc; border-radius: 10px; font-size: 13px; line-height: 1.6; }
+.electrical-review-notes ul { padding-left: 20px; }
+.electrical-method-note { font-size: 13px; line-height: 1.6; }
+.electrical-fit-settings summary, .electrical-point-table summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.electrical-fit-settings p, .electrical-point-table p { font-size: 13px; line-height: 1.6; }
+.electrical-fit-settings .electrical-control-grid { margin-left: 0; margin-right: 0; }
+.electrical-workspace table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.electrical-workspace th, .electrical-workspace td { padding: 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid #e3ecef; }
+.electrical-workspace th { text-transform: none; }
+.electrical-workspace .electrical-selected-row { background: #eef5ff; }
+.electrical-point-table .dashboard-table-wrap { max-height: 400px; overflow: auto; }
+.electrical-notes textarea { width: 100%; min-height: 80px; padding: 12px; border: 1px solid #c4d2dd; border-radius: 8px; font: inherit; }
+@media (max-width: 1100px) {
+  .electrical-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .electrical-control-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .electrical-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .electrical-plots-grid, .electrical-detail-grid, .electrical-control-grid, .electrical-detail-grid .electrical-control-grid { grid-template-columns: minmax(0, 1fr); }
+  .electrical-stats strong { font-size: 19px; }
+  .electrical-device-details > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
 :root .insertion-trace-card { min-width: 0; }
 .insertion-trace-card .analysis-card-head p { overflow-wrap: anywhere; }
 .insertion-source-preview { max-width: 100%; margin-block: 12px; }

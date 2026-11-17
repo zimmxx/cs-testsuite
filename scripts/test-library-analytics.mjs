@@ -11,6 +11,72 @@ const reviewHelpers = await server.ssrLoadModule('/src/lib/datasetReview.js');
 const libraryHelpers = await server.ssrLoadModule('/src/lib/githubLibrary.js');
 const packageHelpers = await server.ssrLoadModule('/src/lib/wstProjectPackage.js');
 
+function waveguideReviewRows() {
+  return ['Chip1', 'Chip2'].flatMap(chip_id => [1, 2, 3, 4].flatMap(index =>
+    [1540, 1550, 1560].map(wavelength_nm => ({
+      chip_id, waveguide_id: `WG${index}`, metric_family: 'propagation',
+      relative_length_mm: [0, 4, 11, 19][index - 1], wavelength_nm,
+      loss_db: 5 + [0, 4, 11, 19][index - 1] * 0.3 + (index === 3 ? 12 : 0),
+      die_x: null, die_y: null
+    }))));
+}
+
+test('per-chip exclusions refit every wavelength without renumbering, changing lengths or deleting raw traces', () => {
+  const rows = waveguideReviewRows();
+  const original = JSON.stringify(rows);
+  const result = computePropagationLoss(rows, { excludedWaveguideIdsByChip: { Chip1: ['WG3'] } });
+  const chip = result.byChip.find(item => item.chipId === 'Chip1');
+  const otherChip = result.byChip.find(item => item.chipId === 'Chip2');
+  assert.deepEqual(chip.samples.map(row => [row.waveguide_id, row.relative_length_mm]), [['WG1', 0], ['WG2', 4], ['WG4', 19]]);
+  assert.ok(Math.abs(chip.lossDbPerCm - 3) < 1e-10);
+  assert.ok(chip.spectralSeries.every(point => point.sampleCount === 3 && Math.abs(point.lossDbPerCm - 3) < 1e-10));
+  assert.equal(chip.transmissionSeries.length, 4);
+  assert.equal(chip.transmissionSeries.find(item => item.waveguideId === 'WG3').excluded, true);
+  assert.equal(otherChip.samples.length, 4);
+  assert.equal(otherChip.passMse, false);
+  assert.equal(JSON.stringify(rows), original);
+  assert.equal(computePropagationLoss(rows).byChip[0].samples.length, 4);
+});
+
+test('too few included lengths leaves chip available for recovery and contributes no fitted value', () => {
+  for (const excluded of [['WG2', 'WG3', 'WG4'], ['WG1', 'WG2', 'WG3', 'WG4']]) {
+    const result = computePropagationLoss(waveguideReviewRows(), { excludedWaveguideIdsByChip: { Chip1: excluded } });
+    const chip = result.byChip.find(item => item.chipId === 'Chip1');
+    assert.equal(chip.fit, null);
+    assert.equal(chip.lossDbPerCm, null);
+    assert.equal(chip.passMse, false);
+    assert.equal(chip.transmissionSeries.length, 4);
+    assert.equal(result.byChip.length, 2);
+    assert.ok(!result.waferMetric.some(item => item.chipId === 'Chip1'));
+  }
+});
+
+test('propagation-only waveguide exclusions preserve original transmission summary metrics', () => {
+  const rows = waveguideReviewRows();
+  const baseline = computePropagationLoss(rows).byChip[0];
+  const reviewed = computePropagationLoss(rows, { excludedWaveguideIdsByChip: { Chip1: ['WG1'] } }).byChip[0];
+  assert.deepEqual(reviewed.transmissionSummary, baseline.transmissionSummary);
+  assert.equal(reviewed.transmissionSummary.waveguideId, 'WG1');
+  assert.ok(!reviewed.samples.some(row => row.waveguide_id === 'WG1'));
+});
+
+test('per-chip exclusions survive metadata, manifests, analytics cache and portable package round trip', async () => {
+  const exclusions = { Chip1: ['WG3'], Chip2: ['WG2', 'WG4'] };
+  const dataset = { id: 'review-test', projectName: 'MPW48', label: 'Review test', rawRows: waveguideReviewRows(), sourceMeta: { excludedWaveguideIdsByChip: exclusions }, analyticsReview: { excludedWaveguideIdsByChip: exclusions } };
+  const metadata = libraryHelpers.buildDatasetMetadata(dataset, {}, [], {}, {});
+  assert.deepEqual(metadata.analyticsReview.excludedWaveguideIdsByChip, exclusions);
+  for (const value of [libraryHelpers.buildDatasetManifestEntry({}, [], {}, {}, metadata), libraryHelpers.buildDatasetManifestEntryV2({}, [], {}, {}, metadata), libraryHelpers.buildLibraryAnalyticsEntry(dataset)]) {
+    assert.deepEqual(value.analyticsReview.excludedWaveguideIdsByChip, exclusions);
+  }
+  const exported = await packageHelpers.createWstProjectPackage([dataset]);
+  const imported = await packageHelpers.importWstProjectPackage({ arrayBuffer: () => exported.blob.arrayBuffer(), name: exported.fileName });
+  assert.deepEqual(imported.datasets[0].analyticsReview.excludedWaveguideIdsByChip, exclusions);
+  assert.deepEqual(imported.datasets[0].sourceMeta.excludedWaveguideIdsByChip, exclusions);
+  assert.deepEqual(imported.datasets[0].rawRows, dataset.rawRows);
+  assert.deepEqual(normalizeDatasetAnalyticsReview().excludedWaveguideIdsByChip, {});
+  assert.deepEqual(normalizeDatasetAnalyticsReview({ excludedWaveguideIdsByChip: { Chip1: ['WG3', 'WG3', null], Chip2: 'invalid' } }).excludedWaveguideIdsByChip, { Chip1: ['WG3'] });
+});
+
 test('processing verdict distinguishes unreviewed, all-passing and missing or failed fits', () => {
   assert.equal(reviewHelpers.processingVerdict(null).label, 'Not evaluated');
   assert.equal(reviewHelpers.processingVerdict({ measuredChips: 4, fittedChips: null }).label, 'Not evaluated');

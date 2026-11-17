@@ -34,11 +34,21 @@ Wavelength (nm): the optical wavelength at which a result is measured. Spectral 
 
 Heater efficiency (mW/pi): electrical power required for a pi-radian optical phase shift. Lower values mean less power for that phase change under the measured conditions.
 
+I–V curve: measured current versus applied voltage. Electrical Analysis reads current in amperes and displays curves in milliamperes (1 mA = 0.001 A). Chip# and D# identify the chip and electrical device separately.
+
+Two-terminal resistance (Ω): the measured voltage/current relationship includes the device plus probe, contact and lead resistance. Point resistance is V/I at one sample. Fitted resistance is the reciprocal of conductance G from a linear I–V fit; it depends on the chosen voltage range and whether a current offset is fitted. These are different estimates for a nonlinear trace.
+
+Electrical power (mW): applied voltage multiplied by measured current, scaled by 1000 from watts to milliwatts. The maximum sampled V×I is labelled peak measured power, not a safe operating limit. Negative values require checking the current sign convention.
+
+Electrical fit residual: measured minus fitted current. R² (centred) describes agreement with a linear I–V model, and can be negative for a forced-origin fit. RMSE gives the root mean squared current residual. Neither metric independently establishes measurement accuracy or fabrication acceptance.
+
 MZI: Mach–Zehnder interferometer. Two optical paths interfere when recombined; heaters change their relative phase.
 
 MMI: multimode interference device, commonly used to split or combine optical power.
 
 ## Processing quality and fabrication measurements
+
+Sample SD (dB/cm): observed chip-to-chip propagation-loss spread using denominator n−1. SEM (dB/cm): SD/√n, a sampling-model standard error of the mean. The 95% CI shown for accepted chips is mean ± t(0.975, n−1)×SEM. It assumes independent representative measurements and can understate uncertainty when chip measurements are spatially correlated. It is not a separate fit error bar for every chip or an instrument calibration uncertainty. SD, SEM and CI require at least two accepted chips.
 
 MSE / mean squared error: average squared residual between fit predictions and measured values. The app uses an MSE threshold to screen propagation fits. Smaller values mean closer agreement with that model; they do not prove a fabrication process meets its specifications.
 
@@ -51,6 +61,12 @@ Not evaluated: no usable saved fit review. Excluded: a measured die deliberately
 Measurement acceptance: a manual acceptance decision, separate from the automatic processing result. Accepted is green, Rejected is red, Accepted with conditions is amber, and Awaiting review is grey. Accepted with conditions means the test team accepts the dataset with recorded caveats or follow-up work. Explain these in Test-team comments. Missing acceptance metadata is treated as Awaiting review, even when processing fits pass.
 
 CD-SEM: critical-dimension scanning electron microscopy, used to measure fabricated dimensions. Design width is the intended width; measured width and deviation from design are different values. A tolerance is an allowed deviation chosen for that review. Dose describes the exposure setting and needs the process-specific units.
+
+## Propagation ANOVA terms
+
+ANOVA compares group population means under a statistical model. This workspace implements independent-groups, one-factor ANOVA using one chip loss estimate per observation. F measures between-group separation relative to within-group variability; numerator and denominator degrees of freedom define its null distribution. Welch ANOVA allows unequal group variances and adjusts denominator degrees of freedom. Classical ANOVA assumes equal variances and reports sums of squares (SS), mean squares (MS), η² and ω² effect-size estimates.
+
+A p-value is the probability, under the null model and its assumptions, of a statistic at least as extreme as observed. It is not the probability that the null hypothesis is true. α is the chosen significance threshold. Holm adjusts the family of pairwise p-values for multiple comparisons. A median-centred Levene/Brown–Forsythe variance test checks variance homogeneity; it does not test normality or prove equal variances when non-significant. No detected difference is not proof of equality or equivalence. See the [Propagation ANOVA guide](PROPAGATION_ANOVA.md) for assumptions and independence limits.
 
 ## Learn more
 

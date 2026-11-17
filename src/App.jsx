@@ -1,6 +1,9 @@
 import DatasetReviewPanel from "./components/DatasetReviewPanel";
 import OverviewPanel from "./components/OverviewPanel";
 import HelpGuides from "./components/HelpGuides";
+import PropagationWaveguideReview from "./components/PropagationWaveguideReview";
+import PropagationStatisticsPanel from "./components/PropagationStatisticsPanel";
+import { normalizeWaveguideExclusions } from "./lib/propagationReview";
 import { datasetFields, reviewText, normalizeTestTeamApproval } from "./lib/datasetReview";
 import { useEffect, useMemo, useState, startTransition } from "react";
 import {
@@ -60,6 +63,10 @@ import ComparisonLibraryPanel from "./components/ComparisonLibraryPanel";
 import CdSemLibraryPanel from "./components/CdSemLibraryPanel";
 import DatasetDashboardPanel from "./components/DatasetDashboardPanel";
 import HeaterEfficiencyPanel from "./components/HeaterEfficiencyPanel";
+import ElectricalAnalysisPanel from "./components/ElectricalAnalysisPanel";
+import AnovaPanel from "./components/AnovaPanel";
+import { localPropagationAnovaGroup, propagationAnovaGroup } from "./lib/anovaDatasets";
+import { summarizeAcceptedPropagation } from "./lib/propagationStatistics";
 import FilenameConversionPanel from "./components/FilenameConversionPanel";
 import ReportGeneratorPanel from "./components/ReportGeneratorPanel";
 import ToastTray from "./components/ToastTray";
@@ -70,7 +77,9 @@ import MpwDatabasePanel from "./components/MpwDatabasePanel";
 const APP_TABS = [
   { id: "propagation", label: "Propagation Loss", icon: "pulse" },
   { id: "insertion", label: "Insertion Loss", icon: "trend" },
-  { id: "heater", label: "Heater Efficiency", icon: "thermometer" }
+  { id: "heater", label: "Heater Efficiency", icon: "thermometer" },
+  { id: "electrical", label: "Electrical Analysis", icon: "pulse" },
+  { id: "anova", label: "Propagation ANOVA", icon: "trend" }
 ];
 
 const RAIL_SECTIONS = [
@@ -212,10 +221,11 @@ const GITHUB_LIBRARY_ANALYTICS_PATH = "public/sample-data/wst/library-analytics.
 const GITHUB_LIBRARY_ANALYTICS_MIRROR_PATH = null;
 const DEFAULT_GITHUB_CONFIG = { owner: "zimmxx", repo: "cs-testsuite", branch: "main", token: "" };
 const DOC_LINKS = [
+  { label: "Propagation ANOVA guide", path: "docs/PROPAGATION_ANOVA.md", href: `${REPO_DOC_BASE}docs/PROPAGATION_ANOVA.md` },
   { label: "Project README", path: "README.md", href: `${REPO_DOC_BASE}README.md` },
   { label: "Local Git and GitHub Workflow", path: "docs/LOCAL_GIT_GITHUB_WORKFLOW.md", href: `${REPO_DOC_BASE}docs/LOCAL_GIT_GITHUB_WORKFLOW.md` },
-  { label: "Feature Guide v0.8.0", path: "docs/releases/v0.8.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.8.0/FEATURES.md` },
-  { label: "Change Log v0.8.0", path: "docs/releases/v0.8.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.8.0/CHANGELOG.md` },
+  { label: "Feature Guide v0.9.0", path: "docs/releases/v0.9.0/FEATURES.md", href: `${REPO_DOC_BASE}docs/releases/v0.9.0/FEATURES.md` },
+  { label: "Change Log v0.9.0", path: "docs/releases/v0.9.0/CHANGELOG.md", href: `${REPO_DOC_BASE}docs/releases/v0.9.0/CHANGELOG.md` },
   { label: "Suggested Next Updates", path: "docs/suggested_update.md", href: `${REPO_DOC_BASE}docs/suggested_update.md` },
   { label: "Dataset Filename Standard", path: "docs/DATASET_FILENAME_STANDARD.md", href: `${REPO_DOC_BASE}docs/DATASET_FILENAME_STANDARD.md` }
 ];
@@ -366,6 +376,15 @@ async function writePersistentCollection(key, value) {
     };
     transaction.onerror = () => reject(transaction.error || new Error(`Unable to write ${key} to persistent storage.`));
   });
+}
+
+async function loadElectricalWorkspace() {
+  return readPersistentCollection("electrical-workspace", readStoredJson("wps.electrical.v1", null));
+}
+
+async function saveElectricalWorkspace(value) {
+  if (supportsIndexedDbPersistence()) return writePersistentCollection("electrical-workspace", value);
+  window.localStorage.setItem("wps.electrical.v1", JSON.stringify(value));
 }
 
 function estimateSnapshotBytes(rows = [], columnMap = {}, sourceMeta = {}) {
@@ -1007,6 +1026,7 @@ function buildReviewedAnalyticsPayload(reportState, includedChipIds, allChipIds,
     }),
     analyticsReview: normalizeDatasetAnalyticsReview({
       excludedChipIds,
+      excludedWaveguideIdsByChip: sourceMeta?.excludedWaveguideIdsByChip,
       includedChipIds: includedIds,
       totalChipCount,
       selectedChipCount,
@@ -1450,7 +1470,9 @@ function WaferMapPanel({
   notchOrientation = "south",
   colorScaleMin = null,
   colorScaleMid = null,
-  colorScaleMax = null
+  colorScaleMax = null,
+  unit,
+  metricTitle
 }) {
   if (!cells.length) {
     return <div className="chart-empty">No wafermap values available for this metric.</div>;
@@ -1465,13 +1487,13 @@ function WaferMapPanel({
     colorScaleMid,
     colorScaleMax
   });
-  const scaleUnit = metricKey === "propagation" ? "dB/cm" : metricKey === "heater" ? "mW/π" : "dB";
+  const scaleUnit = unit || (metricKey === "propagation" ? "dB/cm" : metricKey === "heater" ? "mW/π" : "dB");
 
   return (
     <div className="wafer-card-layout">
       <div className="wafer-outline-shell">
         {templateName ? <div className="wafer-template-badge">{templateName}</div> : null}
-        <svg viewBox={`0 0 ${figure.svgWidth} ${figure.svgHeight}`} className="wafermap-svg" role="img" aria-label={`Wafermap for ${metricLabel(metricKey)}`}>
+        <svg viewBox={`0 0 ${figure.svgWidth} ${figure.svgHeight}`} className="wafermap-svg" role="img" aria-label={`Wafermap for ${metricTitle || metricLabel(metricKey)}`}>
           <circle cx={figure.waferCenterX} cy={figure.waferCenterY} r={figure.waferRadius} className="wafermap-circle" />
           <path d={`M ${figure.waferCenterX - 2.16} ${figure.waferCenterY + figure.waferRadius - 1.32} A 2.16 2.16 0 0 1 ${figure.waferCenterX + 2.16} ${figure.waferCenterY + figure.waferRadius - 1.32}`} className="wafermap-notch-stroke" />
           {figure.colValues.map((column) => (
@@ -1530,7 +1552,7 @@ function WaferMapPanel({
           })}
         </svg>
       </div>
-      <div className="wafer-side-scale" aria-label={`${metricLabel(metricKey)} colour scale`}>
+      <div className="wafer-side-scale" aria-label={`${metricTitle || metricLabel(metricKey)} colour scale`}>
         <span className="wafer-scale-title">Scale</span>
         <div className="wafer-scale-bar" aria-hidden="true">
           <i className="wafer-scale-tick high" />
@@ -2435,14 +2457,16 @@ export default function App() {
       targetWavelengthNm: sourceMeta.propagationTargetWavelengthNm,
       windowNm: sourceMeta.propagationWindowNm,
       spectralStepNm: sourceMeta.propagationSpectralStepNm,
-      mseThreshold: sourceMeta.propagationMseThreshold
+      mseThreshold: sourceMeta.propagationMseThreshold,
+      excludedWaveguideIdsByChip: sourceMeta.excludedWaveguideIdsByChip
     }),
     [
       normalizedRows,
       sourceMeta.propagationTargetWavelengthNm,
       sourceMeta.propagationWindowNm,
       sourceMeta.propagationSpectralStepNm,
-      sourceMeta.propagationMseThreshold
+      sourceMeta.propagationMseThreshold,
+      sourceMeta.excludedWaveguideIdsByChip
     ]
   );
   const insertionMetrics = useMemo(() => computeInsertionLoss(normalizedRows, { targetWavelengthNm: sourceMeta.propagationTargetWavelengthNm }), [normalizedRows, sourceMeta.propagationTargetWavelengthNm]);
@@ -2637,7 +2661,7 @@ export default function App() {
   const propagationYield = metrics.propagation.passRate;
   const matchedDevices = Math.max(datasetSummary.rows - 2, 0);
   const unmatchedDevices = datasetSummary.rows - matchedDevices;
-  const isWorkspaceTab = APP_TABS.some((tab) => tab.id === activeTab);
+  const isWorkspaceTab = !["electrical", "anova"].includes(activeTab) && APP_TABS.some((tab) => tab.id === activeTab);
   const chipSelectionRows = useMemo(
     () => metrics.propagation.byChip
       .map((item) => ({
@@ -3203,7 +3227,7 @@ export default function App() {
         ? (measurementFiles.length > 1 && firstType === "Automated WST trace" ? "Automated WST trace set" : firstType)
         : "Mixed measurement upload";
       const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
-      const nextSourceMeta = { ...sourceMeta, ...configPatch,
+      const nextSourceMeta = { ...sourceMeta, ...configPatch, excludedWaveguideIdsByChip: normalizeWaveguideExclusions(packageMetadata.analyticsReview?.excludedWaveguideIdsByChip),
         measurementType: packageMetadata.measurementType || "",
         insertionTraceMap: packageMetadata.insertionTraceMap || {},
         buildingBlock: packageMetadata.buildingBlock || "",
@@ -3488,6 +3512,7 @@ export default function App() {
     const configuredSettings = routeConfig ? buildWaveguideSettingsPatch(routeConfig) : fallbackSettings;
     const savedReview = normalizeDatasetAnalyticsReview(metadata?.analyticsReview);
     const reviewedPropagationSettings = {
+      excludedWaveguideIdsByChip: savedReview.excludedWaveguideIdsByChip,
       propagationTargetWavelengthNm: savedReview.propagationSettings?.propagationTargetWavelengthNm,
       propagationWindowNm: savedReview.propagationSettings?.propagationWindowNm,
       propagationSpectralStepNm: savedReview.propagationSettings?.propagationSpectralStepNm,
@@ -3611,6 +3636,8 @@ export default function App() {
         windowNm: bundle.sourceMeta.propagationWindowNm,
         spectralStepNm: bundle.sourceMeta.propagationSpectralStepNm,
         mseThreshold: bundle.sourceMeta.propagationMseThreshold,
+        excludedWaveguideIdsByChip: bundle.sourceMeta.excludedWaveguideIdsByChip,
+        waveguideLengthByIndex: bundle.sourceMeta.waveguideLengthByIndex,
         launchPowerDbm: bundle.sourceMeta.launchPowerDbm,
         traceInputUnit: bundle.sourceMeta.traceInputUnit
       };
@@ -3619,6 +3646,7 @@ export default function App() {
         propagation: /propagation/i.test(type) ? computePropagationLoss(normalized, settings) : null,
         insertion: /insertion/i.test(type) ? computeInsertionLoss(normalized) : null,
         heater: /heater/i.test(type) ? computeHeaterEfficiency(normalized) : null,
+        analyticsReview: normalizeDatasetAnalyticsReview(bundle.metadata?.analyticsReview || definition.analyticsReview),
         settings
       };
     }
@@ -3966,7 +3994,10 @@ export default function App() {
   async function loadDataset(dataset) {
     const presented = presentDataset(dataset);
     const rows = dataset.rawRows || [];
-    const nextSourceMeta = dataset.sourceMeta || buildDefaultSourceMeta(appSettings);
+    const nextSourceMeta = {
+      ...(dataset.sourceMeta || buildDefaultSourceMeta(appSettings)),
+      excludedWaveguideIdsByChip: normalizeWaveguideExclusions(dataset.analyticsReview?.excludedWaveguideIdsByChip ?? dataset.sourceMeta?.excludedWaveguideIdsByChip)
+    };
     setWorkspaceActivity({ title: "Loading dataset...", message: `${dataset.label} is being restored and analysed.` });
     await waitForNextPaint();
     setProjectName(presented.projectDisplayName || projectName);
@@ -4321,7 +4352,7 @@ export default function App() {
               <h1>Wafer Post-Processing Suite</h1>
               <p>Unified processing and analysis for silicon photonics wafer measurements.</p>
             </div>
-            <div className="dashboard-header-filters">
+            {!["electrical", "anova"].includes(activeTab) ? <div className="dashboard-header-filters">
               <div className="filter-field quick-dataset-field">
                 <span>Quick Load Dataset</span>
                 <div className="quick-dataset-controls">
@@ -4352,9 +4383,27 @@ export default function App() {
                 </div>
               </div>
               <label className="upload-measurement-button"><input type="file" multiple accept=".txt,.csv,.xlsx,.xls,.json,.config" onChange={handleFileUpload} disabled={isUploadingFiles} /><span>{isUploadingFiles ? "Processing Files..." : "Upload Measurement Files"}</span></label>
-            </div>
+            </div> : null}
           </header>
           <WorkspaceProgressNotice activity={activeWorkspaceNotice} />
+          <div style={{ display: activeTab === "anova" ? undefined : "none" }} aria-hidden={activeTab !== "anova"}>
+            <AnovaPanel datasets={[
+              ...allRemoteLibraryDatasets.map((dataset) => ({ ...dataset, scope: "remote", anovaSourceKey: `remote:${dataset.id}` })),
+              ...currentDatasetRows.map((dataset) => ({ ...dataset, scope: "local", anovaSourceKey: `local:${dataset.id}` }))
+            ]}
+              currentChipCount={summarizeAcceptedPropagation(metrics.propagation.byChip, includedPropagationChipIds).count}
+              addCurrent={() => propagationAnovaGroup({ id: `workspace:${sourceMeta.name}:${projectName}:${waferName}`, label: sourceMeta.name || `${projectName} ${waferName}`, projectName, waferName, slot: currentDatasetMeta?.slot, scope: "local" }, {
+                propagation: metrics.propagation, settings: { ...sourceMeta, name: undefined },
+                analyticsReview: buildReviewedAnalyticsPayload(reportState, includedPropagationChipIds, propagationChipIds, sourceMeta).analyticsReview
+              })}
+              loadDataset={async (dataset) => dataset.scope === "local" ? localPropagationAnovaGroup(dataset) : propagationAnovaGroup(dataset, await analyzeBundledDataset(dataset, true))} />
+          </div>
+          <div style={{ display: activeTab === "electrical" ? undefined : "none" }} aria-hidden={activeTab !== "electrical"}>
+            <ElectricalAnalysisPanel active={activeTab === "electrical"} waferTemplate={currentWaferTemplate} waferTemplates={allWaferTemplates}
+              onTemplateChange={(id) => { const template = allWaferTemplates.find((item) => item.id === id); if (template) useWaferTemplate(template); }}
+              loadSaved={loadElectricalWorkspace} saveSaved={saveElectricalWorkspace}
+              renderWaferMap={(props) => <WaferMapPanel {...props} metricKey="electrical" overlayMode="chip" templateName={currentWaferTemplate?.name || ""} />} />
+          </div>
 
           {isWorkspaceTab ? <>
             <section className="hero-stats-row">
@@ -4369,6 +4418,7 @@ export default function App() {
             <DatasetReviewPanel dataset={currentDatasetMeta ? { ...currentDatasetMeta, namingOverrides: datasetNamingDraft } : null} review={currentDatasetMeta ? buildReviewedAnalyticsPayload(reportState, includedPropagationChipIds, propagationChipIds, sourceMeta).analyticsReview : null} onChange={updateCurrentDatasetNaming} />
 
             {activeTab === "propagation" ? <MatlabSummaryPanel summary={reportState.matlabSummary} /> : null}
+            {activeTab === "propagation" ? <PropagationStatisticsPanel chips={metrics.propagation.byChip} includedChipIds={includedPropagationChipIds} /> : null}
 
             {activeTab === "propagation" ? (
               <PropagationSettingsPanel
@@ -4397,7 +4447,7 @@ export default function App() {
                       <span>{`Lambda0 ${sourceMeta.propagationTargetWavelengthNm} nm`}</span>
                       <span>{`Window +/- ${sourceMeta.propagationWindowNm} nm`}</span>
                       <span>{`MSE <= ${sourceMeta.propagationMseThreshold}`}</span>
-                      <select value={selectedChip} onChange={(event) => setSelectedChip(event.target.value)}>{activeChipOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
+                      <select aria-label="Propagation chip" value={selectedChip} onChange={(event) => setSelectedChip(event.target.value)}>{activeChipOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
                     </> : activeMetricKey === "insertion" ? <>
                       <label className="inline-select-field compact-inline-field"><span>Device</span><select value={insertionDeviceType} onChange={(event) => setInsertionDeviceType(event.target.value)}>{Object.entries(metrics.insertion.deviceProfiles || {}).map(([key, profile]) => <option key={key} value={key}>{profile.label}</option>)}</select></label>
                       <label className="inline-select-field compact-inline-field"><span>Metric</span><select value={insertionMetricField} onChange={(event) => setInsertionMetricField(event.target.value)}>{insertionMetricOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
@@ -4425,6 +4475,10 @@ export default function App() {
                   )}
                   <MetricInspector metricKey={activeMetricKey} item={activeMetricDetail} sourceMeta={sourceMeta} insertionDeviceLabel={insertionProfile.label || "Selected Device"} />
                 </div>
+                {activeTab === "propagation" ? <PropagationWaveguideReview chip={propagationLead} onChange={(chipId, ids) => {
+                  setSourceMeta((previous) => ({ ...previous, excludedWaveguideIdsByChip: normalizeWaveguideExclusions({ ...previous.excludedWaveguideIdsByChip, [chipId]: ids }) }));
+                  appendAudit("propagation", "Waveguide fit selection updated", `Chip ${chipId}: ${ids.length ? `excluded ${ids.join(", ")}` : "all waveguides included"}. Original waveguide lengths retained.`);
+                }} /> : null}
               </article>
 
               <article className="analysis-card analysis-wafer-card overview-wafer-card">
@@ -4486,7 +4540,7 @@ export default function App() {
                   <div className="analysis-card-head">
                     <div>
                       <h2>Transmission Spectrum</h2>
-                      <p>Overlay of all waveguide loss traces for the selected chip, aligned with the raw measurement view rather than launch-power-shifted output power.</p>
+                      <p>All original waveguide traces are shown, including those excluded from the fit. Review the inclusion controls above for the selected chip.</p>
                     </div>
                   </div>
                   <InteractiveTransmissionSpectrumPlot series={propagationLead?.transmissionSeries ?? []} targetWavelengthNm={sourceMeta.propagationTargetWavelengthNm} chipId={propagationLead?.chipId || selectedChip} />

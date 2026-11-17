@@ -1,12 +1,13 @@
 {
   "name": "wafer-post-processing-suite",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --test --test-concurrency=1 scripts/test-*.mjs",
     "preview": "vite preview",
     "audit:wst-library": "node scripts/audit-wst-library.mjs",
     "validate:pptx": "python scripts/validate-pptx-package.py",

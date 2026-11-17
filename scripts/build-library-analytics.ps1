@@ -119,12 +119,23 @@ foreach ($entry in $manifest) {
   $windowNm = 5.0
   $mseThreshold = 0.5
   $launchPowerDbm = 10.0
+  $metadataPath = Join-Path $folderPath "metadata.json"
+  $metadata = if (Test-Path -LiteralPath $metadataPath) { Get-Content -LiteralPath $metadataPath -Raw | ConvertFrom-Json } else { $null }
+  $review = if ($metadata.analyticsReview) { $metadata.analyticsReview } else { $entry.analyticsReview }
+  $waveguideExclusions = $review.excludedWaveguideIdsByChip
+  if ($null -ne $review.propagationSettings.propagationTargetWavelengthNm) { $targetWavelengthNm = [double]$review.propagationSettings.propagationTargetWavelengthNm }
+  if ($null -ne $review.propagationSettings.propagationWindowNm) { $windowNm = [double]$review.propagationSettings.propagationWindowNm }
+  if ($null -ne $review.propagationSettings.propagationMseThreshold) { $mseThreshold = [double]$review.propagationSettings.propagationMseThreshold }
 
   $chipPoints = @{}
   foreach ($fileName in $entry.files) {
     if ($fileName -notmatch "Chip(\d+)_WG(\d+)") { continue }
     $chipId = "Chip$($matches[1])"
     $waveguideIndex = [int]$matches[2]
+    if (-not $chipPoints.ContainsKey($chipId)) {
+      $chipPoints[$chipId] = New-Object System.Collections.Generic.List[object]
+    }
+    if ($waveguideExclusions -and @($waveguideExclusions.$chipId) -contains "WG$waveguideIndex") { continue }
     if (-not $waveguideLengths.ContainsKey($waveguideIndex)) { continue }
     $meanLoss = Get-TraceMeanLoss -Path (Join-Path $folderPath $fileName) -TargetWavelengthNm $targetWavelengthNm -WindowNm $windowNm -LaunchPowerDbm $launchPowerDbm
     if ($null -eq $meanLoss) { continue }
@@ -140,21 +151,21 @@ foreach ($entry in $manifest) {
   $chipFits = New-Object System.Collections.Generic.List[object]
   foreach ($chipId in $chipPoints.Keys) {
     $fit = Get-LinearFit -Points ($chipPoints[$chipId] | Sort-Object x)
-    if ($null -eq $fit) { continue }
     $chipFits.Add([pscustomobject]@{
       chipId = $chipId
-      slopeDbPerCm = [double]$fit.slope * 10
-      mse = [double]$fit.mse
-      passMse = ([double]$fit.mse -le $mseThreshold)
+      slopeDbPerCm = if ($null -ne $fit) { [double]$fit.slope * 10 } else { $null }
+      mse = if ($null -ne $fit) { [double]$fit.mse } else { $null }
+      passMse = ($null -ne $fit -and [double]$fit.mse -le $mseThreshold)
     })
   }
 
   $measuredChips = $chipFits.Count
-  $passingFits = @($chipFits | Where-Object { $_.passMse })
+  $selectedFits = @($chipFits | Where-Object { @($review.excludedChipIds) -notcontains $_.chipId })
+  $passingFits = @($selectedFits | Where-Object { $_.passMse })
   $fittedChips = $passingFits.Count
-  $failedFits = @($chipFits | Where-Object { -not $_.passMse }).Count
+  $failedFits = @($selectedFits | Where-Object { $null -ne $_.mse -and -not $_.passMse }).Count
   $avgPropagation = if ($fittedChips -gt 0) { ($passingFits | Measure-Object -Property slopeDbPerCm -Average).Average } else { $null }
-  $yield = if ($measuredChips -gt 0) { (100.0 * $fittedChips) / $measuredChips } else { $null }
+  $yield = if ($selectedFits.Count -gt 0) { (100.0 * $fittedChips) / $selectedFits.Count } else { $null }
   $computedAt = [DateTime]::UtcNow.ToString("o")
 
   $analyticsIndex.Add([pscustomobject]@{
@@ -185,10 +196,11 @@ foreach ($entry in $manifest) {
       computedAt = $computedAt
     }
     analyticsReview = [pscustomobject]@{
-      excludedChipIds = @()
-      includedChipIds = @()
+      excludedChipIds = @($review.excludedChipIds | Where-Object { $_ })
+      excludedWaveguideIdsByChip = if ($waveguideExclusions) { $waveguideExclusions } else { [pscustomobject]@{} }
+      includedChipIds = @($selectedFits | ForEach-Object { $_.chipId })
       totalChipCount = $measuredChips
-      selectedChipCount = $measuredChips
+      selectedChipCount = $selectedFits.Count
       measuredChips = $measuredChips
       fittedChips = $fittedChips
       failedFits = $failedFits

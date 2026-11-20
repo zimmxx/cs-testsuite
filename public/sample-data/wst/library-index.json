@@ -173,6 +173,7 @@
         "Chip61",
         "Chip67"
       ],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [
         "Chip13",
         "Chip35",
@@ -414,6 +415,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 17,
       "selectedChipCount": 17,
@@ -646,6 +648,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 17,
       "selectedChipCount": 17,
@@ -671,6 +674,8 @@
     "projectCode": "DEV_PICBOOTCAMP"
   },
   {
+    "schemaVersion": 4,
+    "datasetId": "mpw13_sin300nm_slot11_step14_1550nm_te_strip_waveguide_propagationloss_operatoralign",
     "id": "mpw13_sin300nm_slot11_step14_1550nm_te_strip_waveguide_propagationloss_operatoralign",
     "label": "MPW13_SiN300nm_Slot11_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
     "projectName": "MPW13",
@@ -679,8 +684,9 @@
     "measurementDate": "2026-11-11",
     "publishedDate": "2026-11-12",
     "folder": "sample-data/wst/MPW13_SiN300nm_Slot11_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
+    "traceFolder": "sample-data/wst/MPW13_SiN300nm_Slot11_Step14_1550nm_TE_STRIP_Waveguide_PropagationLoss_OperatorAlign",
     "sourceType": "Automated WST trace set",
-    "measurementMode": "Manual converted",
+    "measurementMode": "Manual",
     "measurementType": "PropagationLoss",
     "opticalMode": "1550nm_TE",
     "alignmentMode": "OperatorAlign",
@@ -690,7 +696,8 @@
     "testTeamApproval": "Awaiting review",
     "stepDescription": "",
     "testTeamComments": "",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
+    "waveguideFamily": "Strip",
     "platformId": "sin300nm",
     "platformLabel": "SiN300nm",
     "buildingBlockId": "strip_waveguide",
@@ -819,6 +826,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [
         "Chip14",
         "Chip37",
@@ -844,9 +852,15 @@
         "propagationMseThreshold": 0.5
       }
     },
+    "copiedToFolder": true,
+    "processedInTestingSuite": true,
     "notes": "",
-    "source": "github-library",
-    "librarySchemaVersion": 1
+    "source": "github-library-v4",
+    "librarySchemaVersion": 4,
+    "projectDisplayName": "MPW13",
+    "waferDisplayName": "Slot11",
+    "platformDisplayName": "300nmSiN",
+    "projectCode": "MPW13"
   },
   {
     "schemaVersion": 4,
@@ -1001,6 +1015,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [
         "Chip14",
         "Chip37",
@@ -1146,6 +1161,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 10,
       "selectedChipCount": 10,
@@ -1321,6 +1337,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": null,
       "selectedChipCount": null,
@@ -1503,6 +1520,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": null,
       "selectedChipCount": null,
@@ -1668,6 +1686,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 5,
       "selectedChipCount": 5,
@@ -1833,6 +1852,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 5,
       "selectedChipCount": 5,
@@ -2007,6 +2027,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 0,
       "selectedChipCount": 0,
@@ -2181,6 +2202,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 0,
       "selectedChipCount": 0,
@@ -2355,6 +2377,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 0,
       "selectedChipCount": 0,
@@ -2529,6 +2552,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 0,
       "selectedChipCount": 0,
@@ -2703,6 +2727,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 0,
       "selectedChipCount": 0,
@@ -2877,6 +2902,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 0,
       "selectedChipCount": 0,
@@ -3000,6 +3026,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [
         "Chip1"
       ],
@@ -3127,6 +3154,7 @@
       "excludedChipIds": [
         "Chip1"
       ],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 1,
       "selectedChipCount": 1,
@@ -3281,6 +3309,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 10,
       "selectedChipCount": 10,
@@ -3435,6 +3464,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 10,
       "selectedChipCount": 10,
@@ -3565,6 +3595,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 14,
       "selectedChipCount": 14,
@@ -3719,6 +3750,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 10,
       "selectedChipCount": 10,
@@ -3873,6 +3905,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 10,
       "selectedChipCount": 10,
@@ -4027,6 +4060,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 10,
       "selectedChipCount": 10,
@@ -4181,6 +4215,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 10,
       "selectedChipCount": 10,
@@ -4345,6 +4380,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 10,
       "selectedChipCount": 10,
@@ -4466,6 +4502,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 0,
       "selectedChipCount": 0,
@@ -4587,6 +4624,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [],
       "totalChipCount": 0,
       "selectedChipCount": 0,
@@ -4610,6 +4648,218 @@
     "waferDisplayName": "Slot9",
     "platformDisplayName": "340nmSOI",
     "projectCode": "MPW49"
+  },
+  {
+    "id": "mpw49_rework_soi340nm_slot13_step23_1550nm_te_strip_waveguide_propagationloss_autoalign",
+    "label": "MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_STRIP_Waveguide_PropagationLoss_AutoAlign",
+    "projectName": "MPW49_REWORK",
+    "waferName": "SlotUndefined",
+    "selectedDate": "2026-11-19",
+    "measurementDate": "2026-11-19",
+    "publishedDate": "2026-11-20",
+    "folder": "sample-data/wst/MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_STRIP_Waveguide_PropagationLoss_AutoAlign",
+    "sourceType": "Automated WST trace set",
+    "measurementMode": "Automated WST",
+    "measurementType": "PropagationLoss",
+    "opticalMode": "1550nm_TE",
+    "alignmentMode": "AutoAlign",
+    "mpw": "MPW49_REWORK",
+    "slot": "Slot13",
+    "processStep": "Step23",
+    "testTeamApproval": "Awaiting review",
+    "stepDescription": "",
+    "testTeamComments": "Some data will be excluded in the prop loss fit due to misalignment in the automated process.",
+    "waveguideType": "Waveguide",
+    "platformId": "soi340nm",
+    "platformLabel": "SOI340nm",
+    "buildingBlockId": "strip_waveguide",
+    "buildingBlockLabel": "STRIP_Waveguide",
+    "pdkMonitorBuildingBlock": "SOI340nm_1550nm_TE_STRIP_Waveguide",
+    "traceCount": 72,
+    "rowCount": 936072,
+    "chipCount": 12,
+    "waveguideCount": 6,
+    "wavelengthMinNm": 1500.0005166520118,
+    "wavelengthMaxNm": 1630.000416652012,
+    "files": [
+      "Chip74_WG1.txt",
+      "Chip74_WG2.txt",
+      "Chip74_WG3.txt",
+      "Chip74_WG4.txt",
+      "Chip74_WG5.txt",
+      "Chip74_WG6.txt",
+      "Chip76_WG1.txt",
+      "Chip76_WG2.txt",
+      "Chip76_WG3.txt",
+      "Chip76_WG4.txt",
+      "Chip76_WG5.txt",
+      "Chip76_WG6.txt",
+      "Chip78_WG1.txt",
+      "Chip78_WG2.txt",
+      "Chip78_WG3.txt",
+      "Chip78_WG4.txt",
+      "Chip78_WG5.txt",
+      "Chip78_WG6.txt",
+      "Chip80_WG1.txt",
+      "Chip80_WG2.txt",
+      "Chip80_WG3.txt",
+      "Chip80_WG4.txt",
+      "Chip80_WG5.txt",
+      "Chip80_WG6.txt",
+      "Chip98_WG1.txt",
+      "Chip98_WG2.txt",
+      "Chip98_WG3.txt",
+      "Chip98_WG4.txt",
+      "Chip98_WG5.txt",
+      "Chip98_WG6.txt",
+      "Chip100_WG1.txt",
+      "Chip100_WG2.txt",
+      "Chip100_WG3.txt",
+      "Chip100_WG4.txt",
+      "Chip100_WG5.txt",
+      "Chip100_WG6.txt",
+      "Chip60_WG1.txt",
+      "Chip60_WG2.txt",
+      "Chip60_WG3.txt",
+      "Chip60_WG4.txt",
+      "Chip60_WG5.txt",
+      "Chip60_WG6.txt",
+      "Chip62_WG1.txt",
+      "Chip62_WG2.txt",
+      "Chip62_WG3.txt",
+      "Chip62_WG4.txt",
+      "Chip62_WG5.txt",
+      "Chip62_WG6.txt",
+      "Chip64_WG1.txt",
+      "Chip64_WG2.txt",
+      "Chip64_WG3.txt",
+      "Chip64_WG4.txt",
+      "Chip64_WG5.txt",
+      "Chip64_WG6.txt",
+      "Chip66_WG1.txt",
+      "Chip66_WG2.txt",
+      "Chip66_WG3.txt",
+      "Chip66_WG4.txt",
+      "Chip66_WG5.txt",
+      "Chip66_WG6.txt",
+      "Chip68_WG1.txt",
+      "Chip68_WG2.txt",
+      "Chip68_WG3.txt",
+      "Chip68_WG4.txt",
+      "Chip68_WG5.txt",
+      "Chip68_WG6.txt",
+      "Chip72_WG1.txt",
+      "Chip72_WG2.txt",
+      "Chip72_WG3.txt",
+      "Chip72_WG4.txt",
+      "Chip72_WG5.txt",
+      "Chip72_WG6.txt"
+    ],
+    "readme": "MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_STRIP_Waveguide_PropagationLoss_AutoAlign/README.md",
+    "metadataFile": "MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_STRIP_Waveguide_PropagationLoss_AutoAlign/metadata.json",
+    "configFile": "MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_STRIP_Waveguide_PropagationLoss_AutoAlign/route-config.json",
+    "filenameManifest": "MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_STRIP_Waveguide_PropagationLoss_AutoAlign/filename-manifest.csv",
+    "routeConfig": {
+      "measurementType": "PropagationLoss",
+      "routes": [
+        {
+          "route": "WG1",
+          "lengthMm": 0
+        },
+        {
+          "route": "WG2",
+          "lengthMm": 4
+        },
+        {
+          "route": "WG3",
+          "lengthMm": 8
+        },
+        {
+          "route": "WG4",
+          "lengthMm": 12
+        },
+        {
+          "route": "WG5",
+          "lengthMm": 16
+        },
+        {
+          "route": "WG6",
+          "lengthMm": 20
+        }
+      ]
+    },
+    "waveguideConfig": {
+      "propagationWaveguideCount": 6,
+      "propagationWaveguideStartMm": 0,
+      "propagationWaveguideIntervalMm": 4,
+      "propagationWaveguideManualMode": false,
+      "waveguideLengths": [
+        {
+          "index": 1,
+          "lengthMm": 0
+        },
+        {
+          "index": 2,
+          "lengthMm": 4
+        },
+        {
+          "index": 3,
+          "lengthMm": 8
+        },
+        {
+          "index": 4,
+          "lengthMm": 12
+        },
+        {
+          "index": 5,
+          "lengthMm": 16
+        },
+        {
+          "index": 6,
+          "lengthMm": 20
+        }
+      ]
+    },
+    "analyticsSummary": {
+      "propagationAverage": 10.519066461422293,
+      "yield": 25,
+      "measuredChips": 12,
+      "computedAt": "2026-11-20T11:48:10.428Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [
+        "Chip74",
+        "Chip76",
+        "Chip78",
+        "Chip80",
+        "Chip98",
+        "Chip100",
+        "Chip62",
+        "Chip68",
+        "Chip72"
+      ],
+      "excludedWaveguideIdsByChip": {},
+      "includedChipIds": [
+        "Chip60",
+        "Chip64",
+        "Chip66"
+      ],
+      "totalChipCount": 12,
+      "selectedChipCount": 3,
+      "measuredChips": 12,
+      "fittedChips": 3,
+      "failedFits": 0,
+      "savedAt": "2026-11-20T11:47:37.840Z",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 1550,
+        "propagationWindowNm": 5,
+        "propagationSpectralStepNm": 10,
+        "propagationMseThreshold": 0.5
+      }
+    },
+    "notes": "",
+    "source": "github-library",
+    "librarySchemaVersion": 1
   },
   {
     "schemaVersion": 4,
@@ -4710,6 +4960,7 @@
     },
     "analyticsReview": {
       "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [
         "Chip63"
       ],
@@ -4860,6 +5111,7 @@
         "Chip67",
         "Chip97"
       ],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [
         "Chip33",
         "Chip36"
@@ -5042,6 +5294,7 @@
         "Chip76",
         "Chip88"
       ],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [
         "Chip34",
         "Chip36",
@@ -5222,6 +5475,7 @@
       "excludedChipIds": [
         "Chip76"
       ],
+      "excludedWaveguideIdsByChip": {},
       "includedChipIds": [
         "Chip33",
         "Chip34",

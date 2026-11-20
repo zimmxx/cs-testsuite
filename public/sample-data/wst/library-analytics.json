@@ -1298,6 +1298,85 @@
     }
   },
   {
+    "id": "mpw49_rework_soi340nm_slot13_step23_1550nm_te_rib_waveguide_propagationloss_autoalign",
+    "datasetId": "mpw49_rework_soi340nm_slot13_step23_1550nm_te_rib_waveguide_propagationloss_autoalign",
+    "label": "MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_AutoAlign",
+    "projectName": "MPW49_REWORK",
+    "waferName": "SlotUndefined",
+    "selectedDate": "2026-11-20",
+    "folder": "sample-data/wst/MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_AutoAlign",
+    "measurementType": "PropagationLoss",
+    "measurementMode": "Automated WST",
+    "mpw": "MPW49_REWORK",
+    "slot": "Slot13",
+    "waveguideType": "Waveguide",
+    "platformId": "soi340nm",
+    "platformLabel": "SOI340nm",
+    "buildingBlockId": "rib_waveguide",
+    "buildingBlockLabel": "RIB_Waveguide",
+    "traceCount": 60,
+    "rowCount": 780060,
+    "chipCount": 10,
+    "waveguideCount": 6,
+    "analyticsSummary": {
+      "propagationAverage": 5.437277540162871,
+      "yield": 60,
+      "measuredChips": 10,
+      "computedAt": "2026-11-20T12:30:49.465Z"
+    },
+    "analyticsReview": {
+      "excludedChipIds": [],
+      "excludedWaveguideIdsByChip": {
+        "Chip74": [
+          "WG2"
+        ],
+        "Chip62": [
+          "WG3"
+        ],
+        "Chip64": [
+          "WG2"
+        ],
+        "Chip66": [
+          "WG3"
+        ],
+        "Chip68": [
+          "WG6"
+        ],
+        "Chip80": [
+          "WG2"
+        ],
+        "Chip98": [
+          "WG1",
+          "WG6"
+        ]
+      },
+      "includedChipIds": [
+        "Chip60",
+        "Chip62",
+        "Chip64",
+        "Chip66",
+        "Chip68",
+        "Chip74",
+        "Chip76",
+        "Chip78",
+        "Chip80",
+        "Chip98"
+      ],
+      "totalChipCount": 10,
+      "selectedChipCount": 10,
+      "measuredChips": 10,
+      "fittedChips": 6,
+      "failedFits": 4,
+      "savedAt": "2026-11-20T12:30:23.418Z",
+      "propagationSettings": {
+        "propagationTargetWavelengthNm": 1550,
+        "propagationWindowNm": 5,
+        "propagationSpectralStepNm": 10,
+        "propagationMseThreshold": 0.6
+      }
+    }
+  },
+  {
     "id": "mpw49_rework_soi340nm_slot13_step23_1550nm_te_strip_waveguide_propagationloss_autoalign",
     "datasetId": "mpw49_rework_soi340nm_slot13_step23_1550nm_te_strip_waveguide_propagationloss_autoalign",
     "label": "MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_STRIP_Waveguide_PropagationLoss_AutoAlign",
@@ -1306,10 +1385,10 @@
     "selectedDate": "2026-11-19",
     "folder": "sample-data/wst/MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_STRIP_Waveguide_PropagationLoss_AutoAlign",
     "measurementType": "PropagationLoss",
-    "measurementMode": "Automated WST",
+    "measurementMode": "AutoAlign",
     "mpw": "MPW49_REWORK",
     "slot": "Slot13",
-    "waveguideType": "Waveguide",
+    "waveguideType": "WaveguideUndefined",
     "platformId": "soi340nm",
     "platformLabel": "SOI340nm",
     "buildingBlockId": "strip_waveguide",

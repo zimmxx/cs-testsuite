@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 4,
+  "datasetId": "mpw49_rework_soi340nm_slot13_step23_1550nm_te_rib_waveguide_propagationloss_autoalign",
+  "label": "MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_AutoAlign",
+  "projectName": "MPW49_REWORK",
+  "waferName": "SlotUndefined",
+  "measurementDate": "2026-11-20",
+  "publishedDate": "2026-11-20",
+  "selectedDate": "2026-11-20",
+  "mpwRun": "MPW49_REWORK",
+  "slot": "Slot13",
+  "processStep": "Step23",
+  "testTeamApproval": "Awaiting review",
+  "stepDescription": "",
+  "testTeamComments": "Some data will be excluded in the prop loss fit due to misalignment in the automated process.",
+  "platform": "SOI340nm",
+  "platformId": "soi340nm",
+  "buildingBlock": "RIB_Waveguide",
+  "buildingBlockId": "rib_waveguide",
+  "measurementType": "PropagationLoss",
+  "opticalMode": "1550nm_TE",
+  "alignmentMode": "AutoAlign",
+  "pdkMonitorBuildingBlock": "SOI340nm_1550nm_TE_RIB_Waveguide",
+  "measurementMode": "Automated WST",
+  "waveguideType": "Rib",
+  "sourceType": "Automated WST trace set",
+  "traceCount": 60,
+  "rowCount": 780060,
+  "chipCount": 10,
+  "waveguideCount": 6,
+  "wavelengthMinNm": 1500.0005166520118,
+  "wavelengthMaxNm": 1629.9986499853453,
+  "analyticsSummary": {
+    "propagationAverage": 5.437277540162871,
+    "yield": 60,
+    "measuredChips": 10,
+    "computedAt": "2026-11-20T12:30:49.465Z"
+  },
+  "analyticsReview": {
+    "excludedChipIds": [],
+    "excludedWaveguideIdsByChip": {
+      "Chip74": [
+        "WG2"
+      ],
+      "Chip62": [
+        "WG3"
+      ],
+      "Chip64": [
+        "WG2"
+      ],
+      "Chip66": [
+        "WG3"
+      ],
+      "Chip68": [
+        "WG6"
+      ],
+      "Chip80": [
+        "WG2"
+      ],
+      "Chip98": [
+        "WG1",
+        "WG6"
+      ]
+    },
+    "includedChipIds": [
+      "Chip60",
+      "Chip62",
+      "Chip64",
+      "Chip66",
+      "Chip68",
+      "Chip74",
+      "Chip76",
+      "Chip78",
+      "Chip80",
+      "Chip98"
+    ],
+    "totalChipCount": 10,
+    "selectedChipCount": 10,
+    "measuredChips": 10,
+    "fittedChips": 6,
+    "failedFits": 4,
+    "savedAt": "2026-11-20T12:30:23.418Z",
+    "propagationSettings": {
+      "propagationTargetWavelengthNm": 1550,
+      "propagationWindowNm": 5,
+      "propagationSpectralStepNm": 10,
+      "propagationMseThreshold": 0.6
+    }
+  },
+  "copiedToFolder": true,
+  "processedInTestingSuite": true,
+  "notes": "",
+  "publisher": "CORNERSTONE",
+  "license": null,
+  "sourceNames": [
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip60_WG1.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip60_WG2.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip60_WG3.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip60_WG4.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip60_WG5.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip60_WG6.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip62_WG1.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip62_WG2.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip62_WG3.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip62_WG4.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip62_WG5.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip62_WG6.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip64_WG1.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip64_WG2.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip64_WG3.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip64_WG4.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip64_WG5.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip64_WG6.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip66_WG1.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip66_WG2.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip66_WG3.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip66_WG4.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip66_WG5.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip66_WG6.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip68_WG1.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip68_WG2.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip68_WG3.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip68_WG4.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip68_WG5.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip68_WG6.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip74_WG1.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip74_WG2.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip74_WG3.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip74_WG4.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip74_WG5.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip74_WG6.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip76_WG1.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip76_WG2.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip76_WG3.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip76_WG4.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip76_WG5.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip76_WG6.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip78_WG1.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip78_WG2.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip78_WG3.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip78_WG4.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip78_WG5.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip78_WG6.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip80_WG1.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip80_WG2.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip80_WG3.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip80_WG4.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip80_WG5.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip80_WG6.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip98_WG1.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip98_WG2.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip98_WG3.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip98_WG4.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip98_WG5.txt",
+    "WaferMPW49_REWORK_SOI340nm_slot13_1550_TE_rib_450_Chip98_WG6.txt"
+  ],
+  "traceFiles": [
+    "Chip60_WG1.txt",
+    "Chip60_WG2.txt",
+    "Chip60_WG3.txt",
+    "Chip60_WG4.txt",
+    "Chip60_WG5.txt",
+    "Chip60_WG6.txt",
+    "Chip62_WG1.txt",
+    "Chip62_WG2.txt",
+    "Chip62_WG3.txt",
+    "Chip62_WG4.txt",
+    "Chip62_WG5.txt",
+    "Chip62_WG6.txt",
+    "Chip64_WG1.txt",
+    "Chip64_WG2.txt",
+    "Chip64_WG3.txt",
+    "Chip64_WG4.txt",
+    "Chip64_WG5.txt",
+    "Chip64_WG6.txt",
+    "Chip66_WG1.txt",
+    "Chip66_WG2.txt",
+    "Chip66_WG3.txt",
+    "Chip66_WG4.txt",
+    "Chip66_WG5.txt",
+    "Chip66_WG6.txt",
+    "Chip68_WG1.txt",
+    "Chip68_WG2.txt",
+    "Chip68_WG3.txt",
+    "Chip68_WG4.txt",
+    "Chip68_WG5.txt",
+    "Chip68_WG6.txt",
+    "Chip74_WG1.txt",
+    "Chip74_WG2.txt",
+    "Chip74_WG3.txt",
+    "Chip74_WG4.txt",
+    "Chip74_WG5.txt",
+    "Chip74_WG6.txt",
+    "Chip76_WG1.txt",
+    "Chip76_WG2.txt",
+    "Chip76_WG3.txt",
+    "Chip76_WG4.txt",
+    "Chip76_WG5.txt",
+    "Chip76_WG6.txt",
+    "Chip78_WG1.txt",
+    "Chip78_WG2.txt",
+    "Chip78_WG3.txt",
+    "Chip78_WG4.txt",
+    "Chip78_WG5.txt",
+    "Chip78_WG6.txt",
+    "Chip80_WG1.txt",
+    "Chip80_WG2.txt",
+    "Chip80_WG3.txt",
+    "Chip80_WG4.txt",
+    "Chip80_WG5.txt",
+    "Chip80_WG6.txt",
+    "Chip98_WG1.txt",
+    "Chip98_WG2.txt",
+    "Chip98_WG3.txt",
+    "Chip98_WG4.txt",
+    "Chip98_WG5.txt",
+    "Chip98_WG6.txt"
+  ],
+  "filenamePattern": "Chip#_WG#.txt",
+  "filenameManifest": "MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_AutoAlign/filename-manifest.csv",
+  "traceFormat": {
+    "fileType": "text/plain",
+    "delimiter": "tab",
+    "header": false,
+    "columns": [
+      "wavelength_nm",
+      "optical_power_w"
+    ]
+  },
+  "routeConfig": {
+    "measurementType": "PropagationLoss",
+    "routes": [
+      {
+        "route": "WG1",
+        "lengthMm": 0
+      },
+      {
+        "route": "WG2",
+        "lengthMm": 4
+      },
+      {
+        "route": "WG3",
+        "lengthMm": 8
+      },
+      {
+        "route": "WG4",
+        "lengthMm": 12
+      },
+      {
+        "route": "WG5",
+        "lengthMm": 16
+      },
+      {
+        "route": "WG6",
+        "lengthMm": 20
+      }
+    ]
+  },
+  "waveguideConfig": {
+    "propagationWaveguideCount": 6,
+    "propagationWaveguideStartMm": 0,
+    "propagationWaveguideIntervalMm": 4,
+    "propagationWaveguideManualMode": false,
+    "waveguideLengths": [
+      {
+        "index": 1,
+        "lengthMm": 0
+      },
+      {
+        "index": 2,
+        "lengthMm": 4
+      },
+      {
+        "index": 3,
+        "lengthMm": 8
+      },
+      {
+        "index": 4,
+        "lengthMm": 12
+      },
+      {
+        "index": 5,
+        "lengthMm": 16
+      },
+      {
+        "index": 6,
+        "lengthMm": 20
+      }
+    ]
+  },
+  "legacyFolder": "sample-data/wst/MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_AutoAlign",
+  "metadataFile": "MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_AutoAlign/metadata.json",
+  "configFile": "MPW49_REWORK_SOI340nm_Slot13_Step23_1550nm_TE_RIB_Waveguide_PropagationLoss_AutoAlign/route-config.json"
+}

@@ -12,7 +12,7 @@
   "processStep": "Step23",
   "testTeamApproval": "Awaiting review",
   "stepDescription": "",
-  "testTeamComments": "Some data will be excluded in the prop loss fit due to misalignment in the automated process.",
+  "testTeamComments": "",
   "platform": "SOI340nm",
   "platformId": "soi340nm",
   "buildingBlock": "STRIP_Waveguide",
@@ -34,7 +34,7 @@
     "propagationAverage": 8.716452148798604,
     "yield": 14.285714285714285,
     "measuredChips": 14,
-    "computedAt": "2026-11-24T10:36:00.199Z"
+    "computedAt": "2026-11-24T12:46:09.185Z"
   },
   "analyticsReview": {
     "excludedChipIds": [
@@ -61,7 +61,7 @@
     "measuredChips": 14,
     "fittedChips": 2,
     "failedFits": 0,
-    "savedAt": "2026-11-24T10:34:56.903Z",
+    "savedAt": "2026-11-24T12:45:27.907Z",
     "propagationSettings": {
       "propagationTargetWavelengthNm": 1550,
       "propagationWindowNm": 5,

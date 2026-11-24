@@ -12,7 +12,7 @@ This folder contains GitHub-hosted measurement traces for MPW49_REWORK.
 - Waveguide type: Strip
 - Process step: Step23
 - Step description: Not recorded
-- Test-team comments: Some data will be excluded in the prop loss fit due to misalignment in the automated process.
+- Test-team comments: Not recorded
 - Latest measurement acceptance and test-team comments: [metadata.json](metadata.json) (updated through the Published Dataset Editor)
 - Measurement date: 2026-11-23
 - Published date: 2026-11-24

@@ -25,7 +25,7 @@ function PropagationWaferMap({ cells, waferTemplate, selectedChip, displayMode, 
     const passes = measurement?.passMse === true;
     return { ...slot, value: measurement?.value ?? null, hasMeasurement: measured, isVisible: true, isActiveInView: displayMode === "all" || (displayMode === "measured" ? measured : displayMode === "passing" ? passes : displayMode === "failed" ? measured && !passes : false), detail: measurement?.detail || "No propagation-loss measurement" };
   });
-  const figure = buildWaferMapFigureModel({ cells: mapCells, metricKey: "propagation", overlayMode, selectedChip, colorScaleMin: scale.min, colorScaleMid: scale.mid, colorScaleMax: scale.max });
+  const figure = buildWaferMapFigureModel({ cells: mapCells, template: waferTemplate, metricKey: "propagation", overlayMode, selectedChip, colorScaleMin: scale.min, colorScaleMid: scale.mid, colorScaleMax: scale.max });
   figure.cells = figure.cells.map(cell => ({ ...cell, label: cell.isActiveInView ? cell.label : "" }));
 
   return (
@@ -120,6 +120,7 @@ function CdSemWaferMap({ cells, waferTemplate, selectedChip, onSelect, selectedP
   const colorCells = isWaveguideMid ? deviationRangeCells : mapCells;
   const figure = buildWaferMapFigureModel({
     cells: mapCells,
+    template: waferTemplate,
     metricKey: "cdsem",
     overlayMode,
     selectedChip,

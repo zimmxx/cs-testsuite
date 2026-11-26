@@ -62,6 +62,7 @@ export function waferColorForValue(value, range) {
 
 export function buildWaferMapFigureModel({
   cells,
+  template,
   metricKey,
   overlayMode = "none",
   selectedChip = "",
@@ -87,13 +88,15 @@ export function buildWaferMapFigureModel({
   const waferRadius = 43.8;
   const mapWidth = 73.2;
   const mapHeight = 73.2;
-  const stepX = mapWidth / colCount;
-  const stepY = mapHeight / rowCount;
-  const cellWidth = Math.min(stepX * 1.08, 5.64);
-  const cellHeight = Math.min(stepY * 1.08, 5.64);
+  const physicalScale = template?.waferDiameterMm ? 2 * waferRadius / template.waferDiameterMm : 0;
+  const stepX = physicalScale ? (template.chipLengthX + template.columnSpacing) * physicalScale : mapWidth / colCount;
+  const stepY = physicalScale ? (template.chipWidthY + template.rowSpacing) * physicalScale : mapHeight / rowCount;
+  const cellWidth = physicalScale ? template.chipLengthX * physicalScale : Math.min(stepX * 1.08, 5.64);
+  const cellHeight = physicalScale ? template.chipWidthY * physicalScale : Math.min(stepY * 1.08, 5.64);
   const labelFontSize = overlayMode === "chip" ? (layoutCells.length > 90 ? 2.16 : 2.52) : 2.16;
-  const centreChipX = layoutCells.find((cell) => shortChipLabel(cell.chipId) === "51")?.dieX ?? ((minCol + maxCol) / 2);
-  const centreChipY = layoutCells.find((cell) => shortChipLabel(cell.chipId) === "51")?.dieY ?? ((minRow + maxRow) / 2);
+  const centreChip = physicalScale ? null : layoutCells.find((cell) => shortChipLabel(cell.chipId) === "51");
+  const centreChipX = physicalScale ? (template.columns + 1) / 2 : centreChip?.dieX ?? ((minCol + maxCol) / 2);
+  const centreChipY = physicalScale ? (template.rows + 1) / 2 : centreChip?.dieY ?? ((minRow + maxRow) / 2);
   const mapLeft = waferCenterX - ((centreChipX - minCol) + 0.5) * stepX;
   const mapTop = waferCenterY - ((maxRow - centreChipY) + 0.5) * stepY;
 
@@ -148,6 +151,7 @@ export function buildWaferMapFigureModel({
 
 export function buildWaferMapSvgDocument({
   cells,
+  template,
   metricKey,
   overlayMode = "none",
   selectedChip = "",
@@ -161,6 +165,7 @@ export function buildWaferMapSvgDocument({
 }) {
   const figure = buildWaferMapFigureModel({
     cells,
+    template,
     metricKey,
     overlayMode,
     selectedChip,

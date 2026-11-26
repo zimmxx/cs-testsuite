@@ -26,7 +26,7 @@ import {
   requiredColumns,
   sourceTypeLabel
 } from "./lib/parsers";
-import { createCenterFilledWaferTemplate, defaultWaferTemplateId, getBuiltInWaferTemplates, getWaferTemplateLayout, shortChipLabel } from "./lib/waferTemplates";
+import { buildWaferTemplateDefinition, createCenterFilledWaferTemplate, defaultWaferTemplateId, getBuiltInWaferTemplates, getWaferTemplateLayout, MPW47_DT_WAFER_TEMPLATE_ID, shortChipLabel, waferTemplateForNewMeasurement } from "./lib/waferTemplates";
 import {
   buildDatasetAnalyticsSummary,
   buildCanonicalDatasetFolderName,
@@ -687,7 +687,9 @@ function hydrateSettings(stored = {}) {
     propagationWaveguideStartMm: start,
     propagationWaveguideIntervalMm: interval,
     propagationWaveguideManualMode: manualMode,
-    defaultWaferTemplateId: stored.defaultWaferTemplateId || defaultWaferTemplateId(),
+    defaultWaferTemplateId: stored.defaultWaferTemplateId && stored.defaultWaferTemplateId !== MPW47_DT_WAFER_TEMPLATE_ID
+      ? stored.defaultWaferTemplateId
+      : defaultWaferTemplateId(),
     propagationWaveguideLengthsMm: cloneWaveguideLengthMap(
       stored.propagationWaveguideLengthsMm,
       count,
@@ -1462,6 +1464,7 @@ function formatInsertionMetric(field, value) {
 
 function WaferMapPanel({
   cells,
+  template,
   metricKey,
   selectedChip,
   onSelect,
@@ -1472,7 +1475,8 @@ function WaferMapPanel({
   colorScaleMid = null,
   colorScaleMax = null,
   unit,
-  metricTitle
+  metricTitle,
+  showScale = true
 }) {
   if (!cells.length) {
     return <div className="chart-empty">No wafermap values available for this metric.</div>;
@@ -1480,6 +1484,7 @@ function WaferMapPanel({
 
   const figure = buildWaferMapFigureModel({
     cells,
+    template,
     metricKey,
     overlayMode,
     selectedChip,
@@ -1490,7 +1495,7 @@ function WaferMapPanel({
   const scaleUnit = unit || (metricKey === "propagation" ? "dB/cm" : metricKey === "heater" ? "mW/π" : "dB");
 
   return (
-    <div className="wafer-card-layout">
+    <div className={`wafer-card-layout${showScale ? "" : " wafer-card-layout-no-scale"}`}>
       <div className="wafer-outline-shell">
         {templateName ? <div className="wafer-template-badge">{templateName}</div> : null}
         <svg viewBox={`0 0 ${figure.svgWidth} ${figure.svgHeight}`} className="wafermap-svg" role="img" aria-label={`Wafermap for ${metricTitle || metricLabel(metricKey)}`}>
@@ -1552,7 +1557,7 @@ function WaferMapPanel({
           })}
         </svg>
       </div>
-      <div className="wafer-side-scale" aria-label={`${metricTitle || metricLabel(metricKey)} colour scale`}>
+      {showScale ? <div className="wafer-side-scale" aria-label={`${metricTitle || metricLabel(metricKey)} colour scale`}>
         <span className="wafer-scale-title">Scale</span>
         <div className="wafer-scale-bar" aria-hidden="true">
           <i className="wafer-scale-tick high" />
@@ -1565,7 +1570,7 @@ function WaferMapPanel({
           <span className="low"><strong>{figure.range ? figure.range.min.toFixed(2) : "--"}</strong><small>Low</small></span>
         </div>
         <span className="wafer-scale-unit">{scaleUnit}</span>
-      </div>
+      </div> : null}
     </div>
   );
 }
@@ -2186,7 +2191,7 @@ function WaveguideLengthConfigurator({
 }
 
 function WafermapsLibrary({ draft, onDraftChange, onSaveTemplate, templates, selectedTemplateId, onUseTemplate, onDeleteTemplate }) {
-  const previewTemplate = createCenterFilledWaferTemplate(draft);
+  const previewTemplate = useMemo(() => draft.layout ? draft : createCenterFilledWaferTemplate(draft), [draft]);
 
   return (
     <section className="library-stack">
@@ -2194,25 +2199,37 @@ function WafermapsLibrary({ draft, onDraftChange, onSaveTemplate, templates, sel
         <div className="analysis-card-head">
           <div>
             <h2>Wafermaps</h2>
-            <p>Create reusable wafermap templates for different chip sizes and chip populations. Chips are filled from the centre of a fixed 8-inch wafer outline for a uniform layout.</p>
+            <p>Use a saved wafermap or generate a custom layout on a 200 mm wafer.</p>
           </div>
           <div className="library-action-row">
-            <button type="button" onClick={onSaveTemplate}>Generate And Save Template</button>
+            <button type="button" onClick={() => onSaveTemplate(previewTemplate)} disabled={!previewTemplate.layout.length}>Generate And Save Template</button>
           </div>
         </div>
-        <div className="settings-grid settings-grid-extended">
-          <label className="mapping-field"><span>Wafer Name</span><input value={draft.name} onChange={(event) => onDraftChange("name", event.target.value)} /></label>
-          <label className="mapping-field"><span>Rows</span><input type="number" min="1" value={draft.rows} onChange={(event) => onDraftChange("rows", Math.max(Number(event.target.value) || 1, 1))} /></label>
-          <label className="mapping-field"><span>Columns</span><input type="number" min="1" value={draft.columns} onChange={(event) => onDraftChange("columns", Math.max(Number(event.target.value) || 1, 1))} /></label>
-          <label className="mapping-field"><span>Row Spacing</span><input type="number" value={draft.rowSpacing} onChange={(event) => onDraftChange("rowSpacing", Number(event.target.value) || 0)} /></label>
-          <label className="mapping-field"><span>Column Spacing</span><input type="number" value={draft.columnSpacing} onChange={(event) => onDraftChange("columnSpacing", Number(event.target.value) || 0)} /></label>
-          <label className="mapping-field"><span>Chip Length (X)</span><input type="number" min="0.1" value={draft.chipLengthX} onChange={(event) => onDraftChange("chipLengthX", Number(event.target.value) || 0.1)} /></label>
-          <label className="mapping-field"><span>Chip Width (Y)</span><input type="number" min="0.1" value={draft.chipWidthY} onChange={(event) => onDraftChange("chipWidthY", Number(event.target.value) || 0.1)} /></label>
-        </div>
-        <div className="translator-metrics wafermap-template-summary">
-          <div><strong>{previewTemplate.layout.length}</strong><span>Generated chips</span></div>
-          <div><strong>{previewTemplate.rows} x {previewTemplate.columns}</strong><span>Grid envelope</span></div>
-          <div><strong>{previewTemplate.notchOrientation}</strong><span>Notch orientation</span></div>
+        <div className="wafermap-template-editor">
+          <div>
+            <div className="settings-grid wafermap-template-fields">
+              <label className="mapping-field"><span>Wafer Name</span><input value={draft.name} onChange={(event) => onDraftChange("name", event.target.value)} /></label>
+              <label className="mapping-field"><span>Rows</span><input type="number" min="1" value={draft.rows} onChange={(event) => onDraftChange("rows", Math.max(Number(event.target.value) || 1, 1))} /></label>
+              <label className="mapping-field"><span>Columns</span><input type="number" min="1" value={draft.columns} onChange={(event) => onDraftChange("columns", Math.max(Number(event.target.value) || 1, 1))} /></label>
+              <label className="mapping-field"><span>Chip Length (X, mm)</span><input type="number" min="0.1" step="any" value={draft.chipLengthX} onChange={(event) => onDraftChange("chipLengthX", Number(event.target.value) || 0.1)} /></label>
+              <label className="mapping-field"><span>Chip Width (Y, mm)</span><input type="number" min="0.1" step="any" value={draft.chipWidthY} onChange={(event) => onDraftChange("chipWidthY", Number(event.target.value) || 0.1)} /></label>
+              <label className="mapping-field"><span>Column Spacing (mm)</span><input type="number" min="0" step="any" value={draft.columnSpacing} onChange={(event) => onDraftChange("columnSpacing", Math.max(Number(event.target.value) || 0, 0))} /></label>
+              <label className="mapping-field"><span>Row Spacing (mm)</span><input type="number" min="0" step="any" value={draft.rowSpacing} onChange={(event) => onDraftChange("rowSpacing", Math.max(Number(event.target.value) || 0, 0))} /></label>
+            </div>
+            <div className="translator-metrics wafermap-template-summary">
+              <div><strong>{previewTemplate.layout.length}</strong><span>Chips in layout</span></div>
+              <div><strong>{previewTemplate.rows} x {previewTemplate.columns}</strong><span>Grid envelope</span></div>
+              <div><strong>{previewTemplate.notchOrientation}</strong><span>Notch orientation</span></div>
+            </div>
+          </div>
+          <div className="wafermap-template-preview">
+            <h3>Wafermap preview</h3>
+            {previewTemplate.layout.length ? (
+              <WaferMapPanel cells={previewTemplate.layout} template={previewTemplate} metricKey="chip" metricTitle="chip numbering" overlayMode="chip" showScale={false} />
+            ) : (
+              <p className="chart-empty">No chips fit on the wafer with these dimensions and gaps.</p>
+            )}
+          </div>
         </div>
       </article>
       <article className="analysis-card">
@@ -2810,6 +2827,7 @@ export default function App() {
 
   useEffect(() => persistStoredJson(STORAGE_KEYS.audit, auditLog), [auditLog]);
   useEffect(() => persistStoredJson(STORAGE_KEYS.settings, appSettings), [appSettings]);
+  useEffect(() => persistStoredJson(STORAGE_KEYS.waferTemplates, savedWaferTemplates), [savedWaferTemplates]);
   useEffect(() => setSettingsDraft(appSettings), [appSettings]);
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -3227,7 +3245,7 @@ export default function App() {
         ? (measurementFiles.length > 1 && firstType === "Automated WST trace" ? "Automated WST trace set" : firstType)
         : "Mixed measurement upload";
       const inferredMap = inferColumnMap(Object.keys(rows[0] || {}));
-      const nextSourceMeta = { ...sourceMeta, ...configPatch, excludedWaveguideIdsByChip: normalizeWaveguideExclusions(packageMetadata.analyticsReview?.excludedWaveguideIdsByChip),
+      const nextSourceMeta = { ...waferTemplateForNewMeasurement(sourceMeta, appSettings.defaultWaferTemplateId, hasLoadedData), ...configPatch, excludedWaveguideIdsByChip: normalizeWaveguideExclusions(packageMetadata.analyticsReview?.excludedWaveguideIdsByChip),
         measurementType: packageMetadata.measurementType || "",
         insertionTraceMap: packageMetadata.insertionTraceMap || {},
         buildingBlock: packageMetadata.buildingBlock || "",
@@ -3303,7 +3321,7 @@ export default function App() {
       }
       const inferredMap = inferColumnMap(Object.keys(result.rows[0] || {}));
       const nextSourceMeta = {
-        ...sourceMeta,
+        ...waferTemplateForNewMeasurement(sourceMeta, appSettings.defaultWaferTemplateId, hasLoadedData),
         ...result.sourceMetaPatch,
         heaterTrackingWavelengthNm: sourceMeta.heaterTrackingWavelengthNm ?? sourceMeta.propagationTargetWavelengthNm ?? 1550,
         heaterPeakProminenceDb: sourceMeta.heaterPeakProminenceDb ?? 5,
@@ -3712,7 +3730,13 @@ export default function App() {
       startTransition(() => setSourceMeta(nextSourceMeta));
     });
   }
-  function updateWaferTemplateDraft(field, value) { setWaferTemplateDraft((previous) => ({ ...previous, [field]: value })); }
+  function updateWaferTemplateDraft(field, value) {
+    setWaferTemplateDraft((previous) => ({
+      ...previous,
+      [field]: value,
+      layout: field === "name" ? previous.layout : undefined
+    }));
+  }
   function useWaferTemplate(template) {
     setSourceMeta((previous) => ({
       ...previous,
@@ -3726,23 +3750,25 @@ export default function App() {
       name: template.name || DEFAULT_WAFER_TEMPLATE_DRAFT.name,
       rows: template.rows || DEFAULT_WAFER_TEMPLATE_DRAFT.rows,
       columns: template.columns || DEFAULT_WAFER_TEMPLATE_DRAFT.columns,
-      rowSpacing: template.rowSpacing || DEFAULT_WAFER_TEMPLATE_DRAFT.rowSpacing,
-      columnSpacing: template.columnSpacing || DEFAULT_WAFER_TEMPLATE_DRAFT.columnSpacing,
+      rowSpacing: template.rowSpacing ?? DEFAULT_WAFER_TEMPLATE_DRAFT.rowSpacing,
+      columnSpacing: template.columnSpacing ?? DEFAULT_WAFER_TEMPLATE_DRAFT.columnSpacing,
       chipLengthX: template.chipLengthX || DEFAULT_WAFER_TEMPLATE_DRAFT.chipLengthX,
       chipWidthY: template.chipWidthY || DEFAULT_WAFER_TEMPLATE_DRAFT.chipWidthY,
+      layout: template.layout,
+      waferDiameterMm: template.waferDiameterMm,
       notchOrientation: template.notchOrientation || "south"
     });
     setStatusMessage(`Using wafermap template ${template.name}.`);
   }
-  function saveWaferTemplate() {
-    const nextTemplate = createCenterFilledWaferTemplate({
-      ...waferTemplateDraft,
+  function saveWaferTemplate(previewTemplate) {
+    if (!previewTemplate.layout.length) return;
+    const nextTemplate = buildWaferTemplateDefinition({
+      ...previewTemplate,
       id: waferTemplateDraft.id || createId("wafermap"),
       source: "custom"
     });
     setSavedWaferTemplates((previous) => [nextTemplate, ...previous.filter((template) => template.id !== nextTemplate.id)].slice(0, 40));
     useWaferTemplate(nextTemplate);
-    setWaferTemplateDraft({ ...waferTemplateDraft, id: nextTemplate.id, name: nextTemplate.name });
     appendAudit("wafermap", "Wafermap template saved", `Saved wafermap template ${nextTemplate.name} with ${nextTemplate.layout.length} generated chip slots.`);
   }
   function deleteWaferTemplate(templateId) {
@@ -3787,6 +3813,7 @@ export default function App() {
     try {
       const png = await buildWaferMapPng({
         cells: currentWaferCells,
+        template: currentWaferTemplate,
         metricKey: selectedWaferMetric,
         overlayMode: waferMapOverlayMode,
         templateName: currentWaferTemplate?.name || "",
@@ -3817,6 +3844,7 @@ export default function App() {
     const subtitle = `${projectName || "MPWUNDEFINED"} | ${waferName || "SlotUndefined"}${selectedDate ? ` | ${selectedDate}` : ""}`;
     const { svg } = buildWaferMapSvgDocument({
       cells: currentWaferCells,
+      template: currentWaferTemplate,
       metricKey: selectedWaferMetric,
       overlayMode: waferMapOverlayMode,
       templateName: currentWaferTemplate?.name || "",
@@ -4402,7 +4430,7 @@ export default function App() {
             <ElectricalAnalysisPanel active={activeTab === "electrical"} waferTemplate={currentWaferTemplate} waferTemplates={allWaferTemplates}
               onTemplateChange={(id) => { const template = allWaferTemplates.find((item) => item.id === id); if (template) useWaferTemplate(template); }}
               loadSaved={loadElectricalWorkspace} saveSaved={saveElectricalWorkspace}
-              renderWaferMap={(props) => <WaferMapPanel {...props} metricKey="electrical" overlayMode="chip" templateName={currentWaferTemplate?.name || ""} />} />
+              renderWaferMap={(props) => <WaferMapPanel {...props} template={currentWaferTemplate} metricKey="electrical" overlayMode="chip" templateName={currentWaferTemplate?.name || ""} />} />
           </div>
 
           {isWorkspaceTab ? <>
@@ -4498,6 +4526,7 @@ export default function App() {
                 <div className="wafer-map-workspace">
                   <WaferMapPanel
                     cells={currentWaferCells}
+                    template={currentWaferTemplate}
                     metricKey={selectedWaferMetric}
                     selectedChip={selectedChip}
                     onSelect={setSelectedChip}

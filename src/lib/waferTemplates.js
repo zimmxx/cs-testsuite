@@ -1,5 +1,6 @@
 const DEFAULT_WAFER_TEMPLATE_ID = "wafer-undefined-chip-size";
 const DEFAULT_WAFER_TEMPLATE_NAME = "Wafer-Undefined Chip Size";
+export const MPW47_DT_WAFER_TEMPLATE_ID = "mpw47-dt-wafer-v1";
 
 const BOTTOM_NOTCH_101_TEMPLATE = `
 ChipID	Column	Row
@@ -152,14 +153,44 @@ function layoutToMap(layout = []) {
   return new Map(normalizeLayout(layout).map((entry) => [entry.chipNumber, { dieX: entry.dieX, dieY: entry.dieY }]));
 }
 
+const standardLayout = parseTemplateRows(BOTTOM_NOTCH_101_TEMPLATE);
+const mpw47Layout = [];
+for (const [index, count] of [5, 5, 7, 7, 7, 7, 7, 5, 5].entries()) {
+  const firstColumn = (7 - count) / 2 + 1;
+  for (let dieX = firstColumn; dieX < firstColumn + count; dieX += 1) {
+    const chipNumber = mpw47Layout.length + 1;
+    mpw47Layout.push({ chipId: `Chip${chipNumber}`, chipNumber, dieX, dieY: 9 - index });
+  }
+}
+
+const standardTemplate = {
+  id: DEFAULT_WAFER_TEMPLATE_ID,
+  name: DEFAULT_WAFER_TEMPLATE_NAME,
+  rows: 9,
+  columns: 13,
+  notchOrientation: "south",
+  layout: standardLayout,
+  source: "built-in",
+  description: "Reference bottom-notch wafer template imported from the existing WST chip population."
+};
+
 const BUILT_IN_TEMPLATES = [
+  standardTemplate,
+  { ...standardTemplate, id: "standard-wafer-mpw-v1", name: "StandardWaferMPW_v1" },
   {
-    id: DEFAULT_WAFER_TEMPLATE_ID,
-    name: DEFAULT_WAFER_TEMPLATE_NAME,
+    id: MPW47_DT_WAFER_TEMPLATE_ID,
+    name: "MPW47_DT_Wafer_v1",
+    rows: 9,
+    columns: 7,
+    chipLengthX: 24,
+    chipWidthY: 15.45,
+    columnSpacing: 0,
+    rowSpacing: 0.2,
+    waferDiameterMm: 200,
     notchOrientation: "south",
-    layout: parseTemplateRows(BOTTOM_NOTCH_101_TEMPLATE),
+    layout: mpw47Layout,
     source: "built-in",
-    description: "Reference bottom-notch wafer template imported from the existing WST chip population."
+    description: "Ficontec wafer map numbered from top left, with Chip 28 at the centre."
   }
 ];
 
@@ -213,6 +244,7 @@ export function buildWaferTemplateDefinition(definition = {}) {
     columnSpacing: toNumber(definition.columnSpacing, 1),
     chipLengthX: Math.max(toNumber(definition.chipLengthX, 1), 0.1),
     chipWidthY: Math.max(toNumber(definition.chipWidthY, 1), 0.1),
+    waferDiameterMm: definition.waferDiameterMm,
     notchOrientation: definition.notchOrientation || "south",
     source: definition.source || "custom",
     description: definition.description || "User-generated center-filled wafer template.",
@@ -223,11 +255,12 @@ export function buildWaferTemplateDefinition(definition = {}) {
 export function createCenterFilledWaferTemplate(definition = {}) {
   const rows = clampInteger(definition.rows, 9);
   const columns = clampInteger(definition.columns, 13);
-  const rowSpacing = Math.max(toNumber(definition.rowSpacing, 1), 0.1);
-  const columnSpacing = Math.max(toNumber(definition.columnSpacing, 1), 0.1);
+  const rowSpacing = Math.max(toNumber(definition.rowSpacing, 1), 0);
+  const columnSpacing = Math.max(toNumber(definition.columnSpacing, 1), 0);
   const chipLengthX = Math.max(toNumber(definition.chipLengthX, 1), 0.1);
   const chipWidthY = Math.max(toNumber(definition.chipWidthY, 1), 0.1);
-  const radius = 100;
+  const waferDiameterMm = 200;
+  const radius = waferDiameterMm / 2;
   const cellWidth = Math.max(chipLengthX + columnSpacing, 0.1);
   const cellHeight = Math.max(chipWidthY + rowSpacing, 0.1);
   const xCenter = (columns + 1) / 2;
@@ -265,6 +298,7 @@ export function createCenterFilledWaferTemplate(definition = {}) {
     columnSpacing,
     chipLengthX,
     chipWidthY,
+    waferDiameterMm,
     layout: numberedLayout
   });
 }
@@ -304,4 +338,15 @@ export function applyWaferTemplate(row, templateOrId = DEFAULT_WAFER_TEMPLATE_ID
 
 export function defaultWaferTemplateId() {
   return DEFAULT_WAFER_TEMPLATE_ID;
+}
+
+export function waferTemplateForNewMeasurement(sourceMeta, defaultTemplateId, replacingMeasurement) {
+  if (!replacingMeasurement || sourceMeta.waferTemplateId !== MPW47_DT_WAFER_TEMPLATE_ID) return sourceMeta;
+  return {
+    ...sourceMeta,
+    waferTemplateId: defaultTemplateId,
+    waferTemplateLayout: null,
+    waferTemplateName: "",
+    waferTemplateNotchOrientation: "south"
+  };
 }

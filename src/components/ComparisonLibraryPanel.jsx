@@ -221,6 +221,7 @@ function MiniWaferMap({ cells, metricKey, template, colorRange, overlayMode, dis
   });
   const figure = buildWaferMapFigureModel({
     cells: mapCells,
+    template,
     metricKey,
     overlayMode: metricKey === "chip" ? "chip" : overlayMode,
     colorScaleMin: colorRange?.min,

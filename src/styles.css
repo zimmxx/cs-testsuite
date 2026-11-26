@@ -2209,6 +2209,41 @@ tbody tr:last-child td {
   margin-top: 14px;
 }
 
+.wafermap-template-preview {
+  justify-self: center;
+  width: min(100%, 430px);
+  min-width: 0;
+}
+
+.wafermap-template-editor {
+  display: grid;
+  gap: 20px;
+}
+
+.settings-grid.wafermap-template-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wafermap-template-fields > :first-child {
+  grid-column: 1 / -1;
+}
+
+.wafermap-template-fields input {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 960px) {
+  .wafermap-template-editor {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+.wafer-card-layout-no-scale {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 @media (max-width: 1200px) {
   .waveguide-generator-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
